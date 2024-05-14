@@ -9,17 +9,11 @@ Welcome to the MarvinX Server, a powerful and efficient C++ server inspired by N
 ## Table of Contents
 
 1. Introduction
-
 2. Features
-
 3. Installation
-
 4. Configuration
-
 5. Usage
-
 6. Contributing
-
 7. License
 
 ## Introduction
@@ -29,15 +23,10 @@ MarvinX is a high-performance, lightweight server designed to handle concurrent 
 ## Features
 
 - High concurrency handling
-
 - Efficient resource usage
-
 - Easy configuration
-
 - Modular architecture
-
 - Robust error handling
-
 - Customizable modules
 
 ## Installation
@@ -45,7 +34,6 @@ MarvinX is a high-performance, lightweight server designed to handle concurrent 
 ### Prerequisites
 
 - C++98
-
 - Makefile
 
 ### Steps
