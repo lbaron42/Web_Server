@@ -20,7 +20,7 @@ int main(int argc, char** argv)
     std::string file = path + argv[1];
 
     // C++ Method to "Read from file"
-    std::ifstream inputFile(file);
+    std::ifstream inputFile(path);
     if (!inputFile.is_open()) {
         std::cerr << "Failed to open the file." << std::endl;
         return 1;
