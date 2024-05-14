@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:22:31 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/14 10:11:55 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/14 10:52:33 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,9 +29,11 @@ int	main(int ac, char **av)
 		std::cerr << "ERROR: Couldn't open config file" << std::endl;
 		return EXIT_FAILURE;
 	}
+	// parse and validate config file
+	config.close();
+
 	Server serv;
 	if (serv.initialize())
 		serv.start();
-	config.close();
 	return EXIT_SUCCESS;
 }
