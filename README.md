@@ -2,6 +2,8 @@
 
 WIP
 
+![build](https://github.com/lbaron42/Web_Server/actions/workflows/build.yml/badge.svg)
+
 ## Deploy
 
 ```
