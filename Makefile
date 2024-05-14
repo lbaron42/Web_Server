@@ -8,8 +8,6 @@ BINDIR := bin
 CXX := c++
 CXXFLAGS := -Wall -Wextra -Werror -std=c++98 -O2 -I$(INCDIR)
 debug: CXXFLAGS += -Og -ggdb3
-
-deploy: CXX := g++
 deploy: LDFLAGS += -static -static-libstdc++
 
 MKDIR := mkdir

@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/14 10:57:16 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/14 11:05:15 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,6 +14,9 @@
 # define SERVER_HPP
 
 # include <cstdlib>
+# include <fstream>
+# include <iostream>
+# include <map>
 # include <set>
 # include <string>
 
