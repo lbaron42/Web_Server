@@ -3,15 +3,15 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+         #
+#    By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/05/14 11:22:55 by mcutura           #+#    #+#              #
-#    Updated: 2024/05/14 11:23:26 by mcutura          ###   ########.fr        #
+#    Updated: 2024/05/15 11:10:49 by lbaron           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 NAME := webserv
-SRCS := main Server
+SRCS := main Server Config
 
 SRCDIR := src
 INCDIR := include
