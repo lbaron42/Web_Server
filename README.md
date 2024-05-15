@@ -6,6 +6,16 @@
 
 Welcome to the MarvinX Server, a powerful and efficient C++ server inspired by Nginx and named after the iconic Marvin the Paranoid Android from "The Hitchhiker's Guide to the Galaxy."
 
+[![build](https://github.com/lbaron42/Web_Server/actions/workflows/build.yml/badge.svg)](https://github.com/lbaron42/Web_Server/actions/workflows/build.yml)
+
+## Deploy
+
+```
+docker build . -t webserv \
+&& docker run --name c-webserv -p 8080:8080 -it webserv
+```
+Server now available at 127.0.0.1:8080
+
 ## Table of Contents
 
 1. Introduction

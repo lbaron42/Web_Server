@@ -1,0 +1,7 @@
+.dockerignore
+.gitignore
+.vscode
+en.subject.pdf
+webserv
+bin/
+README.md
