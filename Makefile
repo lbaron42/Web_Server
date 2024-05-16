@@ -6,12 +6,12 @@
 #    By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/05/14 11:22:55 by mcutura           #+#    #+#              #
-#    Updated: 2024/05/15 11:10:49 by lbaron           ###   ########.fr        #
+#    Updated: 2024/05/16 16:01:48 by lbaron           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 NAME := webserv
-SRCS := main Server Config
+SRCS := main Server Config Utils
 
 SRCDIR := src
 INCDIR := include
