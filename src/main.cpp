@@ -6,15 +6,18 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:22:31 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/14 10:52:33 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/16 17:16:09 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
+#include <csignal>
 #include <cstdlib>
 #include <iostream>
 #include <fstream>
 
 #include "Server.hpp"
+
+using marvinX::stop_server;
 
 int	main(int ac, char **av)
 {
@@ -32,8 +35,12 @@ int	main(int ac, char **av)
 	// parse and validate config file
 	config.close();
 
-	Server serv;
+	Server serv("MarvinX", "8080");
 	if (serv.initialize())
+	{
+		std::signal(SIGINT, &stop_server);
+		std::signal(SIGTERM, &stop_server);
 		serv.start();
+	}
 	return EXIT_SUCCESS;
 }

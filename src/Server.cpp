@@ -6,42 +6,71 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/11 09:35:56 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/16 17:12:45 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Server.hpp"
+#include <sys/epoll.h>
+#include <sys/socket.h>
 
-Server::Server()
-{
-	port_ = "8080";
+////////////////////////////////////////////////////////////////////////////////
+//	Signal handling
+////////////////////////////////////////////////////////////////////////////////
+namespace marvinX {
+	extern "C" void stop_server(int sig)
+	{
+		(void)sig;
+		g_stopme = 1;
+	}
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//	CTOR/DTOR
+////////////////////////////////////////////////////////////////////////////////
+Server::Server(std::string const &name, std::string const &port) \
+	: name_(name), port_(port)
+{}
 
 Server::~Server()
 {}
 
+////////////////////////////////////////////////////////////////////////////////
+//	Public methods
+////////////////////////////////////////////////////////////////////////////////
+
 bool Server::initialize()
 {
-	setup_socket();
-	// epoll_create(int) requires int param greater than 0 that is IGNORED
-	// epoll_create1(int flags) would allow passing EPOLL_CLOEXEC instead
-	// but it's not on our list of allowed functions for this project, so:
-	if ((this->epoll_fd_ = epoll_create(42)) == -1) {
-		std::cerr << "Failed to create epoll file descriptor" << std::endl;
-		// this->cleanup();
+	if (!setup_socket())
 		return false;
+	if (STRICT_EVALUATOR)
+	{
+		if ((this->epoll_fd_ = epoll_create(42)) == -1) {
+			std::cerr << "Failed to create epoll file descriptor" << std::endl;
+			this->cleanup();
+			return false;
+		}
+		fcntl(this->epoll_fd_, F_SETFL, O_CLOEXEC);
 	}
-	fcntl(this->epoll_fd_, F_SETFL, O_CLOEXEC);
+	else
+	{
+		if ((this->epoll_fd_ = epoll_create1(EPOLL_CLOEXEC)) == -1) {
+			std::cerr << "Failed to create epoll file descriptor" << std::endl;
+			this->cleanup();
+			return false;
+		}
+	}
 
 	epoll_event event = {};
 	event.events = EPOLLIN;
 	event.data.fd = listen_fd_;
 	if (epoll_ctl(this->epoll_fd_, EPOLL_CTL_ADD, listen_fd_, &event)) {
 		std::cerr << "Failed to add fd to epoll_ctl" << std::endl;
-		// this->cleanup();
+		this->cleanup();
 		return false;
 	}
-	std::cout << "Server initialized" << std::endl;
+	std::cout << "Server initialized: "
+			<< this->name_ << ":" << this->port_ << std::endl;
 	return true;
 }
 
@@ -52,9 +81,9 @@ void Server::start()
 	epoll_event	events[max_events];
 
 	std::cout << "Listening for connections..." << std::endl;
-	while (true) {
+	while (!marvinX::g_stopme) {
 		int n_events = epoll_wait(this->epoll_fd_, events, max_events, timeout);
-		if (n_events == -1) {
+		if (n_events == -1 && !marvinX::g_stopme) {
 			std::cerr << "Failed epoll_wait" << std::endl;
 			break;
 		}
@@ -76,9 +105,13 @@ void Server::start()
 			}
 		}
 	}
-	// this->cleanup();
-	std::cout << " Server shutting down" << std::endl;
+	this->cleanup();
+	std::cout << "[SIG] Server shutting down" << std::endl;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//	Private innards
+////////////////////////////////////////////////////////////////////////////////
 
 bool Server::setup_socket()
 {
@@ -130,15 +163,15 @@ bool Server::setup_socket()
 void Server::add_client(int listen_fd)
 {
 	// We default to be anonymous accepting (non-tracking) server
-	int client_fd = accept(listen_fd, NULL, NULL);
+	int client_fd = STRICT_EVALUATOR ? \
+				accept(listen_fd, NULL, NULL) : \
+				accept4(listen_fd, NULL, NULL, SOCK_CLOEXEC | SOCK_NONBLOCK);
 	if (client_fd == -1) {
 		std::cerr << "Failed to accept connection" << std::endl;
 		return ;
 	}
-	// with accept4(..., SOCK_NONBLOCK | SOCK_CLOEXEC) instead of accept(...)
-	// we would be able to skip this syscall
-	// alas it's not on the list of allowed C functions for this project, so:
-	fcntl(client_fd, F_SETFL, O_NONBLOCK | O_CLOEXEC);
+	if (STRICT_EVALUATOR)
+		fcntl(client_fd, F_SETFL, O_NONBLOCK | O_CLOEXEC);
 
 	epoll_event event = {};
 	event.events = EPOLLIN;
@@ -181,4 +214,9 @@ void Server::handle_request(int fd)
 			buff[r] = '\0';
 	}
 	std::cout << "Received: " << buff << std::endl;
+}
+
+void Server::cleanup()
+{
+	return ;
 }
