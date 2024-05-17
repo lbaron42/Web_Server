@@ -6,12 +6,13 @@
 #    By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/05/14 11:22:55 by mcutura           #+#    #+#              #
-#    Updated: 2024/05/17 02:51:16 by mcutura          ###   ########.fr        #
+#    Updated: 2024/05/17 03:12:23 by mcutura          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 NAME := webserv
-SRCS := main Server Log
+MAIN := main
+SRCS := Log Server
 
 SRCDIR := src
 INCDIR := include
@@ -38,8 +39,8 @@ COLOUR_END := \033[0m
 
 all: $(NAME)
 
-$(NAME): $(SRCS:%=$(BINDIR)/%.o)
-	$(CXX) $(SRCS:%=$(BINDIR)/%.o) -o $(NAME) $(LDFLAGS)
+$(NAME): $(SRCS:%=$(BINDIR)/%.o) $(MAIN:%=$(BINDIR)/%.o)
+	$(CXX) $(SRCS:%=$(BINDIR)/%.o) $(MAIN:%=$(BINDIR)/%.o) -o $(NAME) $(LDFLAGS)
 $(BINDIR)/%.o: $(SRCDIR)/%.cpp | $(BINDIR)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $^ -o $@
 $(BINDIR):
@@ -60,17 +61,13 @@ check: $(SRCS:%=$(BINDIR)/%.o) $(TESTS:%=%.out) $(TESTS:%=%.test)
 	@echo "$(COLOUR_GREEN)All tests passed successfully$(COLOUR_END)"
 
 %.test: %.out
-	@if [ ! "$(*F)" = "test_main" ]; then \
-		(./$(*:%=%.out) >$(TESTLOG) 2>&1 \
-		&& echo "$(COLOUR_GREEN)[OK]$(COLOUR_END) $(*F)") \
-		|| (echo "$(COLOUR_RED)[KO]$(COLOUR_END) $(*F) failed" && exit 1) ; \
-	fi
+	@(./$(*:%=%.out) >$(TESTLOG) 2>&1 \
+	&& echo "$(COLOUR_GREEN)[OK]$(COLOUR_END) $(*F)") \
+	|| (echo "$(COLOUR_RED)[KO]$(COLOUR_END) $(*F) failed" && exit 1)
 
 $(UNITTESTDIR)/test_%.out: $(UNITTESTDIR)/test_%.cpp
-	@if [ ! "$*" = "main" ]; then \
-		$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $(@:%.out=%.o) ; \
-		$(CXX) $(@:%.out=%.o) $(BINDIR)/$*.o -o $@ ; \
-	fi
+	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $(@:%.out=%.o)
+	@$(CXX) $(@:%.out=%.o) $(SRCS:%=$(BINDIR)/%.o) -o $@
 
 debug: all
 deploy: all

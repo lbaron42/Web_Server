@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 23:51:31 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/17 01:03:42 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/17 03:01:24 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,14 +17,6 @@
 # include <fstream>
 # include <iostream>
 #include <ostream>
-
-enum e_loglevel
-{
-	DEBUG,
-	INFO,
-	WARN,
-	ERROR
-};
 
 class Log
 {
