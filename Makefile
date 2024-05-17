@@ -6,13 +6,13 @@
 #    By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/05/14 11:22:55 by mcutura           #+#    #+#              #
-#    Updated: 2024/05/17 17:10:07 by mcutura          ###   ########.fr        #
+#    Updated: 2024/05/17 17:19:36 by mcutura          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 NAME := webserv
 MAIN := main
-SRCS := Log Server Request Reply
+SRCS := Log Server Request Reply Config Utils
 
 SRCDIR := src
 INCDIR := include

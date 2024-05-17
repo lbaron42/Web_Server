@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:22:31 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/17 12:06:01 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/17 17:22:39 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,14 +27,12 @@ int	main(int ac, char **av)
 		log.set_verbosity(Log::DEBUG);
 	log << Log::DEBUG << "Running in debug mode" << std::endl;
 
-	std::ifstream	config(av[1]);
-	if (!config.is_open())
+	Config	conf;
+	if (conf.configInit(av[1]))
 	{
 		log << Log::ERROR << "Couldn't open config file" << std::endl;
 		return EXIT_FAILURE;
 	}
-	// parse and validate config file
-	config.close();
 
 	Server serv("MarvinX", "8080", log);
 	if (serv.initialize())
@@ -45,3 +43,4 @@ int	main(int ac, char **av)
 	}
 	return EXIT_SUCCESS;
 }
+
