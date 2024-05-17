@@ -3,3 +3,6 @@ en.subject.pdf
 webserv
 bin/
 Subject-Testers/
+*.o
+*.out
+*.log
