@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/17 05:50:39 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/17 10:21:39 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,7 +27,7 @@ namespace marvinX {
 //	CTOR/DTOR
 ////////////////////////////////////////////////////////////////////////////////
 Server::Server(std::string const &name, std::string const &port, Log &logger) \
-	: name_(name), port_(port), log(logger)
+	: name_(name), port_(port), root_("/tmp"), log(logger)
 {}
 
 Server::~Server()
@@ -219,6 +219,26 @@ void Server::recv_request(int fd)
 	}
 	if (DEBUG_MODE)
 		log << Log::DEBUG << "Received " << r << ": " << msg << std::endl;
+	std::map<int, Request*>::iterator it = this->requests_.find(fd);
+	if (it == this->requests_.end())
+	{
+		it = this->requests_.insert(std::make_pair
+				(fd, new Request(msg, this->log))).first;
+		int status = it->second->validate_request_line();
+		if (!status)
+			return ;
+		if (status != 200)
+		{
+			this->replies_[fd] = Reply::get_status_line(status);
+			log << Log::DEBUG << this->replies_[fd] << std::endl;
+			delete it->second;
+			this->requests_.erase(it);
+		}
+	}
+	else
+	{
+		it->second->append(msg);
+	}
 
 	epoll_event event = {};
 	event.events = EPOLLOUT;
@@ -234,9 +254,20 @@ void Server::send_reply(int fd)
 	ssize_t		s;
 	std::string	rep;
 
-	rep = "HTTP/1.1 418 I'm a teapot\r\n\r\n";
+	std::map<int, std::string>::iterator it = this->replies_.find(fd);
+	if (it == this->replies_.end())
+		return ;
+	rep = it->second;
 	s = send(fd, rep.c_str(), rep.length(), MSG_DONTWAIT);
-	(void)s;
+	log << Log::DEBUG << "Sent " << s << ": " << rep.c_str();
+	if (s < 0) {
+		log << Log::ERROR << "Failed to send message" << std::endl;
+		this->close_connection(fd);
+	} else if (static_cast<size_t>(s) < rep.length())
+	{
+		it->second.erase(0, s);
+		return ;
+	}
 	epoll_event event = {};
 	event.events = EPOLLIN;
 	event.data.fd = fd;

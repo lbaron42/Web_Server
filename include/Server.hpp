@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/17 04:48:39 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/17 10:09:40 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -38,6 +38,8 @@
 # include <unistd.h>
 
 # include "Log.hpp"
+# include "Reply.hpp"
+# include "Request.hpp"
 
 namespace marvinX
 {
@@ -56,12 +58,15 @@ class Server
 		void start();
 
 	private:
-		std::string const	name_;
-		std::string const	port_;
-		int					listen_fd_;
-		int					epoll_fd_;
-		std::set<int>		clients_;
-		Log					&log;
+		int							listen_fd_;
+		int							epoll_fd_;
+		std::string const			name_;
+		std::string const			port_;
+		std::string const			root_;
+		std::set<int>				clients_;
+		std::map<int, Request*>		requests_;
+		std::map<int, std::string>	replies_;
+		Log							&log;
 
 		bool setup_socket();
 		void add_client(int listen_fd);

@@ -6,13 +6,13 @@
 #    By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/05/14 11:22:55 by mcutura           #+#    #+#              #
-#    Updated: 2024/05/17 05:52:02 by mcutura          ###   ########.fr        #
+#    Updated: 2024/05/17 09:23:15 by mcutura          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 NAME := webserv
 MAIN := main
-SRCS := Log Server
+SRCS := Log Server Request Reply
 
 SRCDIR := src
 INCDIR := include
@@ -76,4 +76,4 @@ nitpicking: all
 
 container:
 	docker build . -t marvinx
-	docker run -p 8080:8080 -it marvinx
+	docker run --name c-marvinx -p 8080:8080 -it marvinx

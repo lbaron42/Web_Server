@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 23:51:31 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/17 05:29:58 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/17 09:16:01 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,6 +20,9 @@
 class Log
 {
 	public:
+		Log();
+		virtual ~Log();
+
 		enum e_loglevel
 		{
 			DEBUG,
@@ -27,9 +30,6 @@ class Log
 			WARN,
 			ERROR
 		};
-
-		Log();
-		virtual ~Log();
 
 		void set_output(std::ostream *stream, bool is_file);
 		void set_verbosity(e_loglevel const &verbosity);
