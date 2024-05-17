@@ -6,13 +6,15 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/16 17:12:45 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/17 02:57:46 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Server.hpp"
+#include <string>
 #include <sys/epoll.h>
 #include <sys/socket.h>
+#include <unistd.h>
 
 ////////////////////////////////////////////////////////////////////////////////
 //	Signal handling
@@ -28,8 +30,8 @@ namespace marvinX {
 ////////////////////////////////////////////////////////////////////////////////
 //	CTOR/DTOR
 ////////////////////////////////////////////////////////////////////////////////
-Server::Server(std::string const &name, std::string const &port) \
-	: name_(name), port_(port)
+Server::Server(std::string const &name, std::string const &port, Log &logger) \
+	: name_(name), port_(port), log(logger)
 {}
 
 Server::~Server()
@@ -46,7 +48,7 @@ bool Server::initialize()
 	if (STRICT_EVALUATOR)
 	{
 		if ((this->epoll_fd_ = epoll_create(42)) == -1) {
-			std::cerr << "Failed to create epoll file descriptor" << std::endl;
+			log << "[ERROR] " << "Failed to create epoll file descriptor" << std::endl;
 			this->cleanup();
 			return false;
 		}
@@ -55,7 +57,7 @@ bool Server::initialize()
 	else
 	{
 		if ((this->epoll_fd_ = epoll_create1(EPOLL_CLOEXEC)) == -1) {
-			std::cerr << "Failed to create epoll file descriptor" << std::endl;
+			log << "[ERROR] " << "Failed to create epoll file descriptor" << std::endl;
 			this->cleanup();
 			return false;
 		}
@@ -65,7 +67,7 @@ bool Server::initialize()
 	event.events = EPOLLIN;
 	event.data.fd = listen_fd_;
 	if (epoll_ctl(this->epoll_fd_, EPOLL_CTL_ADD, listen_fd_, &event)) {
-		std::cerr << "Failed to add fd to epoll_ctl" << std::endl;
+		log << "[ERROR] " << "Failed to add fd to epoll_ctl" << std::endl;
 		this->cleanup();
 		return false;
 	}
@@ -76,15 +78,16 @@ bool Server::initialize()
 
 void Server::start()
 {
-	int const	timeout = 4200;
+	int const	timeout = 420;
 	int const	max_events = 32;
 	epoll_event	events[max_events];
 
 	std::cout << "Listening for connections..." << std::endl;
 	while (!marvinX::g_stopme) {
 		int n_events = epoll_wait(this->epoll_fd_, events, max_events, timeout);
-		if (n_events == -1 && !marvinX::g_stopme) {
-			std::cerr << "Failed epoll_wait" << std::endl;
+		if (n_events == -1) {
+			if (!marvinX::g_stopme)
+				log << "[ERROR] " << "Failed epoll_wait" << std::endl;
 			break;
 		}
 		for (int i = 0; i < n_events; ++i) {
@@ -98,10 +101,10 @@ void Server::start()
 				continue;
 			}
 			if (events[i].events & EPOLLIN) {
-				this->handle_request(fd);
+				this->recv_request(fd);
 			}
 			if (events[i].events & EPOLLOUT) {
-				//this->send_reply(fd)
+				this->send_reply(fd);
 			}
 		}
 	}
@@ -125,7 +128,7 @@ bool Server::setup_socket()
 	hints.ai_flags = AI_PASSIVE;
 
 	if (int ret = getaddrinfo(NULL, port_.c_str(), &hints, &servinfo)) {
-		std::cerr << "getaddrinfo error: " \
+		log << "[ERROR] " << "getaddrinfo error: " \
 			<< gai_strerror(ret) << std::endl;
 		return false;
 	}
@@ -136,7 +139,7 @@ bool Server::setup_socket()
 			continue;
 		int re = 1L;
 		if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &re, sizeof re) == -1) {
-			std::cerr << "Failed to set socket as reusable" << std::endl;
+			log << "[ERROR] " << "Failed to set socket as reusable" << std::endl;
 			(void)close(sfd);
 			return false;
 		}
@@ -148,11 +151,11 @@ bool Server::setup_socket()
 	}
 	freeaddrinfo(servinfo);
 	if (!ptr) {
-		std::cerr << "Failed to initialize server socket" << std::endl;
+		log << "[ERROR] " << "Failed to initialize server socket" << std::endl;
 		return false;
 	}
-	if (listen(sfd, Server::BACKLOG_) == -1) {
-		std::cerr << "Failed to listen on bound socket" << std::endl;
+	if (listen(sfd, SOMAXCONN) == -1) {
+		log << "[ERROR] " << "Failed to listen on bound socket" << std::endl;
 		(void)close(sfd);
 		return false;
 	}
@@ -167,7 +170,7 @@ void Server::add_client(int listen_fd)
 				accept(listen_fd, NULL, NULL) : \
 				accept4(listen_fd, NULL, NULL, SOCK_CLOEXEC | SOCK_NONBLOCK);
 	if (client_fd == -1) {
-		std::cerr << "Failed to accept connection" << std::endl;
+		log << "[ERROR] " << "Failed to accept connection" << std::endl;
 		return ;
 	}
 	if (STRICT_EVALUATOR)
@@ -177,10 +180,10 @@ void Server::add_client(int listen_fd)
 	event.events = EPOLLIN;
 	event.data.fd = client_fd;
 	if (epoll_ctl(this->epoll_fd_, EPOLL_CTL_ADD, client_fd, &event)) {
-		std::cerr << "Failed to add client_fd to epoll_ctl" << std::endl;
+		log << "[ERROR] " << "Failed to add client_fd to epoll_ctl" << std::endl;
 		(void)close(client_fd);
 	} else if (!this->clients_.insert(client_fd).second) {
-		std::cerr << "Failed storing client fd: " << client_fd << std::endl;
+		log << "[ERROR] " << "Failed storing client fd: " << client_fd << std::endl;
 		this->close_connection(client_fd);
 	} else {
 		std::cout << "Client connection: " << client_fd << std::endl;
@@ -190,30 +193,54 @@ void Server::add_client(int listen_fd)
 void Server::close_connection(int fd)
 {
 	if (epoll_ctl(this->epoll_fd_, EPOLL_CTL_DEL, fd, NULL) == -1) {
-		std::cerr << "Failed to remove fd from epoll" << std::endl;
+		log << "[ERROR] " << "Failed to remove fd from epoll" << std::endl;
 	}
 	(void)close(fd);
 	this->clients_.erase(fd);
 	std::cout << "Closed connection with client: " << fd << std::endl;
 }
 
-void Server::handle_request(int fd)
+void Server::recv_request(int fd)
 {
-	static int const	len = 4096;
+	static int const	len = 4097;
 	char				buff[len];
 
-	switch (ssize_t r = recv(fd, buff, len - 1, MSG_DONTWAIT)) {
+	ssize_t r = recv(fd, buff, len - 1, MSG_DONTWAIT);
+	switch (r) {
 		case -1:
 			return ;
 		case 0:
-			std::cout << "Client " << fd \
-				<< " has closed connection" << std::endl;
+			std::cout << "Client closed connection" << std::endl;
 			this->close_connection(fd);
 			return ;
 		default:
 			buff[r] = '\0';
 	}
-	std::cout << "Received: " << buff << std::endl;
+	std::cout << "Received " << r << ": " << buff << std::endl;
+
+	epoll_event event = {};
+	event.events = EPOLLOUT;
+	event.data.fd = fd;
+	if (epoll_ctl(this->epoll_fd_, EPOLL_CTL_MOD, fd, &event)) {
+		log << "[ERROR] " << "Failed to modify polling" << std::endl;
+		this->close_connection(fd);
+	}
+}
+
+void Server::send_reply(int fd)
+{
+	ssize_t		s;
+	std::string	rep;
+
+	rep = "HTTP/1.1 200 OK\r\n\r\n";
+	s = send(fd, rep.c_str(), rep.length(), MSG_DONTWAIT);
+	epoll_event event = {};
+	event.events = EPOLLIN;
+	event.data.fd = fd;
+	if (epoll_ctl(this->epoll_fd_, EPOLL_CTL_MOD, fd, &event)) {
+		log << "[ERROR] " << "Failed to modify polling" << std::endl;
+		this->close_connection(fd);
+	}
 }
 
 void Server::cleanup()

@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/16 17:10:15 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/17 02:55:17 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,6 +33,8 @@
 # include <sys/types.h>
 # include <unistd.h>
 
+# include "Log.hpp"
+
 namespace marvinX
 {
 	volatile static sig_atomic_t	g_stopme(0);
@@ -43,24 +45,25 @@ namespace marvinX
 class Server
 {
 	public:
-		Server(std::string const &name, std::string const &port);
+		Server(std::string const &name, std::string const &port, Log &logger);
 		~Server();
 
 		bool initialize();
 		void start();
 
 	private:
-		static int const	BACKLOG_ = 10;
 		std::string const	name_;
 		std::string const	port_;
 		int					listen_fd_;
 		int					epoll_fd_;
 		std::set<int>		clients_;
+		Log					&log;
 
 		bool setup_socket();
 		void add_client(int listen_fd);
 		void close_connection(int fd);
-		void handle_request(int fd);
+		void recv_request(int fd);
+		void send_reply(int fd);
 		void cleanup();
 
 		/* no copy */
