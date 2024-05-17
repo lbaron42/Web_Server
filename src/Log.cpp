@@ -6,14 +6,14 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 23:58:03 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/17 02:46:36 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/17 04:21:34 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Log.hpp"
 #include <iostream>
 
-Log::Log() : out_(&std::cout), is_file_(false)
+Log::Log() : out_(&std::cout), is_file_(false), verbosity_(Log::INFO)
 {}
 
 Log::~Log()
@@ -32,9 +32,32 @@ void Log::set_output(std::ostream *stream, bool is_file)
 	this->is_file_ = is_file;
 }
 
+void Log::set_verbosity(e_loglevel const &verbosity)
+{
+	this->verbosity_ = verbosity;
+}
+
 Log &Log::operator<<(std::ostream &(*os)(std::ostream &))
 {
+	if (this->verbosity_curr_ < this->verbosity_)
+		return *this;
 	(*this->out_) << os;
+	return *this;
+}
+
+Log &Log::operator<<(e_loglevel const &severity)
+{
+	this->verbosity_curr_ = severity;
+	if (this->verbosity_curr_ < this->verbosity_)
+		return *this;
+	switch (severity) {
+		case DEBUG:	(*this->out_) << "[DEBUG] "; break;
+		case INFO:	(*this->out_) << "[INFO] "; break;
+		case WARN:	(*this->out_) << "[WARN] "; break;
+		case ERROR:	(*this->out_) << "[ERROR] "; break;
+		default:	(*this->out_) << "[MESSAGE] "; break;
+	}
+	this->timestamp();
 	return *this;
 }
 

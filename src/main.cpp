@@ -6,17 +6,11 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:22:31 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/17 02:56:58 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/17 04:30:26 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <csignal>
-#include <cstdlib>
-#include <iostream>
-#include <fstream>
-
-#include "Log.hpp"
-#include "Server.hpp"
+#include "main.hpp"
 
 using marvinX::stop_server;
 
@@ -29,11 +23,14 @@ int	main(int ac, char **av)
 	}
 	Log				log;
 	log.set_output(&std::cerr, false);
+	if (DEBUG_MODE)
+		log.set_verbosity(Log::DEBUG);
+	log << Log::DEBUG << "Running in debug mode" << std::endl;
 
 	std::ifstream	config(av[1]);
 	if (!config.is_open())
 	{
-		log << "ERROR: Couldn't open config file" << std::endl;
+		log << Log::ERROR << "Couldn't open config file" << std::endl;
 		return EXIT_FAILURE;
 	}
 	// parse and validate config file

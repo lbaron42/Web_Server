@@ -6,7 +6,7 @@
 #    By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/05/14 11:22:55 by mcutura           #+#    #+#              #
-#    Updated: 2024/05/17 03:12:23 by mcutura          ###   ########.fr        #
+#    Updated: 2024/05/17 04:32:07 by mcutura          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -27,6 +27,7 @@ CXX := c++
 CXXFLAGS := -Wall -Wextra -Werror -std=c++98 -O2
 CPPFLAGS := -I$(INCDIR)
 debug: CXXFLAGS += -Og -ggdb3
+debug: CPPFLAGS += -DDEBUG_MODE=1
 deploy: LDFLAGS += -static -static-libstdc++
 nitpicking: CPPFLAGS += -DSTRICT_EVALUATOR=1
 MKDIR := mkdir -p
@@ -41,8 +42,8 @@ all: $(NAME)
 
 $(NAME): $(SRCS:%=$(BINDIR)/%.o) $(MAIN:%=$(BINDIR)/%.o)
 	$(CXX) $(SRCS:%=$(BINDIR)/%.o) $(MAIN:%=$(BINDIR)/%.o) -o $(NAME) $(LDFLAGS)
-$(BINDIR)/%.o: $(SRCDIR)/%.cpp | $(BINDIR)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $^ -o $@
+$(BINDIR)/%.o: $(SRCDIR)/%.cpp $(INCDIR)/%.hpp | $(BINDIR)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 $(BINDIR):
 	$(MKDIR) $(BINDIR)
 

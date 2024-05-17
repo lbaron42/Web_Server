@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/17 02:55:17 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/17 04:48:39 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,6 +15,10 @@
 
 # ifndef STRICT_EVALUATOR
 #  define STRICT_EVALUATOR 0
+# endif
+
+# ifndef DEBUG_MODE
+#  define DEBUG_MODE 0
 # endif
 
 # include <csignal>
