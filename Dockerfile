@@ -5,7 +5,7 @@ RUN apk update \
 && apk add coreutils gcc g++ make
 WORKDIR /build
 COPY . .
-RUN make deploy
+RUN make static
 
 FROM scratch
 LABEL authors="lbaron, mcutura, plandolf"

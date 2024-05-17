@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/17 04:48:11 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/17 05:50:39 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -77,7 +77,7 @@ bool Server::initialize()
 void Server::start()
 {
 	int const	timeout = 420;
-	int const	max_events = 32;
+	int const	max_events = 42;
 	epoll_event	events[max_events];
 
 	while (!marvinX::g_stopme) {
@@ -202,10 +202,11 @@ void Server::close_connection(int fd)
 
 void Server::recv_request(int fd)
 {
-	static int const	len = 4097;
+	static int const	len = 4096;
 	char				buff[len];
+	std::string			msg;
 
-	ssize_t r = recv(fd, buff, len - 1, MSG_DONTWAIT);
+	ssize_t r = recv(fd, buff, len, MSG_DONTWAIT);
 	switch (r) {
 		case -1:
 			return ;
@@ -214,10 +215,10 @@ void Server::recv_request(int fd)
 			this->close_connection(fd);
 			return ;
 		default:
-			buff[r] = '\0';
+			msg = std::string(buff, r);
 	}
 	if (DEBUG_MODE)
-		log << Log::DEBUG << "Received " << r << ": " << buff << std::endl;
+		log << Log::DEBUG << "Received " << r << ": " << msg << std::endl;
 
 	epoll_event event = {};
 	event.events = EPOLLOUT;
@@ -233,7 +234,7 @@ void Server::send_reply(int fd)
 	ssize_t		s;
 	std::string	rep;
 
-	rep = "HTTP/1.1 200 OK\r\n\r\n";
+	rep = "HTTP/1.1 418 I'm a teapot\r\n\r\n";
 	s = send(fd, rep.c_str(), rep.length(), MSG_DONTWAIT);
 	(void)s;
 	epoll_event event = {};

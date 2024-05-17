@@ -34,7 +34,7 @@ bool test_file_write()
 	Log log;
 
 	log.set_output(new std::ofstream(test_file, \
-		std::ios_base::ate | std::ios_base::ate), true);
+		std::ios_base::app | std::ios_base::ate), true);
 	log << "Opened the file" << std::endl
 		<< "In appending mode" << std::endl
 		<< " for each write call" << std::endl;

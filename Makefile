@@ -6,7 +6,7 @@
 #    By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/05/14 11:22:55 by mcutura           #+#    #+#              #
-#    Updated: 2024/05/17 04:32:07 by mcutura          ###   ########.fr        #
+#    Updated: 2024/05/17 05:52:02 by mcutura          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -28,7 +28,7 @@ CXXFLAGS := -Wall -Wextra -Werror -std=c++98 -O2
 CPPFLAGS := -I$(INCDIR)
 debug: CXXFLAGS += -Og -ggdb3
 debug: CPPFLAGS += -DDEBUG_MODE=1
-deploy: LDFLAGS += -static -static-libstdc++
+static: LDFLAGS += -static -static-libstdc++
 nitpicking: CPPFLAGS += -DSTRICT_EVALUATOR=1
 MKDIR := mkdir -p
 
@@ -36,7 +36,7 @@ COLOUR_GREEN := \033[0;32m
 COLOUR_RED := \033[0;31m
 COLOUR_END := \033[0m
 
-.PHONY: all clean fclean re check debug deploy nitpicking
+.PHONY: all clean fclean re check debug static nitpicking container
 
 all: $(NAME)
 
@@ -71,5 +71,9 @@ $(UNITTESTDIR)/test_%.out: $(UNITTESTDIR)/test_%.cpp
 	@$(CXX) $(@:%.out=%.o) $(SRCS:%=$(BINDIR)/%.o) -o $@
 
 debug: all
-deploy: all
+static: all
 nitpicking: all
+
+container:
+	docker build . -t marvinx
+	docker run -p 8080:8080 -it marvinx

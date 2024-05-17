@@ -6,20 +6,30 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 23:58:03 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/17 04:21:34 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/17 05:00:08 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Log.hpp"
+
 #include <iostream>
 
-Log::Log() : out_(&std::cout), is_file_(false), verbosity_(Log::INFO)
+////////////////////////////////////////////////////////////////////////////////
+//	CTOR/DTOR
+////////////////////////////////////////////////////////////////////////////////
+
+Log::Log() : out_(&std::cout), is_file_(false), \
+	verbosity_(Log::INFO), verbosity_curr_(Log::INFO)
 {}
 
 Log::~Log()
 {
 	this->set_output(0, false);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//	Public methods
+////////////////////////////////////////////////////////////////////////////////
 
 void Log::set_output(std::ostream *stream, bool is_file)
 {
@@ -60,6 +70,10 @@ Log &Log::operator<<(e_loglevel const &severity)
 	this->timestamp();
 	return *this;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//	Private innards
+////////////////////////////////////////////////////////////////////////////////
 
 void Log::timestamp()
 {
