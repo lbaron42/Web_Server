@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/16 17:23:03 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/17 12:30:04 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,32 +23,28 @@
 struct s_Location {
     std::map<std::string, std::string> directives;
 };
-
 struct s_Server {
 
-    s_Server(std::string _name, int _index){
-        _name = server_name;
-        _index = index;
-    }
+    s_Server(std::string _name, int _index) : index(_index), index_name(_name){}
     int index;
-    std::string port_to_listen;
-    std::string server_name;
-    std::string root;
-    std::map<int, std::string> error_pages;
-    std::string client_max_body_size;
+    std::string index_name;
+    std::map<std::string, std::string> servKeywords;
     std::map<std::string, s_Location> locations;
 };
-
 class Config {
 public:
-    int configInit(const std::string& filename);
+    Config();
+    int configInit(const std::string& argv1);
+    /* print the servers and its respective keyWords and locations
+     use only for debug purposes only */
     void log() const;
+    /*Retrive the vector holding the s_Server structs, for usage reference 
+    you can look in to the log(); implementation*/
+    const std::vector<s_Server>& getServers() const;
 
 private:
     std::vector<s_Server> servers;
-    // void parseServer(std::ifstream& config_file);
-    // void parseLocation(std::ifstream& config_file, s_Server& server, const std::string& location_path);
-    // std::string trim(const std::string& str) const;
+    std::vector<std::string> keyWords;
 };
 
 #endif // CONFIG_HPP

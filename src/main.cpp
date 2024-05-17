@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:22:31 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/16 16:17:55 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/17 12:21:37 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,6 +16,7 @@
 
 #include "Config.hpp"
 #include "Server.hpp"
+
 
 int	main(int ac, char **av)
 {
@@ -31,8 +32,8 @@ int	main(int ac, char **av)
     }
 	conf.log();
 
-	// Server serv;
-	// if (serv.initialize())
-	// 	serv.start();
+	Server serv;
+	if (serv.initialize())
+		serv.start();
 	return EXIT_SUCCESS;
 }
