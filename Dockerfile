@@ -1,8 +1,8 @@
 FROM alpine:3.19 as builder
 
 RUN apk update \
-&& apk upgrade \
-&& apk add coreutils gcc g++ make
+	&& apk upgrade \
+	&& apk add coreutils gcc g++ make
 WORKDIR /build
 COPY . .
 RUN make static

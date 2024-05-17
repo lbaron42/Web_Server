@@ -1,7 +1,7 @@
 .vscode
 en.subject.pdf
 webserv
-bin/
+build/
 Subject-Testers/
 *.o
 *.out

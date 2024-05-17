@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 23:51:31 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/17 09:16:01 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/17 12:25:47 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -36,7 +36,7 @@ class Log
 		template <typename T>
 		Log &operator<<(T const &obj)
 		{
-			if (this->verbosity_curr_ < this->verbosity_)
+			if (!this->out_ || this->verbosity_curr_ < this->verbosity_)
 				return *this;
 			(*this->out_) << obj;
 			return *this;

@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 23:58:03 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/17 05:00:08 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/17 12:25:26 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -49,7 +49,7 @@ void Log::set_verbosity(e_loglevel const &verbosity)
 
 Log &Log::operator<<(std::ostream &(*os)(std::ostream &))
 {
-	if (this->verbosity_curr_ < this->verbosity_)
+	if (!this->out_ || this->verbosity_curr_ < this->verbosity_)
 		return *this;
 	(*this->out_) << os;
 	return *this;
@@ -58,7 +58,7 @@ Log &Log::operator<<(std::ostream &(*os)(std::ostream &))
 Log &Log::operator<<(e_loglevel const &severity)
 {
 	this->verbosity_curr_ = severity;
-	if (this->verbosity_curr_ < this->verbosity_)
+	if (!this->out_ || this->verbosity_curr_ < this->verbosity_)
 		return *this;
 	switch (severity) {
 		case DEBUG:	(*this->out_) << "[DEBUG] "; break;
