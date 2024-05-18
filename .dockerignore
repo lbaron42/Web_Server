@@ -3,5 +3,8 @@
 .vscode
 en.subject.pdf
 webserv
-bin/
+build/
 README.md
+*.o
+*.out
+*.log
