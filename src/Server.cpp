@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/17 10:21:39 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/17 21:29:08 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,8 +30,15 @@ Server::Server(std::string const &name, std::string const &port, Log &logger) \
 	: name_(name), port_(port), root_("/tmp"), log(logger)
 {}
 
+struct del_value
+{
+	void operator()(std::pair<int, Request*> pair)	{ delete pair.second; }
+};
+
 Server::~Server()
-{}
+{
+	std::for_each(this->requests_.begin(), this->requests_.end(), del_value());
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //	Public methods
@@ -196,6 +203,13 @@ void Server::close_connection(int fd)
 		log << Log::ERROR << "Failed to remove fd from epoll" << std::endl;
 	}
 	(void)close(fd);
+	std::map<int, Request*>::iterator it = this->requests_.find(fd);
+	if (it != this->requests_.end())
+	{
+		delete it->second;
+		this->requests_.erase(it);
+	}
+	this->replies_.erase(fd);
 	this->clients_.erase(fd);
 	log << Log::INFO << "Closed connection with client: " << fd << std::endl;
 }
@@ -209,6 +223,8 @@ void Server::recv_request(int fd)
 	ssize_t r = recv(fd, buff, len, MSG_DONTWAIT);
 	switch (r) {
 		case -1:
+			log << Log::WARN << "recv client " << fd << " returned error"
+				<< std::endl;
 			return ;
 		case 0:
 			log << Log::INFO << "Client closed connection" << std::endl;
@@ -218,19 +234,20 @@ void Server::recv_request(int fd)
 			msg = std::string(buff, r);
 	}
 	if (DEBUG_MODE)
-		log << Log::DEBUG << "Received " << r << ": " << msg << std::endl;
+		log << Log::DEBUG << "Received " << r << "b: " << msg << std::endl;
+
 	std::map<int, Request*>::iterator it = this->requests_.find(fd);
 	if (it == this->requests_.end())
 	{
-		it = this->requests_.insert(std::make_pair
-				(fd, new Request(msg, this->log))).first;
-		int status = it->second->validate_request_line();
+		this->requests_[fd] = new Request(msg, this->log);
+		int status = this->requests_[fd]->validate_request_line();
 		if (!status)
 			return ;
-		if (status != 200)
+		this->replies_[fd] = Reply::get_status_line(status);
+		log << Log::DEBUG << this->replies_[fd] << std::endl;
+		it = this->requests_.find(fd);
+		if (it != this->requests_.end())
 		{
-			this->replies_[fd] = Reply::get_status_line(status);
-			log << Log::DEBUG << this->replies_[fd] << std::endl;
 			delete it->second;
 			this->requests_.erase(it);
 		}
@@ -263,11 +280,13 @@ void Server::send_reply(int fd)
 	if (s < 0) {
 		log << Log::ERROR << "Failed to send message" << std::endl;
 		this->close_connection(fd);
-	} else if (static_cast<size_t>(s) < rep.length())
-	{
+		return ;
+	}
+	if (static_cast<size_t>(s) < rep.length()) {
 		it->second.erase(0, s);
 		return ;
 	}
+	this->replies_.erase(fd);
 	epoll_event event = {};
 	event.events = EPOLLIN;
 	event.data.fd = fd;

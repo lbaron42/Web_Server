@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/17 10:09:40 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/17 20:31:18 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,6 +21,7 @@
 #  define DEBUG_MODE 0
 # endif
 
+# include <algorithm>
 # include <csignal>
 # include <cstdlib>
 # include <fstream>

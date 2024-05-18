@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 23:58:03 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/17 12:25:26 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/18 10:08:39 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -61,11 +61,11 @@ Log &Log::operator<<(e_loglevel const &severity)
 	if (!this->out_ || this->verbosity_curr_ < this->verbosity_)
 		return *this;
 	switch (severity) {
-		case DEBUG:	(*this->out_) << "[DEBUG] "; break;
-		case INFO:	(*this->out_) << "[INFO] "; break;
-		case WARN:	(*this->out_) << "[WARN] "; break;
-		case ERROR:	(*this->out_) << "[ERROR] "; break;
-		default:	(*this->out_) << "[MESSAGE] "; break;
+		case DEBUG:	(*this->out_) << "[DEBUG]	"; break;
+		case INFO:	(*this->out_) << "[INFO]	"; break;
+		case WARN:	(*this->out_) << "[WARN]	"; break;
+		case ERROR:	(*this->out_) << "[ERROR]	"; break;
+		default:	(*this->out_) << "[MESSAGE]	"; break;
 	}
 	this->timestamp();
 	return *this;

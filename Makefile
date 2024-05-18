@@ -6,7 +6,7 @@
 #    By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/05/14 11:22:55 by mcutura           #+#    #+#              #
-#    Updated: 2024/05/17 17:19:36 by mcutura          ###   ########.fr        #
+#    Updated: 2024/05/18 14:03:48 by mcutura          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -21,8 +21,6 @@ BINDIR := build
 TESTSDIR := tests
 UNITTESTDIR := $(TESTSDIR)/unit_tests
 TESTS := $(addprefix $(UNITTESTDIR)/test_, $(SRCS))
-TESTCOUTLOG := $(UNITTESTDIR)/test_cout.log
-TESTCERRLOG := $(UNITTESTDIR)/test_cerr.log
 
 CXX := c++
 CXXFLAGS := -Wall -Wextra -Werror -std=c++98 -Wpedantic
@@ -34,14 +32,20 @@ static: LDFLAGS += -static -static-libstdc++
 nitpicking: CPPFLAGS += -DSTRICT_EVALUATOR=1
 MKDIR := mkdir -p
 
-SHELL := /bin/bash
+CONTAINER_NAME := marvinx
+PORT_MAPPING ?= -p "8080:8080"
+
+COLOUR_END := \033[0m
 COLOUR_GREEN := \033[0;32m
 COLOUR_RED := \033[0;31m
-COLOUR_END := \033[0m
+COLOUR_MAG := \033[0;35m
+COLOUR_MAGB := \033[1;35m
+COLOUR_CYN := \033[0;36m
+COLOUR_CYNB := \033[1;36m
 
 .PHONY: all clean fclean re check debug static nitpicking container
 
-all: $(NAME)
+all: $(NAME)	# Compile all targets
 
 $(NAME): $(SRCS:%=$(BINDIR)/%.o) $(MAIN:%=$(BINDIR)/%.o)
 	$(CXX) $(SRCS:%=$(BINDIR)/%.o) $(MAIN:%=$(BINDIR)/%.o) -o $(NAME) $(LDFLAGS)
@@ -50,32 +54,38 @@ $(BINDIR)/%.o: $(SRCDIR)/%.cpp $(INCDIR)/%.hpp | $(BINDIR)
 $(BINDIR):
 	$(MKDIR) $(BINDIR)
 
-clean:
+clean:			# Clean binary object files
 	$(RM) $(SRCS:%=$(BINDIR)/%.o)
 	$(RM) $(TESTS:%=%.o)
 
-fclean: clean
+fclean: clean	# Clean all compiled binaries
 	$(RM) $(NAME)
 	$(RM) -r $(BINDIR)
 	$(RM) $(TESTS:%=%.out)
 
-re: fclean all
+re: fclean all	# Recompile all targets
 
-check: $(SRCS:%=$(BINDIR)/%.o) $(TESTS:%=%.out) $(TESTS:%=%.test)
-	@echo -e "$(COLOUR_GREEN)All tests passed successfully$(COLOUR_END)"
-
+check: $(SRCS:%=$(BINDIR)/%.o) $(TESTS:%=%.out) $(TESTS:%=%.test)	# Run tests
+	@echo "$(COLOUR_GREEN)All tests passed successfully$(COLOUR_END)"
 %.test: %.out
-	@(./$(*:%=%.out) && echo -e "$(COLOUR_GREEN)[OK]$(COLOUR_END) $(*F)") \
-	|| (echo -e "$(COLOUR_RED)[KO]$(COLOUR_END) $(*F) failed" && exit 1)
-
+	@(./$(*:%=%.out) && echo "$(COLOUR_GREEN)[OK]$(COLOUR_END) $(*F)") \
+	|| (echo "$(COLOUR_RED)[KO]$(COLOUR_END) $(*F) failed" && exit 1)
 $(UNITTESTDIR)/test_%.out: $(UNITTESTDIR)/test_%.cpp
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $(@:%.out=%.o)
 	@$(CXX) $(@:%.out=%.o) $(SRCS:%=$(BINDIR)/%.o) -o $@
 
-debug: all
-static: all
-nitpicking: all
+debug: all		# Build for debugging
+static: all		# Compile statically linked executable
+nitpicking: re	# Insist on blindly following subject.pdf to the letter...boring
 
-container:
-	docker build . -t marvinx
-	docker run --name c-marvinx -p 8080:8080 -it marvinx
+container:		# Build and run a Docker container running target executable
+	docker build . -t marvinx --progress=plain
+	docker run --rm --name $(CONTAINER_NAME) $(PORT_MAPPING) -it marvinx
+
+help:	# Print help on Makefile
+	@awk 'BEGIN { \
+	FS = ":.*#"; printf "Usage:\n\t$(COLOUR_CYNB)make $(COLOUR_MAGB)<target> \
+	$(COLOUR_END)\n\nTargets:\n"; } \
+	/^[a-zA-Z_0-9-]+:.*?#/ { \
+	printf "$(COLOUR_MAGB)%-16s$(COLOUR_CYN)%s$(COLOUR_END)\n", $$1, $$2 } ' \
+	Makefile

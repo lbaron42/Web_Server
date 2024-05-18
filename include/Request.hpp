@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:23:14 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/17 09:59:57 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/18 13:16:32 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,14 +27,18 @@ class Request
 
 		enum e_method
 		{
-			GET,
-			POST,
-			DELETE
+			HEAD = 0,
+			GET = 1,
+			POST = 2,
+			PUT = 4,
+			PATCH = 8,
+			DELETE = 16
 		};
 
 		void append(std::string const &str);
 		int validate_request_line();
-		bool is_allowed_method(std::string const &method);
+		bool is_valid_method(std::string const &method);
+		bool is_allowed_method() const;
 
 	private:
 		std::stringstream	raw_;
