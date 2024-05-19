@@ -1,5 +1,6 @@
 #include <csignal>
 #include <cstdlib>
+#include <fstream>
 #include <vector>
 #include "Cluster.hpp"
 #include "Server.hpp"

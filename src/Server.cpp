@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/19 14:44:15 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/19 17:08:56 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -88,14 +88,13 @@ bool Server::initialize(int epoll_fd)
 	return true;
 }
 
-std::map<int, Server const*> *Server::get_listen_fds() const
+std::map<int, Server const*> Server::get_listen_fds() const
 {
 	AssignFd						assign_fd(this);
-	std::map<int, Server const*>	*listen_map;
+	std::map<int, Server const*>	listen_map;
 
-	listen_map = new std::map<int, Server const*>();
 	std::transform(this->listen_fds.begin(), this->listen_fds.end(), \
-			std::inserter(*listen_map, listen_map->end()), assign_fd);
+			std::inserter(listen_map, listen_map.end()), assign_fd);
 	return listen_map;
 }
 

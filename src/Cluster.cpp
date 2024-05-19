@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/18 19:51:33 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/19 14:36:38 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/19 17:09:45 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -58,9 +58,8 @@ bool Cluster::init_all()
 	it != this->servers.end(); ++it) {
 		if (!it->initialize(this->epoll_fd))
 			return false;
-		std::map<int, Server const*> *tmp = it->get_listen_fds();
-		this->listen_fds.insert(tmp->begin(), tmp->end());
-		delete tmp;
+		std::map<int, Server const*> tmp = it->get_listen_fds();
+		this->listen_fds.insert(tmp.begin(), tmp.end());
 	}
 	return true;
 }
