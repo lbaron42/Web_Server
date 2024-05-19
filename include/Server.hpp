@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/17 20:31:18 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/19 14:44:56 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,13 +22,11 @@
 # endif
 
 # include <algorithm>
-# include <csignal>
 # include <cstdlib>
-# include <fstream>
-# include <iostream>
 # include <map>
 # include <set>
 # include <string>
+# include <vector>
 
 # include <arpa/inet.h>
 # include <fcntl.h>
@@ -42,42 +40,70 @@
 # include "Reply.hpp"
 # include "Request.hpp"
 
-namespace marvinX
+struct ServerData
 {
-	volatile static sig_atomic_t	g_stopme(0);
+	struct Address
+	{
+		std::string	ip;
+		std::string	port;
 
-	extern "C" void stop_server(int sig);
-}
+		Address(std::string const &ip, std::string const &port)
+			: ip(ip), port(port) {}
+		~Address() {}
+		Address(Address const &rhs) : ip(rhs.ip), port(rhs.port) {}
+		Address &operator=(Address const &rhs)
+		{
+			if (this == &rhs)	return *this;
+			this->ip = rhs.ip;
+			this->port = rhs.port;
+			return *this;
+		}
+	};
+
+	std::vector<Address>		address;
+	std::vector<std::string>	hostname;
+	std::string 				root;
+	std::string 				index;
+
+	ServerData(std::string const &root, std::string const &index)
+		: root(root), index(index) {}
+	~ServerData() {}
+	ServerData(ServerData const &rhs) : address(rhs.address), \
+		hostname(rhs.hostname), root(rhs.root), index(rhs.index) {}
+	ServerData &operator=(ServerData const &rhs)
+	{
+		if (this == &rhs)	return *this;
+		this->address = rhs.address;
+		this->hostname = rhs.hostname;
+		return *this;
+	}
+};
 
 class Server
 {
 	public:
-		Server(std::string const &name, std::string const &port, Log &logger);
+		Server(ServerData const &server_data, Log &log);
 		~Server();
+		Server(Server const &rhs);
 
-		bool initialize();
-		void start();
+		bool initialize(int epoll_fd);
+		std::map<int, Server const*> *get_listen_fds() const;
+		int add_client(int epoll_fd, int listen_fd);
+		void close_connection(int epoll_fd, int fd);
+		int recv_request(int epoll_fd, int fd);
+		int send_reply(int epoll_fd, int fd);
 
 	private:
-		int							listen_fd_;
-		int							epoll_fd_;
-		std::string const			name_;
-		std::string const			port_;
-		std::string const			root_;
-		std::set<int>				clients_;
-		std::map<int, Request*>		requests_;
-		std::map<int, std::string>	replies_;
+		ServerData					info;
 		Log							&log;
+		std::set<int>				listen_fds;
+		std::set<int>				clients;
+		std::map<int, Request*>		requests;
+		std::map<int, std::string>	replies;
 
-		bool setup_socket();
-		void add_client(int listen_fd);
-		void close_connection(int fd);
-		void recv_request(int fd);
-		void send_reply(int fd);
-		void cleanup();
+		int setup_socket(char const *service, char const *node);
 
-		/* no copy */
-		Server(Server const &rhs);
+		/* cannot assign to object with reference member (here: Log) */
 		Server &operator=(Server const &rhs);
 };
 
