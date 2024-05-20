@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 07:54:45 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/20 02:19:34 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/20 22:08:54 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,9 +16,9 @@
 //	Static methods
 ////////////////////////////////////////////////////////////////////////////////
 
-std::string const Reply::get_content(std::string const &path)
+std::string const Reply::get_content(std::string const &filename)
 {
-	std::ifstream	file(path.c_str());
+	std::ifstream	file(filename.c_str());
 	std::string		content;
 
 	if (!file.is_open())
@@ -26,6 +26,20 @@ std::string const Reply::get_content(std::string const &path)
 	std::getline(file, content, std::string::traits_type::to_char_type(
 			std::string::traits_type::eof()));
 	return content;
+}
+
+std::vector<char> const Reply::get_payload(std::string const &filename)
+{
+	std::ifstream				file(filename.c_str(), std::ios::binary);
+	std::vector<char>	bytes;
+
+	ssize_t file_size = get_file_size(filename);
+	if (file_size < 0)
+		return bytes;
+	bytes.reserve(file_size);
+	bytes.insert(bytes.begin(), std::istreambuf_iterator<char>(file),
+			std::istreambuf_iterator<char>());
+	return bytes;
 }
 
 std::string const Reply::get_listing(std::string const &path)

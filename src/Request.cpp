@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/20 01:09:13 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/20 03:03:41 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -54,6 +54,11 @@ Headers Request::get_headers() const
 	return this->headers;
 }
 
+std::string Request::get_req_line() const
+{
+	return this->req_line;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //	Public methods
 ////////////////////////////////////////////////////////////////////////////////
@@ -88,12 +93,12 @@ int Request::validate_request_line()
 
 		std::string::size_type end(this->req_line.find('\r', second + 1));
 		if (end == std::string::npos) {
-			end = this->req_line.find('\n', second + 1);
-			if (end == std::string::npos)
-				return 400;
+			end = this->req_line.size();
 			log << Log::WARN
 				<< "Request line terminated by '\\n' instead of '\\r\\n'"
 				<< std::endl;
+		} else {
+			this->req_line.erase(end);
 		}
 		log << Log::DEBUG << "Version:	|"
 			<< this->req_line.substr(second + 1, end - second - 1)
