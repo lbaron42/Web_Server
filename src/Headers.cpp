@@ -6,11 +6,15 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/19 16:21:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/19 17:29:41 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/20 01:44:43 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Headers.hpp"
+
+////////////////////////////////////////////////////////////////////////////////
+//	CTOR/DTOR
+////////////////////////////////////////////////////////////////////////////////
 
 Headers::Headers()
 {}
@@ -20,6 +24,15 @@ Headers::~Headers()
 
 Headers::Headers(Headers const &rhs) : headers(rhs.headers)
 {}
+
+////////////////////////////////////////////////////////////////////////////////
+//	Public methods
+////////////////////////////////////////////////////////////////////////////////
+
+bool Headers::is_set(std::string const &key) const
+{
+	return this->headers.count(key);
+}
 
 std::string Headers::get_header(std::string const &key) const
 {
@@ -55,6 +68,10 @@ void Headers::unset_header(std::string const &key)
 	if (this->headers.count(key))
 		this->headers.erase(key);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//	Operator overloads
+////////////////////////////////////////////////////////////////////////////////
 
 std::ostream &operator<<(std::ostream &os, Headers const &hdrs)
 {

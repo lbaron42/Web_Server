@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/19 16:23:16 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/19 17:29:28 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/20 01:45:03 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,6 +26,7 @@ class Headers
 		~Headers();
 		Headers(Headers const &rhs);
 
+		bool is_set(std::string const &key) const;
 		std::string get_header(std::string const &key) const;
 		std::set<std::string> get_keys() const;
 		void set_header(std::string const &key, std::string const &value);

@@ -11,6 +11,8 @@ namespace {
 
 static bool test_set(Headers &h, std::string const &key, std::string const &val);
 static bool test_unset(Headers &h, std::string const &key);
+static bool test_is_set(Headers &h, std::string const &key, std::string const &val);
+static bool test_is_unset(Headers &h, std::string const &key);
 
 int main()
 {
@@ -39,10 +41,16 @@ int main()
 	|| !test_unset(test, ""))
 		return EXIT_FAILURE;
 
-	if (!test_set(test, "Connection", "Close")
-	|| !test_set(test, "X-Frame-Options", "DENY")
-	|| !test_set(test, "Date", "Sun, 19 May 2024 15:05:58 GMT")
-	|| !test_set(test, "Expires", "Sun, 19 May 2024 15:56:36 GMT"))
+	if (!test_is_set(test, "Connection", "Close")
+	|| !test_is_set(test, "X-Frame-Options", "DENY")
+	|| !test_is_set(test, "Date", "Sun, 19 May 2024 15:05:58 GMT")
+	|| !test_is_set(test, "Expires", "Sun, 19 May 2024 15:56:36 GMT"))
+		return EXIT_FAILURE;
+
+	if (!test_is_unset(test, "Content-Encoding")
+	|| !test_is_unset(test, "X-Frame-Options")
+	|| !test_is_unset(test, "Unset-Header")
+	|| !test_is_unset(test, ""))
 		return EXIT_FAILURE;
 
 	log << Log::DEBUG << "Test headers: " << std::endl
@@ -61,4 +69,17 @@ bool test_unset(Headers &h, std::string const &key)
 	h.set_header(key, "Test value");
 	h.unset_header(key);
 	return h.get_header(key).empty();
+}
+
+bool test_is_set(Headers &h, std::string const &key, std::string const &val)
+{
+	h.set_header(key, val);
+	return h.is_set(key);
+}
+
+bool test_is_unset(Headers &h, std::string const &key)
+{
+	h.set_header(key, "Test value");
+	h.unset_header(key);
+	return (!h.is_set(key));
 }
