@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/19 17:08:56 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/20 01:53:53 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -58,8 +58,7 @@ bool Server::initialize(int epoll_fd)
 {
 	typedef std::vector<ServerData::Address>::const_iterator AddrIter;
 	for (AddrIter it = this->info.address.begin();
-	it != this->info.address.end(); ++it)
-	{
+	it != this->info.address.end(); ++it) {
 		int sfd = setup_socket(it->port.c_str(), \
 				it->ip.empty() ? NULL : it->ip.c_str());
 		if (sfd == -1)
@@ -73,8 +72,7 @@ bool Server::initialize(int epoll_fd)
 	epoll_event event = {};
 	event.events = EPOLLIN;
 	for (std::set<int>::const_iterator it = this->listen_fds.begin();
-	it != this->listen_fds.end(); ++it)
-	{
+	it != this->listen_fds.end(); ++it) {
 		event.data.fd = *it;
 		if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, *it, &event)) {
 			log << Log::ERROR << "Failed to add fd " << *it 
@@ -136,8 +134,7 @@ void Server::close_connection(int epoll_fd, int fd)
 	}
 	(void)close(fd);
 	std::map<int, Request*>::iterator it = this->requests.find(fd);
-	if (it != this->requests.end())
-	{
+	if (it != this->requests.end()) {
 		delete it->second;
 		this->requests.erase(it);
 	}
@@ -146,9 +143,174 @@ void Server::close_connection(int epoll_fd, int fd)
 	log << Log::INFO << "Closed connection with client: " << fd << std::endl;
 }
 
+int Server::recv_request(int epoll_fd, int fd)
+{
+	static int const	len = 4096;
+	char				buff[len];
+	std::string			msg;
+
+	ssize_t r = recv(fd, buff, len, MSG_DONTWAIT);
+	switch (r) {
+		case -1:
+			log << Log::WARN << "recv client " << fd << " returned error"
+				<< std::endl;
+			return 0;
+		case 0:
+			log << Log::INFO << "Client closed connection" << std::endl;
+			this->close_connection(epoll_fd, fd);
+			return -1;
+		default:
+			msg = std::string(buff, r);
+	}
+	if (DEBUG_MODE)
+		log << Log::DEBUG << "Received " << r << "b: " << msg << std::endl;
+
+	std::map<int, Request*>::iterator it = this->requests.find(fd);
+	if (it == this->requests.end())
+		this->requests[fd] = new Request(msg, this->log);
+	else
+		it->second->append(msg);
+
+	int status = this->parse_request(fd);
+
+	Headers		hdrs;
+	std::string	msg_body;
+	std::string filepath(this->info.root);
+	if (status == 200) {
+		switch (this->requests[fd]->get_method()) {
+			case Request::HEAD:
+				msg_body = std::string();
+				break;
+			case Request::GET:
+				if (this->requests[fd]->get_url() != "/")
+					filepath.append(this->requests[fd]->get_url());
+				else {
+					filepath.append("/");
+					filepath.append(this->info.index);
+				}
+				if (access(filepath.c_str(), F_OK)) {
+					status = 404;
+				} else if (access(filepath.c_str(), R_OK)) {
+					log << Log::ERROR << "Cannot open requested file: "
+						<< this->requests[fd]->get_url() << std::endl;
+					status = 403;
+				} else {
+					msg_body = Reply::get_content(filepath);
+				}
+				log << Log::DEBUG << "Requested file: " << filepath << std::endl;
+				break;
+			// case Request::POST: break;
+			// case Request::DELETE: break;
+			default:
+				status = 400; break;
+		}
+	}
+	hdrs.set_header("Connection", "Keep-Alive");
+	hdrs.set_header("Content-Type", this->get_mime_type(filepath));
+	std::ostringstream ss;
+	ss << msg_body.size();
+	hdrs.set_header("Content-Length", ss.str());
+	ss.clear();
+	ss.str(std::string());
+	ss << Reply::get_status_line(this->requests[fd]->is_version_11(), status)
+		<< hdrs << "\r\n\r\n" << msg_body << "\r\n\r\n";
+
+	this->replies[fd] = ss.str();
+	it = this->requests.find(fd);
+	if (it != this->requests.end())
+	{
+		delete it->second;
+		this->requests.erase(it);
+	}
+	if (!this->switch_epoll_mode(epoll_fd, fd, EPOLLOUT))
+		return -1;
+	return 0;
+}
+
+std::string const Server::get_mime_type(std::string const &file) const
+{
+	std::string::size_type	pos = file.find_last_of('.');
+
+	if (pos == std::string::npos) {
+		return std::string("text/plain");
+	}
+	std::string	ext = file.substr(pos + 1);
+	if (ext == "html")
+		return std::string("text/html");
+	if (ext == "css")
+		return std::string("text/css");
+	if (ext == "js")
+		return std::string("text/javascript");
+	if (ext == "md")
+		return std::string("text/markdown");
+	if (ext == "html")
+		return std::string("text/html");
+	return std::string("text/plain");
+}
+
+int Server::parse_request(int fd)
+{
+	int status = this->requests[fd]->validate_request_line();
+	if (status != 200)
+		return status;
+	if (!this->requests[fd]->parse_headers()) {
+		log << Log::WARN << "Failed parsing headers" << std::endl;
+		log << Log::DEBUG << "Recognized: " << std::endl
+			<< this->requests[fd]->get_headers()
+			<< std::endl;
+		return 0;
+	}
+	log << Log::DEBUG << "Request headers: " << std::endl
+		<< this->requests[fd]->get_headers()
+		<< std::endl;
+	if (!(this->requests[fd]->get_method() & this->info.allowed_methods))
+		status = 405;
+	return status;
+}
+
+int Server::send_reply(int epoll_fd, int fd)
+{
+	ssize_t		s;
+	std::string	rep;
+
+	std::map<int, std::string>::iterator it = this->replies.find(fd);
+	if (it == this->replies.end())
+		return 0;
+	rep = it->second;
+	s = send(fd, rep.c_str(), rep.length(), MSG_DONTWAIT);
+	log << Log::DEBUG << "Sent " << s << ": " << rep.c_str();
+	if (s < 0) {
+		log << Log::ERROR << "Failed to send message" << std::endl;
+		this->close_connection(epoll_fd, fd);
+		return -1;
+	}
+	if (static_cast<size_t>(s) < rep.length()) {
+		it->second.erase(0, s);
+		return 0;
+	}
+	this->replies.erase(fd);
+	if (!this->switch_epoll_mode(epoll_fd, fd, EPOLLIN))
+		return -1;
+	return 0;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //	Private innards
 ////////////////////////////////////////////////////////////////////////////////
+
+bool Server::switch_epoll_mode(int epoll_fd, int fd, uint32_t events)
+{
+	epoll_event event = {};
+	event.events = events;
+	event.data.fd = fd;
+	if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &event)) {
+		log << Log::ERROR << "Failed to modify polling for fd "
+			<< fd << std::endl;
+		this->close_connection(epoll_fd, fd);
+		return false;
+	}
+	return true;
+}
 
 int Server::setup_socket(char const *service, char const *node)
 {
@@ -196,91 +358,4 @@ int Server::setup_socket(char const *service, char const *node)
 		return -1;
 	}
 	return sfd;
-}
-
-int Server::recv_request(int epoll_fd, int fd)
-{
-	static int const	len = 4096;
-	char				buff[len];
-	std::string			msg;
-
-	ssize_t r = recv(fd, buff, len, MSG_DONTWAIT);
-	switch (r) {
-		case -1:
-			log << Log::WARN << "recv client " << fd << " returned error"
-				<< std::endl;
-			return 0;
-		case 0:
-			log << Log::INFO << "Client closed connection" << std::endl;
-			this->close_connection(epoll_fd, fd);
-			return -1;
-		default:
-			msg = std::string(buff, r);
-	}
-	if (DEBUG_MODE)
-		log << Log::DEBUG << "Received " << r << "b: " << msg << std::endl;
-
-	std::map<int, Request*>::iterator it = this->requests.find(fd);
-	if (it == this->requests.end())
-	{
-		this->requests[fd] = new Request(msg, this->log);
-		int status = this->requests[fd]->validate_request_line();
-		if (!status)
-			return 0;
-		this->replies[fd] = Reply::get_status_line(status);
-		log << Log::DEBUG << this->replies[fd] << std::endl;
-		it = this->requests.find(fd);
-		if (it != this->requests.end())
-		{
-			delete it->second;
-			this->requests.erase(it);
-		}
-	}
-	else
-	{
-		it->second->append(msg);
-	}
-
-	epoll_event event = {};
-	event.events = EPOLLOUT;
-	event.data.fd = fd;
-	if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &event)) {
-		log << Log::ERROR << "Failed to modify polling" << std::endl;
-		this->close_connection(epoll_fd, fd);
-		return -1;
-	}
-	return 0;
-}
-
-int Server::send_reply(int epoll_fd, int fd)
-{
-	ssize_t		s;
-	std::string	rep;
-
-	std::map<int, std::string>::iterator it = this->replies.find(fd);
-	if (it == this->replies.end())
-		return 0;
-	rep = it->second;
-	s = send(fd, rep.c_str(), rep.length(), MSG_DONTWAIT);
-	log << Log::DEBUG << "Sent " << s << ": " << rep.c_str();
-	if (s < 0) {
-		log << Log::ERROR << "Failed to send message" << std::endl;
-		this->close_connection(epoll_fd, fd);
-		return -1;
-	}
-	if (static_cast<size_t>(s) < rep.length()) {
-		it->second.erase(0, s);
-		return 0;
-	}
-	this->replies.erase(fd);
-
-	epoll_event event = {};
-	event.events = EPOLLIN;
-	event.data.fd = fd;
-	if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &event)) {
-		log << Log::ERROR << "Failed to modify polling" << std::endl;
-		this->close_connection(epoll_fd, fd);
-		return -1;
-	}
-	return 0;
 }

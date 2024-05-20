@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/19 17:09:04 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/20 01:53:12 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -39,6 +39,7 @@
 # include "Log.hpp"
 # include "Reply.hpp"
 # include "Request.hpp"
+# include "Headers.hpp"
 
 struct ServerData
 {
@@ -46,37 +47,14 @@ struct ServerData
 	{
 		std::string	ip;
 		std::string	port;
-
-		Address(std::string const &ip, std::string const &port)
-			: ip(ip), port(port) {}
-		~Address() {}
-		Address(Address const &rhs) : ip(rhs.ip), port(rhs.port) {}
-		Address &operator=(Address const &rhs)
-		{
-			if (this == &rhs)	return *this;
-			this->ip = rhs.ip;
-			this->port = rhs.port;
-			return *this;
-		}
 	};
 
 	std::vector<Address>		address;
 	std::vector<std::string>	hostname;
 	std::string 				root;
 	std::string 				index;
-
-	ServerData(std::string const &root, std::string const &index)
-		: root(root), index(index) {}
-	~ServerData() {}
-	ServerData(ServerData const &rhs) : address(rhs.address), \
-		hostname(rhs.hostname), root(rhs.root), index(rhs.index) {}
-	ServerData &operator=(ServerData const &rhs)
-	{
-		if (this == &rhs)	return *this;
-		this->address = rhs.address;
-		this->hostname = rhs.hostname;
-		return *this;
-	}
+	Request::e_method			allowed_methods;
+	bool						directory_listing;
 };
 
 class Server
@@ -91,7 +69,9 @@ class Server
 		int add_client(int epoll_fd, int listen_fd);
 		void close_connection(int epoll_fd, int fd);
 		int recv_request(int epoll_fd, int fd);
+		int parse_request(int fd);
 		int send_reply(int epoll_fd, int fd);
+		std::string const get_mime_type(std::string const &file) const;
 
 	private:
 		ServerData					info;
@@ -102,8 +82,9 @@ class Server
 		std::map<int, std::string>	replies;
 
 		int setup_socket(char const *service, char const *node);
+		bool switch_epoll_mode(int epoll_fd, int fd, uint32_t events);
 
-		/* cannot assign to object with reference member (here: Log) */
+		/* no assign to object with reference member (here: Log) */
 		Server &operator=(Server const &rhs);
 };
 

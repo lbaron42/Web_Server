@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:22:31 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/19 16:06:15 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/20 01:15:24 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -41,7 +41,7 @@ int	main(int ac, char **av)
 	/* DELETE BLOCK
 		Remove after Config Server creation is done
 	*/
-	std::vector<Server>	example = create_mock_servers(log, 5);
+	std::vector<Server>	example = create_mock_servers(log, 2);
 	for (std::vector<Server>::iterator it = example.begin();
 	it != example.end(); ++it)
 		Heart_of_Gold.add_server(*it);
@@ -66,8 +66,16 @@ std::vector<Server> create_mock_servers(Log &log, int n_of_servers)
 		std::stringstream	hostname;
 
 		port << (i + 8080);
-		ServerData	sd("/", "index.html");
-		sd.address.push_back(ServerData::Address("127.0.0.1", port.str()));
+		ServerData	sd;
+		sd.root = "extra/webspace/mc-putchar.github.io";
+		sd.index = "index.html";
+		sd.allowed_methods = static_cast<Request::e_method>(
+				Request::HEAD | Request::GET | Request::POST);
+		sd.directory_listing = true;
+		ServerData::Address		addr;
+		addr.ip = "127.0.0.1";
+		addr.port = port.str();
+		sd.address.push_back(addr);
 		hostname << "marvinx" << i << ".42.fr";
 		sd.hostname.push_back(hostname.str());
 		hostname.clear();
