@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:22:31 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/20 01:15:24 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/21 00:21:24 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -71,9 +71,9 @@ std::vector<Server> create_mock_servers(Log &log, int n_of_servers)
 		sd.index = "index.html";
 		sd.allowed_methods = static_cast<Request::e_method>(
 				Request::HEAD | Request::GET | Request::POST);
-		sd.directory_listing = true;
+		sd.directory_listing = i & 1;
 		ServerData::Address		addr;
-		addr.ip = "127.0.0.1";
+		addr.ip = "0.0.0.0";
 		addr.port = port.str();
 		sd.address.push_back(addr);
 		hostname << "marvinx" << i << ".42.fr";

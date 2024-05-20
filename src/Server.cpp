@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/20 01:53:53 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/21 00:35:22 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -145,11 +145,10 @@ void Server::close_connection(int epoll_fd, int fd)
 
 int Server::recv_request(int epoll_fd, int fd)
 {
-	static int const	len = 4096;
-	char				buff[len];
+	char				buff[4096];
 	std::string			msg;
 
-	ssize_t r = recv(fd, buff, len, MSG_DONTWAIT);
+	ssize_t r = recv(fd, buff, sizeof(buff), MSG_DONTWAIT);
 	switch (r) {
 		case -1:
 			log << Log::WARN << "recv client " << fd << " returned error"
@@ -170,122 +169,88 @@ int Server::recv_request(int epoll_fd, int fd)
 		this->requests[fd] = new Request(msg, this->log);
 	else
 		it->second->append(msg);
-
-	int status = this->parse_request(fd);
-
-	Headers		hdrs;
-	std::string	msg_body;
-	std::string filepath(this->info.root);
-	if (status == 200) {
-		switch (this->requests[fd]->get_method()) {
-			case Request::HEAD:
-				msg_body = std::string();
-				break;
-			case Request::GET:
-				if (this->requests[fd]->get_url() != "/")
-					filepath.append(this->requests[fd]->get_url());
-				else {
-					filepath.append("/");
-					filepath.append(this->info.index);
-				}
-				if (access(filepath.c_str(), F_OK)) {
-					status = 404;
-				} else if (access(filepath.c_str(), R_OK)) {
-					log << Log::ERROR << "Cannot open requested file: "
-						<< this->requests[fd]->get_url() << std::endl;
-					status = 403;
-				} else {
-					msg_body = Reply::get_content(filepath);
-				}
-				log << Log::DEBUG << "Requested file: " << filepath << std::endl;
-				break;
-			// case Request::POST: break;
-			// case Request::DELETE: break;
-			default:
-				status = 400; break;
-		}
-	}
-	hdrs.set_header("Connection", "Keep-Alive");
-	hdrs.set_header("Content-Type", this->get_mime_type(filepath));
-	std::ostringstream ss;
-	ss << msg_body.size();
-	hdrs.set_header("Content-Length", ss.str());
-	ss.clear();
-	ss.str(std::string());
-	ss << Reply::get_status_line(this->requests[fd]->is_version_11(), status)
-		<< hdrs << "\r\n\r\n" << msg_body << "\r\n\r\n";
-
-	this->replies[fd] = ss.str();
-	it = this->requests.find(fd);
-	if (it != this->requests.end())
-	{
-		delete it->second;
-		this->requests.erase(it);
-	}
+	this->handle_request(fd, this->parse_request(fd));
 	if (!this->switch_epoll_mode(epoll_fd, fd, EPOLLOUT))
 		return -1;
 	return 0;
 }
 
-std::string const Server::get_mime_type(std::string const &file) const
+void Server::handle_request(int fd, int status)
 {
-	std::string::size_type	pos = file.find_last_of('.');
+	Request				*request = this->requests[fd];
+	Headers				hdrs;
+	std::vector<char>	payload;
+	std::vector<char>	repl;
 
-	if (pos == std::string::npos) {
-		return std::string("text/plain");
+	if (status == 200) {
+		switch (request->get_method()) {
+			case Request::GET:
+				status = this->handle_get_request(request, hdrs, &payload);
+				break;
+			// case Request::POST: break;
+			// case Request::DELETE: break;
+			case Request::HEAD:
+				status = 200; break;
+			default:
+				status = 400; break;
+		}
+		hdrs.set_header("Connection", "keep-alive");
 	}
-	std::string	ext = file.substr(pos + 1);
-	if (ext == "html")
-		return std::string("text/html");
-	if (ext == "css")
-		return std::string("text/css");
-	if (ext == "js")
-		return std::string("text/javascript");
-	if (ext == "md")
-		return std::string("text/markdown");
-	if (ext == "html")
-		return std::string("text/html");
-	return std::string("text/plain");
-}
+	if (status != 200) {
+		hdrs.set_header("Content-Type", "text/plain");
+		hdrs.set_header("Connection", "close");
+	}
 
-int Server::parse_request(int fd)
-{
-	int status = this->requests[fd]->validate_request_line();
-	if (status != 200)
-		return status;
-	if (!this->requests[fd]->parse_headers()) {
-		log << Log::WARN << "Failed parsing headers" << std::endl;
-		log << Log::DEBUG << "Recognized: " << std::endl
-			<< this->requests[fd]->get_headers()
-			<< std::endl;
-		return 0;
-	}
-	log << Log::DEBUG << "Request headers: " << std::endl
-		<< this->requests[fd]->get_headers()
+	log << Log::INFO << "Request from client: " << fd << std::endl
+		<< "\t\t\t\t" << request->get_req_line() << " => "
+		<< status << " " << Reply::get_status_message(status)
 		<< std::endl;
-	if (!(this->requests[fd]->get_method() & this->info.allowed_methods))
-		status = 405;
-	return status;
+
+	std::string tmp(Reply::get_status_line(request->is_version_11(), status));
+	repl.insert(repl.end(), tmp.begin(), tmp.end());
+
+	std::stringstream ss;
+	ss << payload.size();
+	hdrs.set_header("Content-Length", ss.str());
+	ss.clear();
+	ss.str(std::string());
+	ss << hdrs;
+	ss >> std::noskipws;
+	char c;
+	while (ss >> c)
+		repl.push_back(c);
+	repl.push_back('\r');
+	repl.push_back('\n');
+	if (!payload.empty()) {
+		repl.insert(repl.end(), payload.begin(), payload.end());
+		repl.push_back('\r');
+		repl.push_back('\n');
+	}
+	repl.push_back('\r');
+	repl.push_back('\n');
+
+	this->drop_request(fd)
+		.enqueue_reply(fd, repl);
 }
 
 int Server::send_reply(int epoll_fd, int fd)
 {
-	ssize_t		s;
-	std::string	rep;
+	ssize_t	s;
 
-	std::map<int, std::string>::iterator it = this->replies.find(fd);
-	if (it == this->replies.end())
+	std::map<int, std::vector<char> >::iterator it = this->replies.find(fd);
+	if (it == this->replies.end()) {
+		log << Log::WARN << "Un numero sbagliato" << std::endl;
 		return 0;
-	rep = it->second;
-	s = send(fd, rep.c_str(), rep.length(), MSG_DONTWAIT);
-	log << Log::DEBUG << "Sent " << s << ": " << rep.c_str();
+	}
+	s = send(fd, it->second.data(), it->second.size(), MSG_DONTWAIT);
+	log << Log::DEBUG << "Reply sent " << s << " bytes" << std::endl;
 	if (s < 0) {
 		log << Log::ERROR << "Failed to send message" << std::endl;
 		this->close_connection(epoll_fd, fd);
 		return -1;
 	}
-	if (static_cast<size_t>(s) < rep.length()) {
-		it->second.erase(0, s);
+	if (static_cast<size_t>(s) < it->second.size()) {
+		it->second.erase(it->second.begin(), it->second.begin() + s);
 		return 0;
 	}
 	this->replies.erase(fd);
@@ -358,4 +323,84 @@ int Server::setup_socket(char const *service, char const *node)
 		return -1;
 	}
 	return sfd;
+}
+
+int Server::parse_request(int fd)
+{
+	int status = this->requests[fd]->validate_request_line();
+	if (status != 200)
+		return status;
+	if (!this->requests[fd]->parse_headers()) {
+		log << Log::WARN << "Failed parsing headers" << std::endl;
+		log << Log::DEBUG << "Recognized: " << std::endl
+			<< this->requests[fd]->get_headers()
+			<< std::endl;
+		return 0;
+	}
+	log << Log::DEBUG << "Request headers: " << std::endl
+		<< this->requests[fd]->get_headers()
+		<< std::endl;
+	if (!(this->requests[fd]->get_method() & this->info.allowed_methods))
+		status = 405;
+	return status;
+}
+
+Server &Server::drop_request(int fd)
+{
+	std::map<int, Request*>::iterator it = this->requests.find(fd);
+	if (it != this->requests.end())
+	{
+		delete it->second;
+		this->requests.erase(it);
+	}
+	return *this;
+}
+
+Server &Server::enqueue_reply(int fd, std::vector<char> const &reply)
+{
+	std::map<int, std::vector<char> >::iterator rip = this->replies.find(fd);
+	if (rip == this->replies.end())
+		this->replies.insert(std::make_pair(fd, reply));
+	else
+		rip->second.insert(rip->second.end(), reply.begin(), reply.end());
+	return *this;
+}
+
+int Server::handle_get_request(Request *request, Headers &headers,
+		std::vector<char> *body)
+{
+	std::string const	&url = request->get_url();
+	std::string			path(this->info.root);
+	std::string			msg_body;
+
+	if (url[url.size() - 1] != '/') {
+		path.append(url);
+	} else if (this->info.directory_listing) {
+		// TODO: Check if permissions allow access
+		msg_body = Reply::get_listing(url);
+		std::copy(msg_body.begin(), msg_body.end(), std::back_inserter(*body));
+		headers.set_header("Content-Type", "text/html");
+		return 200;
+	} else if (url == "/" && !this->info.index.empty()) {
+		path.append(url);
+		path.append(this->info.index);
+	} else {
+		return 400; // TODO: confirm status code for this case, maybe 404?
+	}
+	log << Log::DEBUG << "Requested file: " << path << std::endl;
+	if (access(path.c_str(), F_OK))
+		return 404;
+	if (access(path.c_str(), R_OK)) {
+		log << Log::ERROR << "Cannot open requested file: "
+			<< url << std::endl;
+		return 403;
+	}
+	headers.set_header("Content-Type", get_mime_type(path));
+	if (!get_mime_type(path).rfind("text", 0)) {
+		msg_body = Reply::get_content(path);
+		std::copy(msg_body.begin(), msg_body.end(), std::back_inserter(*body));
+	} else {
+		*body = Reply::get_payload(path);
+	}
+	return 200;
 }
