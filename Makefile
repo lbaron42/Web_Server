@@ -6,7 +6,7 @@
 #    By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/05/14 11:22:55 by mcutura           #+#    #+#              #
-#    Updated: 2024/05/19 17:19:10 by mcutura          ###   ########.fr        #
+#    Updated: 2024/05/21 00:22:23 by mcutura          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -35,7 +35,8 @@ nitpicking: CPPFLAGS += -DSTRICT_EVALUATOR=1
 MKDIR := mkdir -p
 
 CONTAINER_NAME := marvinx
-PORT_MAPPING ?= -p "8080:8080"
+PORT_MAPPING ?= -p "8080:8080" -p "8081:8081"
+MOUNT_VOLUME ?= -v extra:/var/www/html:ro
 
 COLOUR_END := \033[0m
 COLOUR_GREEN := \033[0;32m
@@ -79,13 +80,14 @@ $(UNITTESTDIR)/test_%.out: $(UNITTESTDIR)/test_%.cpp
 	@$(CXX) $(@:%.out=%.o) $(SRCS:%=$(BINDIR)/%.o) -o $@
 	@$(RM) $(UNITTESTSLOG)
 
-debug: all		# Build for debugging
+debug: re		# Build for debugging
 static: all		# Compile statically linked executable
 nitpicking: re	# Insist on blindly following subject.pdf to the letter...boring
 
 container:		# Build and run a Docker container running target executable
 	docker build . -t marvinx --progress=plain
-	docker run --rm --name $(CONTAINER_NAME) $(PORT_MAPPING) -it marvinx
+	docker run --rm --name $(CONTAINER_NAME) \
+		$(MOUNT_VOLUME) $(PORT_MAPPING) -it marvinx
 
 help:	# Print help on Makefile
 	@awk 'BEGIN { \
