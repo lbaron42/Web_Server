@@ -19,7 +19,7 @@ int main()
 	log.set_output(new std::ofstream(tests_log, \
 		std::ios_base::ate | std::ios_base::app), true);
 	log.set_verbosity(Log::DEBUG);
-	std::vector<Server>	server_list = create_mock_servers(log, 7);
+	std::vector<Server>	server_list = create_mock_servers(log, 4);
 	for (std::vector<Server>::iterator it = server_list.begin();
 	it != server_list.end(); ++it) {
 		clustest.add_server(*it);
