@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/22 19:58:32 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/22 20:58:44 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,34 +16,32 @@
 void Config::getAddress(std::string line, ServerData *current)
 {
 	ServerData::Address address;
-	size_t pos = line.find("listen");
-	if (pos == std::string::npos) {std::cerr << "Invalid configuration line: " + line; exit(EXIT_FAILURE);}
-	pos += 6;
+	size_t pos = line.find("listen") + 6;
 	while (pos < line.size() && (line[pos] == ' ' || line[pos] == '\t')) {pos++;}
 	if (line[pos] == '[') {
-	    size_t end_pos = line.find(']', pos);
-	    if (end_pos == std::string::npos) {std::cerr << "Invalid IPv6 address in line: " + line; exit(EXIT_FAILURE);}
-	    address.ip = line.substr(pos + 1, end_pos - pos - 1);
-	    pos = end_pos + 1;
-	    if (line[pos] != ':') {std::cerr << "Expected ':' after IPv6 address in line: " + line; exit(EXIT_FAILURE);}
-	    pos++;
+		size_t end_pos = line.find(']', pos);
+		if (end_pos == std::string::npos) {std::cerr << "Invalid IPv6 address in line: " + line; exit(EXIT_FAILURE);}
+		address.ip = line.substr(pos + 1, end_pos - pos - 1);
+		pos = end_pos + 1;
+		if (line[pos] != ':') {std::cerr << "Expected ':' after IPv6 address in line: " + line; exit(EXIT_FAILURE);}
+		pos++;
 	} else {
-	    size_t end_pos = line.find(':', pos);
-	    if (end_pos == std::string::npos) {
-            address.ip = "";
-            end_pos = line.find(';', pos);
-            if (end_pos == std::string::npos) {std::cerr << "Invalid configuration line: " + line; exit(EXIT_FAILURE);}
-            address.port = line.substr(pos, end_pos - pos);
-            current->_address.push_back(address);
-            return;
-        }
-        address.ip = line.substr(pos, end_pos - pos);
-        pos = end_pos + 1;
-    }
-    size_t end_pos = line.find(';', pos);
-    if (end_pos == std::string::npos) {std::cerr << "Expected ';' after port in line: " + line; exit(EXIT_FAILURE);}
-    address.port = line.substr(pos, end_pos - pos);
-    current->_address.push_back(address);
+		size_t end_pos = line.find(':', pos);
+		if (end_pos == std::string::npos) {
+			address.ip = "";
+			end_pos = line.find(';', pos);
+			if (end_pos == std::string::npos) {std::cerr << "Invalid configuration line: " + line; exit(EXIT_FAILURE);}
+			address.port = line.substr(pos, end_pos - pos);
+			current->addresses.push_back(address);
+			return;
+		}
+		address.ip = line.substr(pos, end_pos - pos);
+		pos = end_pos + 1;
+	}
+	size_t end_pos = line.find(';', pos);
+	if (end_pos == std::string::npos) {std::cerr << "Expected ';' after port in line: " + line; exit(EXIT_FAILURE);}
+	address.port = line.substr(pos, end_pos - pos);
+	current->addresses.push_back(address);
 }
 
 int Config::configInit(const std::string &argv1)
@@ -66,6 +64,7 @@ int Config::configInit(const std::string &argv1)
 			ServerData Server;
 			servers.push_back(Server);
 			currentServer = &servers.back();
+			currentServer->client_max_body_size = 0;
 		}
 		if (line.find("location") != std::string::npos)
 		{
@@ -93,6 +92,14 @@ int Config::configInit(const std::string &argv1)
 			if (end_pos == std::string::npos) {std::cerr << "Expected ';' after client_max_body_size in line: " + line; exit(EXIT_FAILURE);}
 			currentServer->client_max_body_size = atoi(line.substr(pos, end_pos - pos));
 		}
+		if (line.find("server_name") != std::string::npos)
+		{
+			size_t pos = line.find("server_name") + 12;
+			while (pos < line.size() && (line[pos] == ' ' || line[pos] == '\t')) {pos++;}
+			size_t end_pos = line.find(';', pos);
+			if (end_pos == std::string::npos) {std::cerr << "Expected ';' after Server_name in line: " + line; exit(EXIT_FAILURE);}
+			currentServer->hostname = split(line.substr(pos, end_pos - pos), ' ');
+		}
 	}
 	config_file.close();
 	return EXIT_SUCCESS;
@@ -105,7 +112,13 @@ void Config::log() const
 		const ServerData &server = *it;
 		std::cout << "\nRoot: " << server.root;
 		std::cout << "\nclient_max_body_size: " << server.client_max_body_size;
-		for(std::vector<ServerData::Address>::const_iterator addr_it = server._address.begin(); addr_it != server._address.end(); ++addr_it)
+		std::cout << "\nHosts:";
+		for(std::vector<std::string>::const_iterator host_it = server.hostname.begin(); host_it != server.hostname.end(); ++host_it)
+		{
+			const std::string &host = *host_it;
+			std::cout << " " << host;
+		}
+		for(std::vector<ServerData::Address>::const_iterator addr_it = server.addresses.begin(); addr_it != server.addresses.end(); ++addr_it)
 		{
 			const ServerData::Address &address = *addr_it;
 			std::cout << "\nServer ip: " << address.ip;

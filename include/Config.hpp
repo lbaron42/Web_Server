@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/22 16:55:00 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/22 20:35:32 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,34 +29,34 @@ struct ServerData
 		std::string				ip;
 		std::string				port;
 	};
-    struct Location
-    {
-        std::string				_location_path;
-        std::string				alias;
-        std::string				index;
+	struct Location
+	{
+		std::string				_location_path;
+		std::string				alias;
+		std::string				index;
 		std::string				allowed_methods;
 		bool 					is_redirection;
-    };
+	};
 
-    std::vector<Address>		_address;
-    std::vector<std::string>	hostname;
-    std::string					root;
-    std::string					index;
-    std::vector<Location>		locations;
-    size_t						client_max_body_size;
-    bool						directory_listing;
+	std::vector<Address>		addresses;
+	std::vector<std::string>	hostname;
+	std::string					root;
+	std::string					index;
+	std::vector<Location>		locations;
+	size_t						client_max_body_size;
+	bool						directory_listing;
 };
 
 
 class Config {
 public:
-    int configInit(const std::string& argv1);
-    void log() const;
-    // const std::vector<s_Server>& getServers() const;
+	int configInit(const std::string& argv1);
+	void log() const;
+	// const std::vector<s_Server>& getServers() const;
 
 private:
-    std::vector<ServerData> servers;
-    void getAddress(std::string line, ServerData *current);
+	std::vector<ServerData> servers;
+	void getAddress(std::string line, ServerData *current);
 };
 
 #endif // CONFIG_HPP
