@@ -1,5 +1,5 @@
-#include "Config.hpp"
 #include <cstdlib>
+#include "Config.hpp"
 
 int main()
 {

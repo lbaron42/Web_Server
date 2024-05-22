@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:23:14 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/18 13:16:32 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/20 21:55:48 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,8 +15,10 @@
 
 # include <sstream>
 # include <string>
+# include <vector>
 
 # include "Log.hpp"
+# include "Headers.hpp"
 
 class Request
 {
@@ -35,17 +37,27 @@ class Request
 			DELETE = 16
 		};
 
+		e_method get_method() const;
+		std::string get_url() const;
+		bool is_version_11() const;
+		std::string const get_header(std::string const &key) const;
+		Headers get_headers() const;
+		std::string get_req_line() const;
+
 		void append(std::string const &str);
 		int validate_request_line();
 		bool is_valid_method(std::string const &method);
-		bool is_allowed_method() const;
+		bool parse_headers();
 
 	private:
 		std::stringstream	raw_;
-		std::string			req_line_;
-		e_method			method_;
-		std::string			url_;
 		Log					&log;
+		std::string			req_line;
+		e_method			method;
+		std::string			url;
+		bool				v_11;
+		Headers				headers;
+		std::vector<char>	payload;
 
 		Request(Request const &rhs);
 		Request &operator=(Request const &rhs);
