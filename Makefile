@@ -6,7 +6,7 @@
 #    By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/05/14 11:22:55 by mcutura           #+#    #+#              #
-#    Updated: 2024/05/21 09:40:37 by mcutura          ###   ########.fr        #
+#    Updated: 2024/05/21 14:13:53 by mcutura          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -73,7 +73,7 @@ check: debug $(TESTS:%=%.out) $(TESTS:%=%.test)	# Run tests
 %.test: %.out
 	@echo "[TESTING]: $(*F)" >> $(UNITTESTSLOG)
 	@(timeout --preserve-status --signal=INT 4.2s ./$(*:%=%.out) \
-	&& echo "$(COLOUR_GREEN)[OK]$(COLOUR_END) $(*F)") \
+	2>$(UNITTESTSLOG) && echo "$(COLOUR_GREEN)[OK]$(COLOUR_END) $(*F)") \
 	|| (echo "$(COLOUR_RED)[KO]$(COLOUR_END) $(*F) failed" \
 	&& cat $(UNITTESTSLOG) && exit 1)
 $(UNITTESTDIR)/test_%.out: $(UNITTESTDIR)/test_%.cpp

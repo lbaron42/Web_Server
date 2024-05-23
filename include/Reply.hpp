@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 07:56:07 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/20 22:08:11 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/22 12:51:09 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,6 +32,9 @@ class Reply
 		static std::vector<char> const get_payload(
 				std::string const &filename);
 		static std::string const get_listing(std::string const &filename);
+		static std::string const generate_error_page(int status = 500);
+		static size_t get_html_size(int status);
+		static size_t get_html_size(std::string const &listed_directory);
 
 	private:
 		Reply();

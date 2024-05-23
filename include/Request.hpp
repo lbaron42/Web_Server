@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:23:14 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/20 21:55:48 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/23 11:24:21 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,22 +19,28 @@
 
 # include "Log.hpp"
 # include "Headers.hpp"
+# include "Utils.hpp"
 
 class Request
 {
 	public:
 		Request(Log &logger);
 		Request(std::string const &raw, Log &logger);
+		Request(Request const &rhs);
 		~Request();
 
 		enum e_method
 		{
-			HEAD = 0,
-			GET = 1,
-			POST = 2,
-			PUT = 4,
-			PATCH = 8,
-			DELETE = 16
+			NONE = 0,
+			HEAD = 1,
+			GET = 2,
+			POST = 4,
+			PUT = 8,
+			PATCH = 16,
+			DELETE = 32,
+			OPTIONS = 64,
+			CONNECT = 128,
+			TRACE = 256
 		};
 
 		e_method get_method() const;
@@ -43,6 +49,16 @@ class Request
 		std::string const get_header(std::string const &key) const;
 		Headers get_headers() const;
 		std::string get_req_line() const;
+		int get_status() const;
+		std::string get_target() const;
+		bool is_dirlist() const;
+		bool is_parsed() const;
+		bool is_done() const;
+
+		void set_status(int status);
+		void set_target(std::string const &path);
+		void set_dirlist(bool value);
+		void set_parsed(bool value);
 
 		void append(std::string const &str);
 		int validate_request_line();
@@ -50,16 +66,19 @@ class Request
 		bool parse_headers();
 
 	private:
-		std::stringstream	raw_;
 		Log					&log;
+		std::stringstream	raw_;
 		std::string			req_line;
 		e_method			method;
 		std::string			url;
 		bool				v_11;
+		bool				is_parsed_;
+		bool				is_dirlist_;
+		int					status;
 		Headers				headers;
+		std::string			target;
 		std::vector<char>	payload;
 
-		Request(Request const &rhs);
 		Request &operator=(Request const &rhs);
 };
 

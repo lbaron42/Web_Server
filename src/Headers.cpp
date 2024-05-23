@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/19 16:21:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/20 01:44:43 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/21 11:22:29 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -78,7 +78,7 @@ std::ostream &operator<<(std::ostream &os, Headers const &hdrs)
 	std::set<std::string> keys = hdrs.get_keys();
 	for (std::set<std::string>::const_iterator it = keys.begin();
 	it != keys.end(); ++it) {
-		os << *it << ": " << hdrs.get_header(*it) << std::endl;
+		os << *it << ": " << hdrs.get_header(*it) << "\r\n";
 	}
 	return os;
 }

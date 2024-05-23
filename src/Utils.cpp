@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:59:51 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/21 00:36:54 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/23 11:54:08 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,13 +25,22 @@ int atoi(const std::string &str) {
 	return num;
 }
 
-std::string trim(const std::string &str) {
-	size_t first = str.find_first_not_of(' ');
-	if (std::string::npos == first) {
-		return "";
-	}
-	size_t last = str.find_last_not_of(' ');
-	return str.substr(first, (last - first + 1));
+// std::string trim(const std::string &str) {
+// 	size_t first = str.find_first_not_of(' ');
+// 	if (std::string::npos == first) {
+// 		return "";
+// 	}
+// 	size_t last = str.find_last_not_of(' ');
+// 	return str.substr(first, (last - first + 1));
+// }
+
+std::string trim(std::string const &str, std::string const &trimchars)
+{
+	std::string::size_type start = str.find_first_not_of(trimchars);
+	if (start == std::string::npos)
+		return std::string();
+	std::string::size_type end = str.find_last_not_of(trimchars);
+	return str.substr(start, end - start + 1);
 }
 
 std::vector<std::string> split(const std::string &s, char delimiter) {

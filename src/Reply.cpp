@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 07:54:45 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/20 22:08:54 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/22 12:57:27 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,7 +30,7 @@ std::string const Reply::get_content(std::string const &filename)
 
 std::vector<char> const Reply::get_payload(std::string const &filename)
 {
-	std::ifstream				file(filename.c_str(), std::ios::binary);
+	std::ifstream		file(filename.c_str(), std::ios::binary);
 	std::vector<char>	bytes;
 
 	ssize_t file_size = get_file_size(filename);
@@ -42,6 +42,7 @@ std::vector<char> const Reply::get_payload(std::string const &filename)
 	return bytes;
 }
 
+// TODO: 
 std::string const Reply::get_listing(std::string const &path)
 {
 	std::stringstream	html;
@@ -61,9 +62,35 @@ std::string const Reply::get_status_line(bool v11, int status)
 	std::ostringstream	oss;
 	if (v11)	oss << "HTTP/1.1 ";
 	else		oss << "HTTP/1.0 ";
-	oss << status << " " << Reply::get_status_message(status)
-		<< "\r\n";
+	oss << status << " " << Reply::get_status_message(status) << "\r\n";
 	return oss.str();
+}
+
+// TODO:
+std::string const Reply::generate_error_page(int status)
+{
+	std::stringstream	html;
+
+	html << "<html>" << std::endl
+		<< "<head><title>"
+		<< status << " - " << Reply::get_status_message(status)
+		<< "</title></head>" << std::endl
+		<< "<body>" << std::endl
+		<< "<h1>" << "Error " << status
+		<< "</h1><hr><pre>" << "<h2>" << Reply::get_status_message(status)
+		<< "</h2>" << std::endl
+		<< "</body>" << std::endl << "</html>" << std::endl;
+	return html.str();
+}
+
+size_t Reply::get_html_size(int status)
+{
+	return (Reply::generate_error_page(status)).length();
+}
+
+size_t Reply::get_html_size(std::string const &listed_directory)
+{
+	return (Reply::get_listing(listed_directory)).length();
 }
 
 std::string const Reply::get_status_message(int status)

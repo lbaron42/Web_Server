@@ -52,7 +52,7 @@ MarvinX is a high-performance, lightweight server designed to handle concurrent 
 ### Prerequisites
 
 - Makefile
-- Linux kernel 2.6.18+ OR Docker
+- Linux kernel 2.6.27+ OR Docker
 
 ### Steps
 

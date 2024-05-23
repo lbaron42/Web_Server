@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:22:31 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/21 00:21:24 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/22 13:56:36 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,7 +14,8 @@
 
 using marvinX::stop_servers;
 
-static std::vector<Server> create_mock_servers(Log &log, int n_of_servers);
+static std::vector<Server> create_mock_servers(Log &log, int n_of_servers,
+	bool test = false);
 
 int	main(int ac, char **av)
 {
@@ -41,7 +42,7 @@ int	main(int ac, char **av)
 	/* DELETE BLOCK
 		Remove after Config Server creation is done
 	*/
-	std::vector<Server>	example = create_mock_servers(log, 2);
+	std::vector<Server>	example = create_mock_servers(log, 2, true);
 	for (std::vector<Server>::iterator it = example.begin();
 	it != example.end(); ++it)
 		Heart_of_Gold.add_server(*it);
@@ -56,7 +57,7 @@ int	main(int ac, char **av)
 	return EXIT_SUCCESS;
 }
 
-std::vector<Server> create_mock_servers(Log &log, int n_of_servers)
+std::vector<Server> create_mock_servers(Log &log, int n_of_servers, bool test)
 {
 	std::vector<Server>	mockservs;
 
@@ -82,6 +83,19 @@ std::vector<Server> create_mock_servers(Log &log, int n_of_servers)
 		hostname.str(std::string());
 		hostname << "www." << "marvinx" << i << ".42.fr";
 		sd.hostname.push_back(hostname.str());
+		mockservs.push_back(Server(sd, log));
+	}
+	if (test) {
+		ServerData			sd;
+		ServerData::Address	addr;
+
+		sd.root = "extra/YoupiBanane";
+		sd.index = "youpi.bad_extension";
+		sd.allowed_methods = static_cast<Request::e_method>( Request::GET );
+		addr.ip = "0.0.0.0";
+		addr.port = "9090";
+		sd.address.push_back(addr);
+		sd.hostname.push_back("youpibanane");
 		mockservs.push_back(Server(sd, log));
 	}
 	return mockservs;

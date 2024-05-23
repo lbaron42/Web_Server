@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/18 19:51:33 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/19 17:09:45 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/22 12:31:32 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -103,7 +103,7 @@ void Cluster::start()
 			}
 			if (events[i].events & EPOLLIN) {
 				if (const_cast<Server*>(it->second)
-					->recv_request(this->epoll_fd, it->first) == -1) {
+					->recv_request(this->epoll_fd, it->first)) {
 					this->client_fds.erase(it->first);
 				}
 			}

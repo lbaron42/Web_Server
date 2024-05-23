@@ -6,13 +6,14 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/21 00:40:15 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/23 11:46:52 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef SERVER_HPP
 # define SERVER_HPP
 
+#include <cstddef>
 # ifndef STRICT_EVALUATOR
 #  define STRICT_EVALUATOR 0
 # endif
@@ -25,6 +26,7 @@
 # include <cstdlib>
 # include <map>
 # include <set>
+# include <sstream>
 # include <string>
 # include <vector>
 
@@ -50,10 +52,19 @@ struct ServerData
 		std::string	port;
 	};
 
+	struct Location
+	{
+		std::string			alias;
+		std::string			index;
+		Request::e_method	allowed_methods;
+	};
+
 	std::vector<Address>		address;
 	std::vector<std::string>	hostname;
 	std::string 				root;
 	std::string 				index;
+	std::vector<Location>		locations;
+	size_t						client_max_body_size;
 	Request::e_method			allowed_methods;
 	bool						directory_listing;
 };
@@ -69,8 +80,8 @@ class Server
 		std::map<int, Server const*> get_listen_fds() const;
 		int add_client(int epoll_fd, int listen_fd);
 		void close_connection(int epoll_fd, int fd);
-		int recv_request(int epoll_fd, int fd);
-		void handle_request(int fd, int status);
+		bool recv_request(int epoll_fd, int fd);
+		void handle_request(int fd);
 		int send_reply(int epoll_fd, int fd);
 
 	private:
@@ -83,11 +94,17 @@ class Server
 
 		int setup_socket(char const *service, char const *node);
 		bool switch_epoll_mode(int epoll_fd, int fd, uint32_t events);
-		int parse_request(int fd);
+		void parse_request(int fd);
 		Server &drop_request(int fd);
+		Server &check_queue(int fd);
 		Server &enqueue_reply(int fd, std::vector<char> const &reply);
-		int handle_get_request(Request *request, Headers &headers,
+		std::string resolve_address(Request *request);
+		void get_head(Request *request, Headers &headers);
+		void get_payload(Request *request, Headers &headers,
 				std::vector<char> *body);
+		int handle_post_request(Request *request, Headers &headers);
+		Server &generate_response(Request *request, Headers &headers,
+				std::vector<char> const &body, std::vector<char> &repl);
 
 		/* no assign to object with reference member (here: Log) */
 		Server &operator=(Server const &rhs);
