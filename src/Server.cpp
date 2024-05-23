@@ -6,278 +6,121 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/21 00:35:22 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/17 21:29:08 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Server.hpp"
 
 ////////////////////////////////////////////////////////////////////////////////
-//	Functors
+//	Signal handling
 ////////////////////////////////////////////////////////////////////////////////
+namespace marvinX {
+	extern "C" void stop_server(int sig)
+	{
+		(void)sig;
+		g_stopme = 1;
+	}
+}
 
-struct DelValue
+////////////////////////////////////////////////////////////////////////////////
+//	CTOR/DTOR
+////////////////////////////////////////////////////////////////////////////////
+Server::Server(std::string const &name, std::string const &port, Log &logger) \
+	: name_(name), port_(port), root_("/tmp"), log(logger)
+{}
+
+struct del_value
 {
 	void operator()(std::pair<int, Request*> pair)	{ delete pair.second; }
 };
 
-struct AssignFd
-{
-	AssignFd(Server const *s) : serv(s) {}
-
-	std::pair<int, Server const*> operator()(int fd) const
-	{
-		return std::make_pair(fd, serv);
-	}
-
-	private:
-		Server const	*serv;
-};
-
-////////////////////////////////////////////////////////////////////////////////
-//	CTORs/DTOR
-////////////////////////////////////////////////////////////////////////////////
-
-Server::Server(ServerData const &server_data, Log &log)
-	: info(server_data), log(log)
-{}
-
 Server::~Server()
 {
-	std::for_each(this->requests.begin(), this->requests.end(), DelValue());
+	std::for_each(this->requests_.begin(), this->requests_.end(), del_value());
 }
-
-Server::Server(Server const &rhs) : info(rhs.info), log(rhs.log)
-{}
 
 ////////////////////////////////////////////////////////////////////////////////
 //	Public methods
 ////////////////////////////////////////////////////////////////////////////////
 
-bool Server::initialize(int epoll_fd)
+bool Server::initialize()
 {
-	typedef std::vector<ServerData::Address>::const_iterator AddrIter;
-	for (AddrIter it = this->info.address.begin();
-	it != this->info.address.end(); ++it) {
-		int sfd = setup_socket(it->port.c_str(), \
-				it->ip.empty() ? NULL : it->ip.c_str());
-		if (sfd == -1)
+	if (!setup_socket())
+		return false;
+	if (STRICT_EVALUATOR)
+	{
+		if ((this->epoll_fd_ = epoll_create(42)) == -1) {
+			log << Log::ERROR << "Failed to create epoll file descriptor"
+				<< std::endl;
+			this->cleanup();
 			return false;
-		this->listen_fds.insert(sfd);
-		log << Log::DEBUG << "Listening on: " << it->ip.c_str() << ":"
-			<< it->port.c_str() << " | File desc: " << sfd
-			<< std::endl;
+		}
+		fcntl(this->epoll_fd_, F_SETFL, O_CLOEXEC);
+	}
+	else
+	{
+		if ((this->epoll_fd_ = epoll_create1(EPOLL_CLOEXEC)) == -1) {
+			log << Log::ERROR << "Failed to create epoll file descriptor"
+				<< std::endl;
+			this->cleanup();
+			return false;
+		}
 	}
 
 	epoll_event event = {};
 	event.events = EPOLLIN;
-	for (std::set<int>::const_iterator it = this->listen_fds.begin();
-	it != this->listen_fds.end(); ++it) {
-		event.data.fd = *it;
-		if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, *it, &event)) {
-			log << Log::ERROR << "Failed to add fd " << *it 
-				<< " to epoll_ctl" << std::endl;
-			return false;
-		}
-		log << Log::DEBUG << "Added fd " << *it << " to epoll_ctl" << std::endl;
-		log << Log::INFO << "Initialized server: " << this->info.hostname[0]
-			<< std::endl;
+	event.data.fd = listen_fd_;
+	if (epoll_ctl(this->epoll_fd_, EPOLL_CTL_ADD, listen_fd_, &event)) {
+		log << Log::ERROR << "Failed to add fd to epoll_ctl" << std::endl;
+		this->cleanup();
+		return false;
 	}
+	log << Log::INFO << "Server initialized: "
+		<< this->name_ << ":" << this->port_ << std::endl;
 	return true;
 }
 
-std::map<int, Server const*> Server::get_listen_fds() const
+void Server::start()
 {
-	AssignFd						assign_fd(this);
-	std::map<int, Server const*>	listen_map;
+	int const	timeout = 420;
+	int const	max_events = 42;
+	epoll_event	events[max_events];
 
-	std::transform(this->listen_fds.begin(), this->listen_fds.end(), \
-			std::inserter(listen_map, listen_map.end()), assign_fd);
-	return listen_map;
-}
-
-int Server::add_client(int epoll_fd, int listen_fd)
-{
-	// We default to be anonymous accepting (non-tracking) server
-	int client_fd = STRICT_EVALUATOR ? \
-			accept(listen_fd, NULL, NULL) : \
-			accept4(listen_fd, NULL, NULL, SOCK_CLOEXEC | SOCK_NONBLOCK);
-	if (client_fd == -1) {
-		log << Log::ERROR << "Failed to accept connection" << std::endl;
-		return -1;
-	}
-	if (STRICT_EVALUATOR)	fcntl(client_fd, F_SETFL, O_NONBLOCK | O_CLOEXEC);
-
-	epoll_event event = {};
-	event.events = EPOLLIN;
-	event.data.fd = client_fd;
-	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &event)) {
-		log << Log::ERROR << "Failed to add client_fd " << client_fd
-			<< " to epoll_ctl" << std::endl;
-		(void)close(client_fd);
-		return -1;
-	}
-	if (!this->clients.insert(client_fd).second) {
-		log << Log::ERROR << "Failed storing client fd: " << client_fd
-			<< std::endl;
-		this->close_connection(epoll_fd, client_fd);
-		return -1;
-	}
-	log << Log::INFO << "Client connected: " << client_fd << std::endl;
-	return client_fd;
-}
-
-void Server::close_connection(int epoll_fd, int fd)
-{
-	if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL) == -1) {
-		log << Log::ERROR << "Failed to remove fd from epoll" << std::endl;
-	}
-	(void)close(fd);
-	std::map<int, Request*>::iterator it = this->requests.find(fd);
-	if (it != this->requests.end()) {
-		delete it->second;
-		this->requests.erase(it);
-	}
-	this->replies.erase(fd);
-	this->clients.erase(fd);
-	log << Log::INFO << "Closed connection with client: " << fd << std::endl;
-}
-
-int Server::recv_request(int epoll_fd, int fd)
-{
-	char				buff[4096];
-	std::string			msg;
-
-	ssize_t r = recv(fd, buff, sizeof(buff), MSG_DONTWAIT);
-	switch (r) {
-		case -1:
-			log << Log::WARN << "recv client " << fd << " returned error"
-				<< std::endl;
-			return 0;
-		case 0:
-			log << Log::INFO << "Client closed connection" << std::endl;
-			this->close_connection(epoll_fd, fd);
-			return -1;
-		default:
-			msg = std::string(buff, r);
-	}
-	if (DEBUG_MODE)
-		log << Log::DEBUG << "Received " << r << "b: " << msg << std::endl;
-
-	std::map<int, Request*>::iterator it = this->requests.find(fd);
-	if (it == this->requests.end())
-		this->requests[fd] = new Request(msg, this->log);
-	else
-		it->second->append(msg);
-	this->handle_request(fd, this->parse_request(fd));
-	if (!this->switch_epoll_mode(epoll_fd, fd, EPOLLOUT))
-		return -1;
-	return 0;
-}
-
-void Server::handle_request(int fd, int status)
-{
-	Request				*request = this->requests[fd];
-	Headers				hdrs;
-	std::vector<char>	payload;
-	std::vector<char>	repl;
-
-	if (status == 200) {
-		switch (request->get_method()) {
-			case Request::GET:
-				status = this->handle_get_request(request, hdrs, &payload);
-				break;
-			// case Request::POST: break;
-			// case Request::DELETE: break;
-			case Request::HEAD:
-				status = 200; break;
-			default:
-				status = 400; break;
+	while (!marvinX::g_stopme) {
+		int n_events = epoll_wait(this->epoll_fd_, events, max_events, timeout);
+		if (n_events == -1) {
+			if (!marvinX::g_stopme)
+				log << Log::ERROR << "Failed epoll_wait" << std::endl;
+			break;
 		}
-		hdrs.set_header("Connection", "keep-alive");
+		for (int i = 0; i < n_events; ++i) {
+			int fd = events[i].data.fd;
+			if (this->listen_fd_ == fd) {
+				this->add_client(fd);
+				continue;
+			}
+			if (events[i].events & EPOLLERR || events[i].events & EPOLLHUP) {
+				this->close_connection(fd);
+				continue;
+			}
+			if (events[i].events & EPOLLIN) {
+				this->recv_request(fd);
+			}
+			if (events[i].events & EPOLLOUT) {
+				this->send_reply(fd);
+			}
+		}
 	}
-	if (status != 200) {
-		hdrs.set_header("Content-Type", "text/plain");
-		hdrs.set_header("Connection", "close");
-	}
-
-	log << Log::INFO << "Request from client: " << fd << std::endl
-		<< "\t\t\t\t" << request->get_req_line() << " => "
-		<< status << " " << Reply::get_status_message(status)
-		<< std::endl;
-
-	std::string tmp(Reply::get_status_line(request->is_version_11(), status));
-	repl.insert(repl.end(), tmp.begin(), tmp.end());
-
-	std::stringstream ss;
-	ss << payload.size();
-	hdrs.set_header("Content-Length", ss.str());
-	ss.clear();
-	ss.str(std::string());
-	ss << hdrs;
-	ss >> std::noskipws;
-	char c;
-	while (ss >> c)
-		repl.push_back(c);
-	repl.push_back('\r');
-	repl.push_back('\n');
-	if (!payload.empty()) {
-		repl.insert(repl.end(), payload.begin(), payload.end());
-		repl.push_back('\r');
-		repl.push_back('\n');
-	}
-	repl.push_back('\r');
-	repl.push_back('\n');
-
-	this->drop_request(fd)
-		.enqueue_reply(fd, repl);
-}
-
-int Server::send_reply(int epoll_fd, int fd)
-{
-	ssize_t	s;
-
-	std::map<int, std::vector<char> >::iterator it = this->replies.find(fd);
-	if (it == this->replies.end()) {
-		log << Log::WARN << "Un numero sbagliato" << std::endl;
-		return 0;
-	}
-	s = send(fd, it->second.data(), it->second.size(), MSG_DONTWAIT);
-	log << Log::DEBUG << "Reply sent " << s << " bytes" << std::endl;
-	if (s < 0) {
-		log << Log::ERROR << "Failed to send message" << std::endl;
-		this->close_connection(epoll_fd, fd);
-		return -1;
-	}
-	if (static_cast<size_t>(s) < it->second.size()) {
-		it->second.erase(it->second.begin(), it->second.begin() + s);
-		return 0;
-	}
-	this->replies.erase(fd);
-	if (!this->switch_epoll_mode(epoll_fd, fd, EPOLLIN))
-		return -1;
-	return 0;
+	this->cleanup();
+	log << Log::INFO << "SIGINT received - server shutting down" << std::endl;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 //	Private innards
 ////////////////////////////////////////////////////////////////////////////////
 
-bool Server::switch_epoll_mode(int epoll_fd, int fd, uint32_t events)
-{
-	epoll_event event = {};
-	event.events = events;
-	event.data.fd = fd;
-	if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &event)) {
-		log << Log::ERROR << "Failed to modify polling for fd "
-			<< fd << std::endl;
-		this->close_connection(epoll_fd, fd);
-		return false;
-	}
-	return true;
-}
-
-int Server::setup_socket(char const *service, char const *node)
+bool Server::setup_socket()
 {
 	int			sfd(-1);
 	addrinfo	*servinfo;
@@ -288,10 +131,10 @@ int Server::setup_socket(char const *service, char const *node)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
 
-	if (int ret = getaddrinfo(node, service, &hints, &servinfo)) {
+	if (int ret = getaddrinfo(NULL, port_.c_str(), &hints, &servinfo)) {
 		log << Log::ERROR << "getaddrinfo error: " \
 			<< gai_strerror(ret) << std::endl;
-		return -1;
+		return false;
 	}
 	for(ptr = servinfo; ptr != NULL; ptr = ptr->ai_next) {
 		sfd = socket(ptr->ai_family, \
@@ -303,7 +146,7 @@ int Server::setup_socket(char const *service, char const *node)
 			log << Log::ERROR << "Failed to set socket as reusable"
 				<< std::endl;
 			(void)close(sfd);
-			return -1;
+			return false;
 		}
 		if (bind(sfd, ptr->ai_addr, ptr->ai_addrlen) == -1) {
 			(void)close(sfd);
@@ -313,94 +156,147 @@ int Server::setup_socket(char const *service, char const *node)
 	}
 	freeaddrinfo(servinfo);
 	if (!ptr) {
-		log << Log::ERROR << "Failed to initialize server socket on port: "
-			<< service << std::endl;
-		return -1;
+		log << Log::ERROR << "Failed to initialize server socket" << std::endl;
+		return false;
 	}
 	if (listen(sfd, SOMAXCONN) == -1) {
 		log << Log::ERROR << "Failed to listen on bound socket" << std::endl;
 		(void)close(sfd);
-		return -1;
+		return false;
 	}
-	return sfd;
+	listen_fd_ = sfd;
+	return true;
 }
 
-int Server::parse_request(int fd)
+void Server::add_client(int listen_fd)
 {
-	int status = this->requests[fd]->validate_request_line();
-	if (status != 200)
-		return status;
-	if (!this->requests[fd]->parse_headers()) {
-		log << Log::WARN << "Failed parsing headers" << std::endl;
-		log << Log::DEBUG << "Recognized: " << std::endl
-			<< this->requests[fd]->get_headers()
+	// We default to be anonymous accepting (non-tracking) server
+	int client_fd = STRICT_EVALUATOR ? \
+				accept(listen_fd, NULL, NULL) : \
+				accept4(listen_fd, NULL, NULL, SOCK_CLOEXEC | SOCK_NONBLOCK);
+	if (client_fd == -1) {
+		log << Log::ERROR << "Failed to accept connection" << std::endl;
+		return ;
+	}
+	if (STRICT_EVALUATOR)
+		fcntl(client_fd, F_SETFL, O_NONBLOCK | O_CLOEXEC);
+
+	epoll_event event = {};
+	event.events = EPOLLIN;
+	event.data.fd = client_fd;
+	if (epoll_ctl(this->epoll_fd_, EPOLL_CTL_ADD, client_fd, &event)) {
+		log << Log::ERROR << "Failed to add client_fd to epoll_ctl"
 			<< std::endl;
-		return 0;
+		(void)close(client_fd);
+	} else if (!this->clients_.insert(client_fd).second) {
+		log << Log::ERROR << "Failed storing client fd: " << client_fd
+			<< std::endl;
+		this->close_connection(client_fd);
+	} else {
+		log << Log::INFO << "Client connection: " << client_fd << std::endl;
 	}
-	log << Log::DEBUG << "Request headers: " << std::endl
-		<< this->requests[fd]->get_headers()
-		<< std::endl;
-	if (!(this->requests[fd]->get_method() & this->info.allowed_methods))
-		status = 405;
-	return status;
 }
 
-Server &Server::drop_request(int fd)
+void Server::close_connection(int fd)
 {
-	std::map<int, Request*>::iterator it = this->requests.find(fd);
-	if (it != this->requests.end())
+	if (epoll_ctl(this->epoll_fd_, EPOLL_CTL_DEL, fd, NULL) == -1) {
+		log << Log::ERROR << "Failed to remove fd from epoll" << std::endl;
+	}
+	(void)close(fd);
+	std::map<int, Request*>::iterator it = this->requests_.find(fd);
+	if (it != this->requests_.end())
 	{
 		delete it->second;
-		this->requests.erase(it);
+		this->requests_.erase(it);
 	}
-	return *this;
+	this->replies_.erase(fd);
+	this->clients_.erase(fd);
+	log << Log::INFO << "Closed connection with client: " << fd << std::endl;
 }
 
-Server &Server::enqueue_reply(int fd, std::vector<char> const &reply)
+void Server::recv_request(int fd)
 {
-	std::map<int, std::vector<char> >::iterator rip = this->replies.find(fd);
-	if (rip == this->replies.end())
-		this->replies.insert(std::make_pair(fd, reply));
+	static int const	len = 4096;
+	char				buff[len];
+	std::string			msg;
+
+	ssize_t r = recv(fd, buff, len, MSG_DONTWAIT);
+	switch (r) {
+		case -1:
+			log << Log::WARN << "recv client " << fd << " returned error"
+				<< std::endl;
+			return ;
+		case 0:
+			log << Log::INFO << "Client closed connection" << std::endl;
+			this->close_connection(fd);
+			return ;
+		default:
+			msg = std::string(buff, r);
+	}
+	if (DEBUG_MODE)
+		log << Log::DEBUG << "Received " << r << "b: " << msg << std::endl;
+
+	std::map<int, Request*>::iterator it = this->requests_.find(fd);
+	if (it == this->requests_.end())
+	{
+		this->requests_[fd] = new Request(msg, this->log);
+		int status = this->requests_[fd]->validate_request_line();
+		if (!status)
+			return ;
+		this->replies_[fd] = Reply::get_status_line(status);
+		log << Log::DEBUG << this->replies_[fd] << std::endl;
+		it = this->requests_.find(fd);
+		if (it != this->requests_.end())
+		{
+			delete it->second;
+			this->requests_.erase(it);
+		}
+	}
 	else
-		rip->second.insert(rip->second.end(), reply.begin(), reply.end());
-	return *this;
+	{
+		it->second->append(msg);
+	}
+
+	epoll_event event = {};
+	event.events = EPOLLOUT;
+	event.data.fd = fd;
+	if (epoll_ctl(this->epoll_fd_, EPOLL_CTL_MOD, fd, &event)) {
+		log << Log::ERROR << "Failed to modify polling" << std::endl;
+		this->close_connection(fd);
+	}
 }
 
-int Server::handle_get_request(Request *request, Headers &headers,
-		std::vector<char> *body)
+void Server::send_reply(int fd)
 {
-	std::string const	&url = request->get_url();
-	std::string			path(this->info.root);
-	std::string			msg_body;
+	ssize_t		s;
+	std::string	rep;
 
-	if (url[url.size() - 1] != '/') {
-		path.append(url);
-	} else if (this->info.directory_listing) {
-		// TODO: Check if permissions allow access
-		msg_body = Reply::get_listing(url);
-		std::copy(msg_body.begin(), msg_body.end(), std::back_inserter(*body));
-		headers.set_header("Content-Type", "text/html");
-		return 200;
-	} else if (url == "/" && !this->info.index.empty()) {
-		path.append(url);
-		path.append(this->info.index);
-	} else {
-		return 400; // TODO: confirm status code for this case, maybe 404?
+	std::map<int, std::string>::iterator it = this->replies_.find(fd);
+	if (it == this->replies_.end())
+		return ;
+	rep = it->second;
+	s = send(fd, rep.c_str(), rep.length(), MSG_DONTWAIT);
+	log << Log::DEBUG << "Sent " << s << ": " << rep.c_str();
+	if (s < 0) {
+		log << Log::ERROR << "Failed to send message" << std::endl;
+		this->close_connection(fd);
+		return ;
 	}
-	log << Log::DEBUG << "Requested file: " << path << std::endl;
-	if (access(path.c_str(), F_OK))
-		return 404;
-	if (access(path.c_str(), R_OK)) {
-		log << Log::ERROR << "Cannot open requested file: "
-			<< url << std::endl;
-		return 403;
+	if (static_cast<size_t>(s) < rep.length()) {
+		it->second.erase(0, s);
+		return ;
 	}
-	headers.set_header("Content-Type", get_mime_type(path));
-	if (!get_mime_type(path).rfind("text", 0)) {
-		msg_body = Reply::get_content(path);
-		std::copy(msg_body.begin(), msg_body.end(), std::back_inserter(*body));
-	} else {
-		*body = Reply::get_payload(path);
+	this->replies_.erase(fd);
+	epoll_event event = {};
+	event.events = EPOLLIN;
+	event.data.fd = fd;
+	if (epoll_ctl(this->epoll_fd_, EPOLL_CTL_MOD, fd, &event)) {
+		log << Log::ERROR << "Failed to modify polling" << std::endl;
+		this->close_connection(fd);
 	}
-	return 200;
+}
+
+void Server::cleanup()
+{
+	return ;
 }
