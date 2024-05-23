@@ -13,7 +13,16 @@ Welcome to the MarvinX Server, a powerful and efficient C++ server inspired by N
 ```
 make container
 ```
-Server now available at 127.0.0.1:8080
+Servers now available at localhost:8080 and localhost:8081 with directory
+`./extra` mounted on `/var/www/html`  
+
+To expose different ports:  
+`PORT_MAPPING=' -p "8080:8080" -p "8081:8081"'`  
+
+To specify bind mount:  
+`MOUNT_VOLUME=' -v extra/www:/usr/share/www:ro' `
+
+Followed by `make container` (same command line)
 
 ## Table of Contents
 
@@ -42,9 +51,10 @@ MarvinX is a high-performance, lightweight server designed to handle concurrent 
 
 ### Prerequisites
 
-- C++98
 - Makefile
+- Linux kernel 2.6.18+ OR Docker
 
 ### Steps
 
-1. Clone the repository:..
+1. Clone the repository
+2. Run `make`

@@ -6,30 +6,62 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 07:54:45 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/17 12:05:53 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/20 22:08:54 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Reply.hpp"
 
 ////////////////////////////////////////////////////////////////////////////////
-//	CTOR/DTOR
-////////////////////////////////////////////////////////////////////////////////
-
-Reply::Reply()
-{}
-
-Reply::~Reply()
-{}
-
-////////////////////////////////////////////////////////////////////////////////
 //	Static methods
 ////////////////////////////////////////////////////////////////////////////////
 
-std::string const Reply::get_status_line(int status)
+std::string const Reply::get_content(std::string const &filename)
+{
+	std::ifstream	file(filename.c_str());
+	std::string		content;
+
+	if (!file.is_open())
+		return std::string();
+	std::getline(file, content, std::string::traits_type::to_char_type(
+			std::string::traits_type::eof()));
+	return content;
+}
+
+std::vector<char> const Reply::get_payload(std::string const &filename)
+{
+	std::ifstream				file(filename.c_str(), std::ios::binary);
+	std::vector<char>	bytes;
+
+	ssize_t file_size = get_file_size(filename);
+	if (file_size < 0)
+		return bytes;
+	bytes.reserve(file_size);
+	bytes.insert(bytes.begin(), std::istreambuf_iterator<char>(file),
+			std::istreambuf_iterator<char>());
+	return bytes;
+}
+
+std::string const Reply::get_listing(std::string const &path)
+{
+	std::stringstream	html;
+
+	html << "<html>" << std::endl << "<head><title>"
+		<< "Index of " << path << "</title></head>" << std::endl
+		<< "<body>" << std::endl
+		<< "<h1>Index of " << path 
+		<< "</h1><hr><pre><a href=\"../\">..</a>" << std::endl
+		<< "<h2>TODO</h2>" << std::endl
+		<< "</body>" << std::endl << "</html>" << std::endl;
+	return html.str();
+}
+
+std::string const Reply::get_status_line(bool v11, int status)
 {
 	std::ostringstream	oss;
-	oss << "HTTP/1.1 " << status << " " << Reply::get_status_message(status)
+	if (v11)	oss << "HTTP/1.1 ";
+	else		oss << "HTTP/1.0 ";
+	oss << status << " " << Reply::get_status_message(status)
 		<< "\r\n";
 	return oss.str();
 }
@@ -167,6 +199,6 @@ std::string const Reply::get_status_message(int status)
 		case 511:
 			return "Network Authentication Required";
 		default:
-			return "";
+			return std::string();
 	}
 }
