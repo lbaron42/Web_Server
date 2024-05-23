@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:59:51 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/22 12:09:21 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/23 11:46:38 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -42,4 +42,14 @@ std::vector<std::string> split(const std::string &s, char delimiter) {
         tokens.push_back(trim(token));
     }
     return tokens;
+}
+
+bool isDigitString(const std::string& str) {
+    if (str.empty()) {
+        return false;
+    }
+    if (str.find_first_not_of("0123456789") != std::string::npos) {
+        return false;
+    }
+    return true;
 }

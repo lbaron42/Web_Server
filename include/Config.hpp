@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/22 20:35:32 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/23 17:06:25 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,43 +21,92 @@
 #include <vector>
 #include <cstdlib>
 
+const int errorCodes[] = {
+    100, // Continue
+    101, // Switching Protocols
+    200, // OK
+    201, // Created
+    202, // Accepted
+    203, // Non-Authoritative Information
+    204, // No Content
+    205, // Reset Content
+    206, // Partial Content
+    300, // Multiple Choices
+    301, // Moved Permanently
+    302, // Found
+    303, // See Other
+    304, // Not Modified
+    305, // Use Proxy
+    307, // Temporary Redirect
+    400, // Bad Request
+    401, // Unauthorized
+    402, // Payment Required
+    403, // Forbidden
+    404, // Not Found
+    405, // Method Not Allowed
+    406, // Not Acceptable
+    407, // Proxy Authentication Required
+    408, // Request Timeout
+    409, // Conflict
+    410, // Gone
+    411, // Length Required
+    412, // Precondition Failed
+    413, // Request Entity Too Large
+    414, // Request-URI Too Long
+    415, // Unsupported Media Type
+    416, // Requested Range Not Satisfiable
+    417, // Expectation Failed
+    500, // Internal Server Error
+    501, // Not Implemented
+    502, // Bad Gateway
+    503, // Service Unavailable
+    504, // Gateway Timeout
+    505, // HTTP Version Not Supported
+};
+
 
 struct ServerData
 {
 	struct Address
 	{
-		std::string				ip;
-		std::string				port;
+		std::string								ip;	//done
+		std::string								port; //done
 	};
 	struct Location
 	{
-		std::string				_location_path;
-		std::string				alias;
-		std::string				index;
-		std::string				allowed_methods;
-		bool 					is_redirection;
+		std::string								location_path; //done
+		std::string								alias; //done
+		std::vector<std::string>				loc_index; //done
+		std::vector<std::string>				allow_methods; // missing protections
+		bool 									is_redirection; // ?
 	};
 
-	std::vector<Address>		addresses;
-	std::vector<std::string>	hostname;
-	std::string					root;
-	std::string					index;
-	std::vector<Location>		locations;
-	size_t						client_max_body_size;
-	bool						directory_listing;
+	std::vector<Address>						addresses;//done
+	std::vector<std::string>					hostnames;	//done
+	std::vector<std::pair<int, std::string> >	error_pages; //done
+	std::vector<std::string>					serv_index; //done
+	std::string									root;	//done
+	size_t										client_max_body_size; //missing protections
+	bool										autoindex; //done
+	std::vector<std::string>					allow_methods; //missing protections
+	std::vector<Location>						locations; //missing protections and is_redirection
 };
 
 
 class Config {
 public:
 	int configInit(const std::string& argv1);
-	void log() const;
-	// const std::vector<s_Server>& getServers() const;
+	const std::vector<ServerData>& getServers() const;
 
 private:
 	std::vector<ServerData> servers;
+	void validError(int error);
+	std::string trimLine(std::string line, std::string message);
 	void getAddress(std::string line, ServerData *current);
+	void getErrors(std::string line, ServerData *current);
 };
+
+std::ostream &operator<<(std::ostream& os, const Config& config);
 
 #endif // CONFIG_HPP
 
