@@ -12,7 +12,7 @@
 
 NAME := webserv
 MAIN := main
-SRCS := Log Server Request Reply Config Utils
+SRCS := Log Config Cluster Headers Reply Request Server Utils
 
 SRCDIR := src
 INCDIR := include
@@ -21,6 +21,7 @@ BINDIR := build
 TESTSDIR := tests
 UNITTESTDIR := $(TESTSDIR)/unit_tests
 TESTS := $(addprefix $(UNITTESTDIR)/test_, $(SRCS))
+UNITTESTSLOG := $(UNITTESTDIR)/tests.log
 
 CXX := c++
 CXXFLAGS := -Wall -Wextra -Werror -std=c++98 -Wpedantic
@@ -28,12 +29,14 @@ CXXFLAGS += -march=native -O3
 CPPFLAGS := -I$(INCDIR)
 debug: CXXFLAGS += -Og -ggdb3
 debug: CPPFLAGS += -DDEBUG_MODE=1
+check: CPPFLAGS += -DDEBUG_MODE=1
 static: LDFLAGS += -static -static-libstdc++
 nitpicking: CPPFLAGS += -DSTRICT_EVALUATOR=1
 MKDIR := mkdir -p
 
 CONTAINER_NAME := marvinx
-PORT_MAPPING ?= -p "8080:8080"
+PORT_MAPPING ?= -p "8080:8080" -p "8081:8081"
+MOUNT_VOLUME ?= -v extra:/var/www/html:ro
 
 COLOUR_END := \033[0m
 COLOUR_GREEN := \033[0;32m
@@ -65,22 +68,27 @@ fclean: clean	# Clean all compiled binaries
 
 re: fclean all	# Recompile all targets
 
-check: $(SRCS:%=$(BINDIR)/%.o) $(TESTS:%=%.out) $(TESTS:%=%.test)	# Run tests
+check: debug $(TESTS:%=%.out) $(TESTS:%=%.test)	# Run tests
 	@echo "$(COLOUR_GREEN)All tests passed successfully$(COLOUR_END)"
 %.test: %.out
-	@(./$(*:%=%.out) && echo "$(COLOUR_GREEN)[OK]$(COLOUR_END) $(*F)") \
-	|| (echo "$(COLOUR_RED)[KO]$(COLOUR_END) $(*F) failed" && exit 1)
+	@echo "[TESTING]: $(*F)" >> $(UNITTESTSLOG)
+	@(timeout --preserve-status --signal=INT 4.2s ./$(*:%=%.out) \
+	&& echo "$(COLOUR_GREEN)[OK]$(COLOUR_END) $(*F)") \
+	|| (echo "$(COLOUR_RED)[KO]$(COLOUR_END) $(*F) failed" \
+	&& cat $(UNITTESTSLOG) && exit 1)
 $(UNITTESTDIR)/test_%.out: $(UNITTESTDIR)/test_%.cpp
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $(@:%.out=%.o)
 	@$(CXX) $(@:%.out=%.o) $(SRCS:%=$(BINDIR)/%.o) -o $@
+	@$(RM) $(UNITTESTSLOG)
 
-debug: all		# Build for debugging
+debug: re		# Build for debugging
 static: all		# Compile statically linked executable
 nitpicking: re	# Insist on blindly following subject.pdf to the letter...boring
 
 container:		# Build and run a Docker container running target executable
 	docker build . -t marvinx --progress=plain
-	docker run --rm --name $(CONTAINER_NAME) $(PORT_MAPPING) -it marvinx
+	docker run --rm --name $(CONTAINER_NAME) \
+		$(MOUNT_VOLUME) $(PORT_MAPPING) -it marvinx
 
 help:	# Print help on Makefile
 	@awk 'BEGIN { \
