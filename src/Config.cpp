@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/23 17:06:21 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/23 18:42:21 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,9 +44,9 @@ std::string Config::trimLine(std::string line, std::string message)
 	return line.substr(pos, end_pos - pos);
 }
 
-void Config::getAddress(std::string line, ServerData *current)
+void Config::getAddress(std::string line, ServerData2 *current)
 {
-	ServerData::Address address;
+	ServerData2::Address address;
 	size_t pos = line.find("listen") + 6;
 	while (pos < line.size() && (line[pos] == ' ' || line[pos] == '\t')) {pos++;}
 	if (line[pos] == '[') {
@@ -75,7 +75,7 @@ void Config::getAddress(std::string line, ServerData *current)
 	current->addresses.push_back(address);
 }
 
-void Config::getErrors(std::string line, ServerData *current)
+void Config::getErrors(std::string line, ServerData2 *current)
 {
 	std::vector<std::string> splitError = split(trimLine(line, "error_page"), ' ');
 	for(std::vector<std::string>::const_iterator split_it = splitError.begin(); split_it != splitError.end(); ++split_it)
@@ -102,8 +102,8 @@ int Config::configInit(const std::string &argv1)
 		return EXIT_FAILURE;
 	}
 	std::string line;
-	ServerData *currentServer = NULL;
-	ServerData::Location *currentLoc;
+	ServerData2 *currentServer = NULL;
+	ServerData2::Location *currentLoc;
 	while (std::getline(config_file, line))
 	{
 		line = trim(line);
@@ -111,7 +111,7 @@ int Config::configInit(const std::string &argv1)
 	        continue;
 		if (line.find("server {") != std::string::npos)
 		{
-			ServerData Server;
+			ServerData2 Server;
 			servers.push_back(Server);
 			currentServer = &servers.back();
 			currentServer->client_max_body_size = 1;
@@ -119,7 +119,7 @@ int Config::configInit(const std::string &argv1)
 		}
 		if (line.find("location") != std::string::npos)
 		{
-			ServerData::Location loc;
+			ServerData2::Location loc;
 			currentServer->locations.push_back(loc);
 			currentLoc = &currentServer->locations.back();
 			size_t pos = line.find("location") + 9;
@@ -183,16 +183,16 @@ int Config::configInit(const std::string &argv1)
 	return EXIT_SUCCESS;
 }
 
-const std::vector<ServerData>& Config::getServers() const {
+const std::vector<ServerData2>& Config::getServers() const {
     return servers;
 }
 
 std::ostream& operator<<(std::ostream& os, const Config& config)
 {
-    for (std::vector<ServerData>::const_iterator it = config.getServers().begin(); it != config.getServers().end(); ++it) {
-        const ServerData& server = *it;
-        for (std::vector<ServerData::Address>::const_iterator addr_it = server.addresses.begin(); addr_it != server.addresses.end(); ++addr_it) {
-            const ServerData::Address& address = *addr_it;
+    for (std::vector<ServerData2>::const_iterator it = config.getServers().begin(); it != config.getServers().end(); ++it) {
+        const ServerData2& server = *it;
+        for (std::vector<ServerData2::Address>::const_iterator addr_it = server.addresses.begin(); addr_it != server.addresses.end(); ++addr_it) {
+            const ServerData2::Address& address = *addr_it;
             os << "Server ip: " << address.ip << "\n";
             os << "Server port: " << address.port << "\n";
         }
@@ -214,8 +214,8 @@ std::ostream& operator<<(std::ostream& os, const Config& config)
             os << "\t" << method << "\n";
         }
         os << "Locations:\n";
-        for (std::vector<ServerData::Location>::const_iterator loc_it = server.locations.begin(); loc_it != server.locations.end(); ++loc_it) {
-            const ServerData::Location& location = *loc_it;
+        for (std::vector<ServerData2::Location>::const_iterator loc_it = server.locations.begin(); loc_it != server.locations.end(); ++loc_it) {
+            const ServerData2::Location& location = *loc_it;
             os << "\tLocation Path: " << location.location_path << "\n";
             os << "\tAlias: " << location.alias << "\n";
             os << "\tIndex: ";

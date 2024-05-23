@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/23 17:06:25 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/23 18:41:21 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -65,7 +65,7 @@ const int errorCodes[] = {
 };
 
 
-struct ServerData
+struct ServerData2
 {
 	struct Address
 	{
@@ -96,14 +96,14 @@ struct ServerData
 class Config {
 public:
 	int configInit(const std::string& argv1);
-	const std::vector<ServerData>& getServers() const;
+	const std::vector<ServerData2>& getServers() const;
 
 private:
-	std::vector<ServerData> servers;
+	std::vector<ServerData2> servers;
 	void validError(int error);
 	std::string trimLine(std::string line, std::string message);
-	void getAddress(std::string line, ServerData *current);
-	void getErrors(std::string line, ServerData *current);
+	void getAddress(std::string line, ServerData2 *current);
+	void getErrors(std::string line, ServerData2 *current);
 };
 
 std::ostream &operator<<(std::ostream& os, const Config& config);
