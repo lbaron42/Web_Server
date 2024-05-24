@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/23 11:50:47 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/24 02:32:21 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -172,8 +172,7 @@ bool Server::recv_request(int epoll_fd, int fd)
 		default:
 			msg = std::string(buff, r);
 	}
-	if (DEBUG_MODE)
-		log << Log::DEBUG << "Received " << r << "b: " << msg << std::endl;
+	log << Log::DEBUG << "Received " << r << "b: " << msg << std::endl;
 
 	std::map<int, Request*>::iterator it = this->requests.find(fd);
 	if (it == this->requests.end()) {
@@ -433,7 +432,8 @@ std::string Server::resolve_address(Request *request)
 			return std::string();
 		}
 	} else {
-		path.append("/");
+		if (url[0] != '/')
+			path.append("/");
 		path.append(url);
 	}
 	return path;

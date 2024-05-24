@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:22:31 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/22 13:56:36 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/23 19:53:34 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -93,9 +93,24 @@ std::vector<Server> create_mock_servers(Log &log, int n_of_servers, bool test)
 		sd.index = "youpi.bad_extension";
 		sd.allowed_methods = static_cast<Request::e_method>( Request::GET );
 		addr.ip = "0.0.0.0";
-		addr.port = "9090";
+		addr.port = "6789";
 		sd.address.push_back(addr);
 		sd.hostname.push_back("youpibanane");
+		mockservs.push_back(Server(sd, log));
+	}
+	if (test) {
+		ServerData			sd;
+		ServerData::Address	addr;
+
+		sd.root = "~/sgoinfre/iso";
+		sd.index = "index.html";
+		sd.allowed_methods = static_cast<Request::e_method>(
+				Request::GET | Request::HEAD);
+		sd.directory_listing = true;
+		addr.ip = "0.0.0.0";
+		addr.port = "4222";
+		sd.address.push_back(addr);
+		sd.hostname.push_back("FreeISO4U");
 		mockservs.push_back(Server(sd, log));
 	}
 	return mockservs;
