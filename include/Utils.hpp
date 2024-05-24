@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Utils.hpp                                          :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
+/*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:52:42 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/21 00:36:52 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/24 14:48:47 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,6 +28,7 @@ std::vector<std::string> split(const std::string &s, char delimiter);
 std::string const get_mime_type(std::string const &file);
 ssize_t get_file_size(std::string const &filename);
 std::stringstream::pos_type size_of_stream(const std::stringstream& ss);
+bool isDigitString(const std::string& str);
 
 struct MimeType
 {

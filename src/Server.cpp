@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
+/*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/21 00:35:22 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/24 15:52:58 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -57,8 +57,8 @@ Server::Server(Server const &rhs) : info(rhs.info), log(rhs.log)
 bool Server::initialize(int epoll_fd)
 {
 	typedef std::vector<ServerData::Address>::const_iterator AddrIter;
-	for (AddrIter it = this->info.address.begin();
-	it != this->info.address.end(); ++it) {
+	for (AddrIter it = this->info.addresses.begin();
+	it != this->info.addresses.end(); ++it) {
 		int sfd = setup_socket(it->port.c_str(), \
 				it->ip.empty() ? NULL : it->ip.c_str());
 		if (sfd == -1)
@@ -75,12 +75,12 @@ bool Server::initialize(int epoll_fd)
 	it != this->listen_fds.end(); ++it) {
 		event.data.fd = *it;
 		if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, *it, &event)) {
-			log << Log::ERROR << "Failed to add fd " << *it 
+			log << Log::ERROR << "Failed to add fd " << *it
 				<< " to epoll_ctl" << std::endl;
 			return false;
 		}
 		log << Log::DEBUG << "Added fd " << *it << " to epoll_ctl" << std::endl;
-		log << Log::INFO << "Initialized server: " << this->info.hostname[0]
+		log << Log::INFO << "Initialized server: " << this->info.hostnames[0]
 			<< std::endl;
 	}
 	return true;
@@ -340,7 +340,7 @@ int Server::parse_request(int fd)
 	log << Log::DEBUG << "Request headers: " << std::endl
 		<< this->requests[fd]->get_headers()
 		<< std::endl;
-	if (!(this->requests[fd]->get_method() & this->info.allowed_methods))
+	if (!(this->requests[fd]->get_method() & this->info.allow_methods))
 		status = 405;
 	return status;
 }
@@ -375,15 +375,15 @@ int Server::handle_get_request(Request *request, Headers &headers,
 
 	if (url[url.size() - 1] != '/') {
 		path.append(url);
-	} else if (this->info.directory_listing) {
+	} else if (this->info.autoindex) {
 		// TODO: Check if permissions allow access
 		msg_body = Reply::get_listing(url);
 		std::copy(msg_body.begin(), msg_body.end(), std::back_inserter(*body));
 		headers.set_header("Content-Type", "text/html");
 		return 200;
-	} else if (url == "/" && !this->info.index.empty()) {
+	} else if (url == "/" && !this->info.serv_index.empty()) {
 		path.append(url);
-		path.append(this->info.index);
+		path.append(this->info.serv_index[0]);
 	} else {
 		return 400; // TODO: confirm status code for this case, maybe 404?
 	}

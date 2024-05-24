@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   main.cpp                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
+/*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:22:31 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/21 00:21:24 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/24 14:52:13 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,7 +20,7 @@ int	main(int ac, char **av)
 {
 	Log				log;
 	Cluster			Heart_of_Gold(log);
-	Config			conf;
+	Config			conf(log);
 
 	log.set_output(&std::cerr, false);
 	if (ac != 2)
@@ -37,6 +37,9 @@ int	main(int ac, char **av)
 		log << Log::ERROR << "Couldn't open config file" << std::endl;
 		return EXIT_FAILURE;
 	}
+	log << Log::DEBUG << "Config parsed:" << std::endl
+		<< conf << std::endl;
+
 
 	/* DELETE BLOCK
 		Remove after Config Server creation is done

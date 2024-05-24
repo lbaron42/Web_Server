@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Utils.cpp                                          :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
+/*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:59:51 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/21 00:36:54 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/24 14:48:29 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -74,4 +74,14 @@ std::string const get_mime_type(std::string const &file)
 		return std::string("text/plain");
 	}
 	return it->second;
+}
+
+bool isDigitString(const std::string& str) {
+    if (str.empty()) {
+        return false;
+    }
+    if (str.find_first_not_of("0123456789") != std::string::npos) {
+        return false;
+    }
+    return true;
 }

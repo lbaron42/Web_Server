@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
+/*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/21 00:40:15 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/24 15:57:48 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -46,16 +46,27 @@ struct ServerData
 {
 	struct Address
 	{
-		std::string	ip;
-		std::string	port;
+		std::string								ip;	//done
+		std::string								port; //done
+	};
+	struct Location
+	{
+		std::string								location_path; //done
+		std::string								alias; //done
+		std::vector<std::string>				loc_index; //done
+		std::vector<std::string>				allow_methods; // missing protections
+		bool 									is_redirection; // ?
 	};
 
-	std::vector<Address>		address;
-	std::vector<std::string>	hostname;
-	std::string 				root;
-	std::string 				index;
-	Request::e_method			allowed_methods;
-	bool						directory_listing;
+	std::vector<Address>						addresses;//done "was adress"
+	std::vector<std::string>					hostnames;	//done
+	std::vector<std::pair<int, std::string> >	error_pages; //done
+	std::vector<std::string>					serv_index; //done
+	std::string									root;	//done
+	size_t										client_max_body_size; //missing protections
+	bool										autoindex; //done was "directory_listing"
+	std::vector<std::string>					allow_methods; //missing protections
+	std::vector<Location>						locations; //missing protections and is_redirection
 };
 
 class Server
