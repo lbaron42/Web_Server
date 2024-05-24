@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:23:14 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/23 11:24:21 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/24 16:12:36 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -42,6 +42,8 @@ class Request
 			CONNECT = 128,
 			TRACE = 256
 		};
+		
+		static e_method parse_methods(std::string const &str);
 
 		e_method get_method() const;
 		std::string get_url() const;

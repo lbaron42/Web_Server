@@ -6,12 +6,21 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/23 11:24:03 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/24 16:20:12 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Request.hpp"
+#include <cstddef>
 #include <ios>
+#include <sstream>
+#include <string>
+
+namespace {
+	static char const *const methodnames[] = {
+		"NONE", "HEAD", "GET", "POST", "PUT", "PATCH",
+	"DELETE", "OPTIONS", "CONNECT", "TRACE" };
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //	CTOR/DTOR
@@ -143,6 +152,32 @@ void Request::set_parsed(bool value)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+//	Static methods
+////////////////////////////////////////////////////////////////////////////////
+
+Request::e_method Request::parse_methods(std::string const &str)
+{
+	int					allowed_methods(0);
+	std::string			method;
+	std::stringstream	ss;
+	size_t				i;
+
+	ss.str(str);
+	while (std::getline(ss, method, ' ')) {
+		method = trim(method);
+		for (i = 1; i < sizeof(methodnames); ++i) {
+			if (method.c_str() != methodnames[i])
+				continue;
+			allowed_methods |= (1 << (i - 1));
+			break;
+		}
+		if (i == sizeof(methodnames))
+			return Request::NONE;
+	}
+	return static_cast<Request::e_method>(allowed_methods);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 //	Public methods
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -205,17 +240,6 @@ int Request::validate_request_line()
 
 bool Request::is_valid_method(std::string const &method)
 {
-	static std::string const methodnames[] = { "NONE",
-											"HEAD",
-											"GET",
-											"POST",
-											"PUT",
-											"PATCH",
-											"DELETE",
-											"OPTIONS",
-											"CONNECT",
-											"TRACE" };
-
 	for (size_t i = 1; i < sizeof(methodnames); ++i) {
 		if (method.c_str() == methodnames[i]) {
 			this->method = static_cast<Request::e_method>(1 << --i);
