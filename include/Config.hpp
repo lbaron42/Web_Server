@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/23 18:41:21 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/24 13:52:43 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,6 +20,8 @@
 #include <sstream>
 #include <vector>
 #include <cstdlib>
+
+# include "Log.hpp"
 
 const int errorCodes[] = {
     100, // Continue
@@ -95,10 +97,13 @@ struct ServerData2
 
 class Config {
 public:
+	Config(Log &log);
+	~Config();
 	int configInit(const std::string& argv1);
 	const std::vector<ServerData2>& getServers() const;
 
 private:
+	Log &log;
 	std::vector<ServerData2> servers;
 	void validError(int error);
 	std::string trimLine(std::string line, std::string message);

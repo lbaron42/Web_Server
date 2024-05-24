@@ -6,12 +6,18 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/23 18:42:21 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/24 14:03:11 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Config.hpp"
 #include "Utils.hpp"
+
+Config::Config(Log &log) : log(log)
+{}
+
+Config::~Config()
+{}
 
 void Config::validError(int error)
 {
@@ -26,7 +32,7 @@ void Config::validError(int error)
 	}
 	if (!found)
 	{
-		std::cerr << "ERROR: Code doesn't exist: " << error << std::endl;
+		log << Log::ERROR << "Code doesn't exist: " << error << std::endl;
 		exit(EXIT_FAILURE);
 	}
 }
@@ -89,7 +95,7 @@ void Config::getErrors(std::string line, ServerData2 *current)
 			}
 			else
 				current->error_pages.push_back(std::make_pair(-1, split));
-		}	
+		}
 }
 
 int Config::configInit(const std::string &argv1)
@@ -114,7 +120,7 @@ int Config::configInit(const std::string &argv1)
 			ServerData2 Server;
 			servers.push_back(Server);
 			currentServer = &servers.back();
-			currentServer->client_max_body_size = 1;
+			currentServer->client_max_body_size = 1024;
 			currentServer->autoindex = false;
 		}
 		if (line.find("location") != std::string::npos)
@@ -152,7 +158,7 @@ int Config::configInit(const std::string &argv1)
 		}
         if (line.find("error_page") != std::string::npos)
         {
-            getErrors(line, currentServer); 
+            getErrors(line, currentServer);
         }
 		if (line.find("index") != std::string::npos)
 		{
@@ -172,7 +178,7 @@ int Config::configInit(const std::string &argv1)
 			if (trimmed != "on" && trimmed != "off")
             	std::cerr << "autoindex is invalid on line: " << line << std::endl;
 			else if (trimmed == "on")
-            	currentServer->autoindex = true;	
+            	currentServer->autoindex = true;
 		}
 		if (line.find("allow_methods") != std::string::npos)
 		{

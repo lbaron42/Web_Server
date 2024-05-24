@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:22:31 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/23 17:18:02 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/24 13:54:05 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,13 +27,13 @@ int	main(int ac, char **av)
 		log.set_verbosity(Log::DEBUG);
 	log << Log::DEBUG << "Running in debug mode" << std::endl;
 
-	Config	conf;
+	Config	conf(log);
 	if (conf.configInit(av[1]))
 	{
 		std::cerr << "Couldn't open config file" << std::endl;
 		return EXIT_FAILURE;
 	}
-	// std::cout << conf;
+	log << Log::DEBUG << conf << std::endl;
 
 	Server serv("MarvinX", "8080", log);
 	if (serv.initialize())
