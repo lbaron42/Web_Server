@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/24 02:32:21 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/25 06:18:23 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -201,7 +201,6 @@ bool Server::recv_request(int epoll_fd, int fd)
 void Server::handle_request(int fd)
 {
 	Request				*request = this->requests[fd];
-	int					status = request->get_status();
 	Headers				hdrs;
 	std::vector<char>	payload;
 	std::vector<char>	repl;
@@ -219,7 +218,7 @@ void Server::handle_request(int fd)
 				break;
 			// case Request::DELETE: break;
 			default:
-				status = 400; break;
+				request->set_status(400); break;
 		}
 		if (!request->is_version_11()
 		|| request->get_header("Connection") == "close"
@@ -242,9 +241,9 @@ void Server::handle_request(int fd)
 	}
 
 	log << Log::INFO << "Request from client: " << fd
-		<< "	=> " << status << " " << Reply::get_status_message(status)
-		<< std::endl << "\t\t\t\t" << request->get_req_line()
-		<< std::endl;
+		<< "	=> " << request->get_status() << " "
+		<< Reply::get_status_message(request->get_status()) << std::endl
+		<< "\t\t\t\t" << request->get_req_line() << std::endl;
 
 	this->generate_response(request, hdrs, payload, repl)
 		.enqueue_reply(fd, repl)
@@ -365,8 +364,6 @@ void Server::parse_request(int fd)
 	log << Log::DEBUG << "Parsed headers: " << std::endl
 		<< request->get_headers()
 		<< std::endl;
-	log << Log::DEBUG << "Current status: " << request->get_status()
-		<< std::endl;
 	if (!(request->get_method() & this->info.allowed_methods)) {
 		log << Log::DEBUG << "Requested method:	" << request->get_method()
 			<< std::endl;
@@ -374,6 +371,8 @@ void Server::parse_request(int fd)
 			<< std::endl;
 		request->set_status(405);
 	}
+	log << Log::DEBUG << "Current status: " << request->get_status()
+		<< std::endl;
 }
 
 Server &Server::drop_request(int fd)
@@ -422,30 +421,44 @@ std::string Server::resolve_address(Request *request)
 	std::string const	&url = request->get_url();
 	std::string			path(this->info.root);
 
-	if (url[url.size() - 1] == '/') {
-		if (this->info.directory_listing) {
-			request->set_dirlist(true);
-		} else if (!this->info.index.empty()) {
+	if (this->info.directory_listing)
+		request->set_dirlist(true);
+	if (url[url.size() - 1] == '/' && !request->is_dirlist()) {
+		if (!this->info.index.empty()) {
 			path.append(url);
 			path.append(this->info.index);
-		} else {
-			return std::string();
+			return path;
 		}
-	} else {
-		if (url[0] != '/')
-			path.append("/");
-		path.append(url);
+		return std::string();
 	}
+	if (url[0] != '/' && path[path.size() - 1] != '/')
+		path.append("/");
+	path.append(url);
 	return path;
 }
 
 void Server::get_head(Request *request, Headers &headers)
 {
 	std::string	path = this->resolve_address(request);
+	struct stat	statbuf;
 
 	log << Log::DEBUG << "Resolved URL: [" << path << "]" << std::endl;
+	if (!stat(path.c_str(), &statbuf) && S_ISDIR(statbuf.st_mode)) {
+		if (request->is_dirlist()) {
+			headers.set_header("Content-Type", "text/html");
+			headers.set_header("Content-Length",
+					num_tostr(Reply::get_html_size(path, request->get_url())));
+			request->set_target(path);
+			request->set_status(200);
+		} else {
+			log << Log::DEBUG << "Requested file is a directory" << std::endl;
+			request->set_status(404);
+		}
+		return ;
+	}
 	if (path.empty() || access(path.c_str(), F_OK)) {
 		request->set_status(404);
+		log << Log::DEBUG << "File not found" << std::endl;
 		return ;
 	}
 	if (access(path.c_str(), R_OK)) {
@@ -454,15 +467,9 @@ void Server::get_head(Request *request, Headers &headers)
 		request->set_status(403);
 		return ;
 	}
-	if (request->is_dirlist()) {
-		headers.set_header("Content-Type", "text/html");
-		headers.set_header("Content-Length",
-				num_tostr(Reply::get_html_size(path)));
-	} else {
-		headers.set_header("Content-Type", get_mime_type(path));
-		headers.set_header("Content-Length",
-				num_tostr(get_file_size(path)));
-	}
+	headers.set_header("Content-Type", get_mime_type(path));
+	headers.set_header("Content-Length",
+			num_tostr(get_file_size(path)));
 	request->set_target(path);
 	request->set_status(200);
 }
@@ -472,11 +479,30 @@ void Server::get_payload(Request *request, Headers &headers,
 {
 	this->get_head(request, headers);
 	if (request->get_status() < 400) {
-		if (request->is_dirlist()) {
-			std::string tmp = Reply::get_listing(request->get_url());
-			body->insert(body->end(), tmp.begin(), tmp.end());
-		} else
+		struct stat statbuf;
+		if (!stat(request->get_target().c_str(), &statbuf)
+		&& S_ISDIR(statbuf.st_mode)) {
+			if (request->is_dirlist()) {
+				std::string tmp = Reply::get_listing(request->get_target(),
+						request->get_url());
+				if (!tmp.empty())
+					body->insert(body->end(), tmp.begin(), tmp.end());
+				else {
+					request->set_status(404);
+					log << Log::DEBUG << "Failed to open dir" << std::endl;
+					std::string tmp = Reply::generate_error_page(404);
+					body->insert(body->end(), tmp.begin(), tmp.end());
+				}
+			} else {
+				request->set_status(404);
+				log << Log::DEBUG << "Requested file is a directory"
+					<< request->get_target() << std::endl;
+				std::string tmp = Reply::generate_error_page(404);
+				body->insert(body->end(), tmp.begin(), tmp.end());
+			}
+		} else {
 			*body = Reply::get_payload(request->get_target());
+		}
 	} else {
 		std::string tmp = Reply::generate_error_page(request->get_status());
 		body->insert(body->end(), tmp.begin(), tmp.end());
@@ -485,11 +511,21 @@ void Server::get_payload(Request *request, Headers &headers,
 
 int Server::handle_post_request(Request *request, Headers &headers)
 {
-
 	std::string type = request->get_header("Content-Type");
-	std::string body_size = request->get_header("Content-Length");
+	if (type.empty())
+		type = request->get_header("Content-type");
+	if (type.empty())
+		type = request->get_header("content-type");
+	if (type.empty())
+		return 400;
 
 	if (type == "application/x-www-form-urlencoded") {
+
+	} else if (type == "multipart/form-data") {
+
+	} else if (type == "text/plain") {
+
+	} else {
 
 	}
 	headers.set_header("Connection", "close");

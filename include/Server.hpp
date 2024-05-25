@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/23 11:46:52 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/25 00:33:19 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -35,6 +35,7 @@
 # include <netdb.h>
 # include <sys/epoll.h>
 # include <sys/socket.h>
+# include <sys/stat.h>
 # include <sys/types.h>
 # include <unistd.h>
 
