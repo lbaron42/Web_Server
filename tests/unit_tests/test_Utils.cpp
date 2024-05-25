@@ -1,12 +1,23 @@
 #include <cstdlib>
 #include <iostream>
+
 #include "Utils.hpp"
+#include "Log.hpp"
 
 static bool test_trim(std::string const &input, std::string const &trimchars,
 		std::string const &expect);
 
+namespace {
+	Log					log;
+	static char const	*tests_log = "tests/unit_tests/tests.log";
+}
+
 int main()
 {
+	log.set_output(new std::ofstream(tests_log, \
+		std::ios_base::ate | std::ios_base::app), true);
+	log.set_verbosity(Log::DEBUG);
+
 	std::string const	loremipsum = "	  Lorem ipsum dolor sit amet, \
 		onsectetur adipiscing elit, sed do eiusmod tempor incididunt ut \
 		labore et dolore magna aliqua.\r	 ";

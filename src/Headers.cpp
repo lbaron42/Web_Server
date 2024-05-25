@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/19 16:21:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/21 11:22:29 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/25 14:51:11 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,6 +25,13 @@ Headers::~Headers()
 Headers::Headers(Headers const &rhs) : headers(rhs.headers)
 {}
 
+Headers &Headers::operator=(Headers const &rhs)
+{
+	if (this == &rhs)	return *this;
+	this->headers = rhs.get_headers();
+	return *this;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //	Public methods
 ////////////////////////////////////////////////////////////////////////////////
@@ -32,6 +39,11 @@ Headers::Headers(Headers const &rhs) : headers(rhs.headers)
 bool Headers::is_set(std::string const &key) const
 {
 	return this->headers.count(key);
+}
+
+std::map<std::string, std::string> Headers::get_headers() const
+{
+	return this->headers;
 }
 
 std::string Headers::get_header(std::string const &key) const

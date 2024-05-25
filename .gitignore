@@ -1,4 +1,6 @@
 .vscode
+.venv
+__pycache__
 en.subject.pdf
 webserv
 build/

@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/24 20:09:33 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/25 20:01:28 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,33 +17,22 @@
 #include <string>
 
 namespace {
-	static char const *const methodnames[] = {
+	static char const *const	methodnames[] = {
 		"NONE", "HEAD", "GET", "POST", "PUT", "PATCH",
 	"DELETE", "OPTIONS", "CONNECT", "TRACE" };
+	static size_t const			n_methods = 10;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 //	CTOR/DTOR
 ////////////////////////////////////////////////////////////////////////////////
 
-Request::Request(Log &logger)
-	:	log(logger),
-		raw_(std::string(),
-			std::ios_base::in | std::ios_base::out | std::ios_base::ate),
-		method(Request::NONE),
-		v_11(true),
-		is_parsed_(false),
-		is_dirlist_(false),
-		status(0),
-		headers(),
-		target(),
-		payload()
-{}
-
 Request::Request(std::string const &raw, Log &logger)
 	:	log(logger),
 		raw_(raw, std::ios_base::in | std::ios_base::out | std::ios_base::ate),
+		req_line(),
 		method(Request::NONE),
+		url(),
 		v_11(true),
 		is_parsed_(false),
 		is_dirlist_(false),
@@ -57,14 +46,16 @@ Request::Request(Request const &rhs)
 	:	log(rhs.log),
 		raw_(rhs.raw_.str(),
 			std::ios_base::in | std::ios_base::out | std::ios_base::ate),
-		method(Request::NONE),
-		v_11(true),
-		is_parsed_(false),
-		is_dirlist_(false),
-		status(0),
-		headers(),
-		target(),
-		payload()
+		req_line(rhs.req_line),
+		method(rhs.method),
+		url(rhs.url),
+		v_11(rhs.v_11),
+		is_parsed_(rhs.is_parsed_),
+		is_dirlist_(rhs.is_dirlist_),
+		status(rhs.status),
+		headers(rhs.headers),
+		target(rhs.target),
+		payload(rhs.payload)
 {}
 
 Request::~Request()
@@ -157,22 +148,17 @@ void Request::set_parsed(bool value)
 
 Request::e_method Request::parse_methods(std::string const &str)
 {
-	int					allowed_methods(0);
+	int					allowed_methods = 0;
 	std::string			method;
-	std::stringstream	ss;
-	size_t				i;
+	std::stringstream	ss(str);
 
-	ss.str(str);
-	while (std::getline(ss, method, ' ')) {
-		method = trim(method);
-		for (i = 1; i < sizeof(methodnames); ++i) {
-			if (method.c_str() != methodnames[i])
-				continue;
-			allowed_methods |= (1 << (i - 1));
-			break;
+	while (ss >> method) {
+		for (size_t i = 1; i < n_methods; ++i) {
+			if (!method.compare(methodnames[i])) {
+				allowed_methods |= (1 << --i);
+				break;
+			}
 		}
-		if (i == sizeof(methodnames))
-			return Request::NONE;
 	}
 	return static_cast<Request::e_method>(allowed_methods);
 }
@@ -188,13 +174,13 @@ void Request::append(std::string const &str)
 
 int Request::validate_request_line()
 {
-	if (size_of_stream(this->raw_) < 16)
+	if (size_of_stream(this->raw_) < 15)
 		return 0;
 	while (std::getline(this->raw_, this->req_line)) {
 		if (this->req_line.empty()
 		|| (this->req_line.length() == 1 && this->req_line == "\r"))
 			continue;
-		trim(this->req_line);
+		// trim(this->req_line);
 		log << Log::DEBUG << "Request line: " << this->req_line << std::endl;
 
 		std::string::size_type first(this->req_line.find(' '));
@@ -240,7 +226,7 @@ int Request::validate_request_line()
 
 bool Request::is_valid_method(std::string const &method)
 {
-	for (size_t i = 1; i < sizeof(methodnames); ++i) {
+	for (size_t i = 1; i < n_methods; ++i) {
 		if (!method.compare(methodnames[i])) {
 			this->method = static_cast<Request::e_method>(1 << --i);
 			return true;
