@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 07:54:45 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/25 06:23:20 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/26 00:04:42 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -69,7 +69,7 @@ std::string const Reply::get_listing(std::string const &path,
 			name.append("/");
 		else if(!stat(anchor.c_str(), &sb)) {
 			char	tmp[64];
-			if (std::strftime(tmp, sizeof(tmp), "%d-%b-%Y %R",
+			if (std::strftime(tmp, sizeof(tmp), "%d-%b-%Y %H:%M",
 			std::gmtime(&sb.st_mtime))) {
 				mod_time = tmp;
 			}
