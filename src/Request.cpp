@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/25 20:01:28 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/25 23:13:56 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -273,3 +273,29 @@ bool Request::parse_headers()
 	}
 	return false;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//  Static methods
+////////////////////////////////////////////////////////////////////////////////
+
+// Request::e_method Request::parse_methods(std::string const &str)
+// {
+//     int                 allowed_methods(0);
+//     std::string         method;
+//     std::stringstream   ss;
+//     size_t              i;
+
+//     ss.str(str);
+//     while (std::getline(ss, method, ' ')) {
+//         method = trim(method);
+//         for (i = 1; i < sizeof(methodnames); ++i) {
+//             if (method.c_str() != methodnames[i])
+//                 continue;
+//             allowed_methods |= (1 << (i - 1));
+//             break;
+//         }
+//         if (i == sizeof(methodnames))
+//             return Request::NONE;
+//     }
+//     return static_cast<Request::e_method>(allowed_methods);
+// }

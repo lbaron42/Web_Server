@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:23:14 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/25 18:52:44 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/25 23:08:28 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -65,6 +65,7 @@ class Request
 		int validate_request_line();
 		bool is_valid_method(std::string const &method);
 		bool parse_headers();
+		static e_method parse_methods(std::string const &str);
 
 	private:
 		Log					&log;

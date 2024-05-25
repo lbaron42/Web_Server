@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/25 00:33:19 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/25 23:09:51 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -47,27 +47,30 @@
 
 struct ServerData
 {
+	ServerData();
 	struct Address
 	{
-		std::string	ip;
-		std::string	port;
+		std::string								ip;
+		std::string								port;
 	};
-
 	struct Location
 	{
-		std::string			alias;
-		std::string			index;
-		Request::e_method	allowed_methods;
+		std::string								location_path;
+		std::string								alias;
+		std::vector<std::string>				loc_index;
+		std::vector<std::string>				allow_methods;
+		bool 									is_redirection;
 	};
 
-	std::vector<Address>		address;
-	std::vector<std::string>	hostname;
-	std::string 				root;
-	std::string 				index;
-	std::vector<Location>		locations;
-	size_t						client_max_body_size;
-	Request::e_method			allowed_methods;
-	bool						directory_listing;
+	std::vector<Address>						addresses;
+	std::vector<std::string>					hostnames;
+	std::vector<std::pair<int, std::string> >	error_pages;
+	std::vector<std::string>					serv_index;
+	std::string									root;
+	size_t										client_max_body_size;
+	bool										autoindex;
+	std::vector<std::string>					allow_methods;
+	std::vector<Location>						locations;
 };
 
 class Server

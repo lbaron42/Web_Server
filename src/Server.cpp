@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/25 06:18:23 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/25 23:17:12 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -38,6 +38,18 @@ struct AssignFd
 //	CTORs/DTOR
 ////////////////////////////////////////////////////////////////////////////////
 
+ServerData::ServerData()
+	:	addresses(),
+		hostnames(),
+		error_pages(),
+		serv_index(),
+		root(),
+		client_max_body_size(1024),
+		autoindex(false),
+		allow_methods(),
+		locations()
+{}
+
 Server::Server(ServerData const &server_data, Log &log)
 	:	info(server_data),
 		log(log),
@@ -68,8 +80,8 @@ Server::Server(Server const &rhs)
 bool Server::initialize(int epoll_fd)
 {
 	typedef std::vector<ServerData::Address>::const_iterator AddrIter;
-	for (AddrIter it = this->info.address.begin();
-	it != this->info.address.end(); ++it) {
+	for (AddrIter it = this->info.addresses.begin();
+	it != this->info.addresses.end(); ++it) {
 		int sfd = this->setup_socket(it->port.c_str(), \
 				it->ip.empty() ? NULL : it->ip.c_str());
 		if (sfd == -1)
@@ -86,12 +98,12 @@ bool Server::initialize(int epoll_fd)
 	it != this->listen_fds.end(); ++it) {
 		event.data.fd = *it;
 		if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, *it, &event)) {
-			log << Log::ERROR << "Failed to add fd " << *it 
+			log << Log::ERROR << "Failed to add fd " << *it
 				<< " to epoll_ctl" << std::endl;
 			return false;
 		}
 		log << Log::DEBUG << "Added fd " << *it << " to epoll_ctl" << std::endl;
-		log << Log::INFO << "Initialized server: " << this->info.hostname[0]
+		log << Log::INFO << "Initialized server: " << this->info.hostnames[0]
 			<< std::endl;
 	}
 	return true;
@@ -373,6 +385,10 @@ void Server::parse_request(int fd)
 	}
 	log << Log::DEBUG << "Current status: " << request->get_status()
 		<< std::endl;
+	// TODO: resolve conflict
+	// if (!(this->requests[fd]->get_method() & this->info.allow_methods))
+	// 	status = 405;
+	return status;
 }
 
 Server &Server::drop_request(int fd)
@@ -421,7 +437,7 @@ std::string Server::resolve_address(Request *request)
 	std::string const	&url = request->get_url();
 	std::string			path(this->info.root);
 
-	if (this->info.directory_listing)
+	if (this->info.autoindex)
 		request->set_dirlist(true);
 	if (url[url.size() - 1] == '/' && !request->is_dirlist()) {
 		if (!this->info.index.empty()) {
