@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/25 05:34:56 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/25 22:34:24 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -80,14 +80,15 @@ public:
 private:
 	Log &log;
 	std::vector<Server> servers;
+	void verifyIp(std::string ip, int lineNum);
+	void verifyPort(std::string Port, int lineNum);
 	void validError(int error);
 	std::string trimLine(std::string line, std::string message, int lineNum);
 	void getAddress(std::string line, ServerData &current, int lineNum);
 	void getErrors(std::string line, ServerData &current, int lineNum);
-	// friend std::ostream &operator<<(std::ostream &os, const Config &config);
 };
 
-// std::ostream &operator<<(std::ostream& os, const Config& config);
+std::ostream &operator<<(std::ostream &os, const ServerData &data);
 
 #endif // CONFIG_HPP
 
