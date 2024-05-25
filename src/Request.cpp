@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/24 16:20:12 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/24 20:09:33 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -241,11 +241,12 @@ int Request::validate_request_line()
 bool Request::is_valid_method(std::string const &method)
 {
 	for (size_t i = 1; i < sizeof(methodnames); ++i) {
-		if (method.c_str() == methodnames[i]) {
+		if (!method.compare(methodnames[i])) {
 			this->method = static_cast<Request::e_method>(1 << --i);
 			return true;
 		}
 	}
+	log << Log::DEBUG << method << " is not a valid method" << std::endl;
 	return false;
 }
 
