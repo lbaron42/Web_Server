@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Config.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
+/*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/25 22:34:24 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/25 23:42:19 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -75,7 +75,7 @@ public:
 	Config(Log &log);
 	~Config();
 	int configInit(const std::string& argv1);
-	const std::vector<Server>& getServers() const;
+	std::vector<Server> getServers() const;
 
 private:
 	Log &log;

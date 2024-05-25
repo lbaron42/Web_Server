@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Config.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
+/*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/25 22:39:24 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/25 23:42:56 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -173,7 +173,8 @@ int Config::configInit(const std::string &argv1)
 						}
 						if (line.find("allowed_method") != std::string::npos)
 		        		{
-							loc.allow_methods = split(trimLine(line, "allowed_method", lineNum), ' ');
+							// loc.allow_methods = split(trimLine(line, "allowed_method", lineNum), ' ');
+							loc.allow_methods = Request::parse_methods(trimLine(line, "allowed_method", lineNum));
 						}
 					}
 					lineNum++;
@@ -213,11 +214,12 @@ int Config::configInit(const std::string &argv1)
 				}
 				if (line.find("allowed_method") != std::string::npos)
 				{
-					sd.allow_methods = split(trimLine(line, "allowed_method", lineNum), ' ');
+					// sd.allow_methods = split(trimLine(line, "allowed_method", lineNum), ' ');
+					sd.allow_methods = Request::parse_methods(trimLine(line, "allowed_method", lineNum));
 				}
 			}
 			lineNum++;
-			std::cout << sd << std::endl;
+			// std::cout << sd << std::endl;
 			servers.push_back(Server(sd, log));
 		}
 		else
@@ -230,7 +232,7 @@ int Config::configInit(const std::string &argv1)
 	return EXIT_SUCCESS;
 }
 
-const std::vector<Server>& Config::getServers() const {
+std::vector<Server> Config::getServers() const {
     return servers;
 }
 int s = 1;
@@ -278,10 +280,10 @@ std::ostream& operator<<(std::ostream& os, const ServerData &data)
 
     // Print allow methods
     os << "Allowed methods:\n";
-    for (std::vector<std::string>::const_iterator method_it = data.allow_methods.begin(); method_it != data.allow_methods.end(); ++method_it)
-    {
-        os << "		"<< *method_it << "\n";
-    }
+    // for (std::vector<std::string>::const_iterator method_it = data.allow_methods.begin(); method_it != data.allow_methods.end(); ++method_it)
+    // {
+    //     os << "		"<< *method_it << "\n";
+    // }
 
     // Print locations
     os << "\nLocations:\n";
@@ -301,10 +303,10 @@ std::ostream& operator<<(std::ostream& os, const ServerData &data)
         }
 
         os << "\n		Allowed methods:\n";
-        for (std::vector<std::string>::const_iterator loc_method_it = location.allow_methods.begin(); loc_method_it != location.allow_methods.end(); ++loc_method_it)
-        {
-            os << "				"<< *loc_method_it << "\n";
-        }
+        // for (std::vector<std::string>::const_iterator loc_method_it = location.allow_methods.begin(); loc_method_it != location.allow_methods.end(); ++loc_method_it)
+        // {
+        //     os << "				"<< *loc_method_it << "\n";
+        // }
 
         os << "		Redirection: " << (location.is_redirection ? "yes" : "no") << "\n";
     }

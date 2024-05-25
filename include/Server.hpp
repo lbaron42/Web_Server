@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/25 23:09:51 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/25 23:25:10 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -58,7 +58,7 @@ struct ServerData
 		std::string								location_path;
 		std::string								alias;
 		std::vector<std::string>				loc_index;
-		std::vector<std::string>				allow_methods;
+		Request::e_method						allow_methods;
 		bool 									is_redirection;
 	};
 
@@ -69,7 +69,7 @@ struct ServerData
 	std::string									root;
 	size_t										client_max_body_size;
 	bool										autoindex;
-	std::vector<std::string>					allow_methods;
+	Request::e_method							allow_methods;
 	std::vector<Location>						locations;
 };
 

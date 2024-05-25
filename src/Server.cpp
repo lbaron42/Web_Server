@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/25 23:17:12 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/25 23:33:21 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -376,19 +376,18 @@ void Server::parse_request(int fd)
 	log << Log::DEBUG << "Parsed headers: " << std::endl
 		<< request->get_headers()
 		<< std::endl;
-	if (!(request->get_method() & this->info.allowed_methods)) {
+	if (!(request->get_method() & this->info.allow_methods)) {
 		log << Log::DEBUG << "Requested method:	" << request->get_method()
 			<< std::endl;
-		log << Log::DEBUG << "Allowed methods:	" << this->info.allowed_methods
+		log << Log::DEBUG << "Allowed methods:	" << this->info.allow_methods
 			<< std::endl;
 		request->set_status(405);
 	}
 	log << Log::DEBUG << "Current status: " << request->get_status()
 		<< std::endl;
-	// TODO: resolve conflict
-	// if (!(this->requests[fd]->get_method() & this->info.allow_methods))
-	// 	status = 405;
-	return status;
+	if (!(this->requests[fd]->get_method() & this->info.allow_methods))
+		request->set_status(405);
+	return ;
 }
 
 Server &Server::drop_request(int fd)
@@ -432,6 +431,7 @@ Server &Server::enqueue_reply(int fd, std::vector<char> const &reply)
 	return *this;
 }
 
+// TODO: rewrite
 std::string Server::resolve_address(Request *request)
 {
 	std::string const	&url = request->get_url();
@@ -440,9 +440,9 @@ std::string Server::resolve_address(Request *request)
 	if (this->info.autoindex)
 		request->set_dirlist(true);
 	if (url[url.size() - 1] == '/' && !request->is_dirlist()) {
-		if (!this->info.index.empty()) {
+		if (!this->info.serv_index.empty()) {
 			path.append(url);
-			path.append(this->info.index);
+			path.append(*this->info.serv_index.begin());
 			return path;
 		}
 		return std::string();

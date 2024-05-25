@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:59:51 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/25 23:12:35 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/25 23:35:15 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,15 +24,6 @@ int atoi(const std::string &str) {
 	ss >> num;
 	return num;
 }
-
-// std::string trim(const std::string &str) {
-// 	size_t first = str.find_first_not_of(' ');
-// 	if (std::string::npos == first) {
-// 		return "";
-// 	}
-// 	size_t last = str.find_last_not_of(' ');
-// 	return str.substr(first, (last - first + 1));
-// }
 
 std::string trim(std::string const &str, std::string const &trimchars)
 {
@@ -61,6 +52,7 @@ std::string c_trim(const std::string &str) {
     size_t last = trimmed.find_last_not_of(' ');
     return trimmed.substr(first, (last - first + 1));
 }
+
 std::vector<std::string> split(const std::string &s, char delimiter) {
 	std::vector<std::string> tokens;
 	std::string token;
