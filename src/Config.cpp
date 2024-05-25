@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/25 23:42:56 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/25 23:58:38 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,7 +37,7 @@ void Config::verifyIp(std::string ip, int lineNum)
 void Config::verifyPort(std::string port, int lineNum)
 {
 	size_t p = atoi(port);
-	if(!isDigitString(port) || (p < 0 || p > 65535))
+	if(!isDigitString(port) || p > 65535)
 	{
 		log << log.ERROR << "Port number is not a \"digit\" or it is out of Range, line: " << lineNum << std::endl;
 		exit(EXIT_FAILURE);
