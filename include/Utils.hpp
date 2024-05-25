@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:52:42 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/24 14:48:47 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/24 18:23:50 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,6 +24,7 @@
 std::string itoa(int num);
 int atoi(const std::string &str);
 std::string trim(const std::string &str);
+std::string c_trim(const std::string &str);
 std::vector<std::string> split(const std::string &s, char delimiter);
 std::string const get_mime_type(std::string const &file);
 ssize_t get_file_size(std::string const &filename);

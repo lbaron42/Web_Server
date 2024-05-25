@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/24 15:57:48 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/25 06:38:24 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,29 +44,30 @@
 
 struct ServerData
 {
+	ServerData();
 	struct Address
 	{
-		std::string								ip;	//done
-		std::string								port; //done
+		std::string								ip;
+		std::string								port;
 	};
 	struct Location
 	{
-		std::string								location_path; //done
-		std::string								alias; //done
-		std::vector<std::string>				loc_index; //done
-		std::vector<std::string>				allow_methods; // missing protections
-		bool 									is_redirection; // ?
+		std::string								location_path;
+		std::string								alias;
+		std::vector<std::string>				loc_index;
+		std::vector<std::string>				allow_methods;
+		bool 									is_redirection;
 	};
 
-	std::vector<Address>						addresses;//done "was adress"
-	std::vector<std::string>					hostnames;	//done
-	std::vector<std::pair<int, std::string> >	error_pages; //done
-	std::vector<std::string>					serv_index; //done
-	std::string									root;	//done
-	size_t										client_max_body_size; //missing protections
-	bool										autoindex; //done was "directory_listing"
-	std::vector<std::string>					allow_methods; //missing protections
-	std::vector<Location>						locations; //missing protections and is_redirection
+	std::vector<Address>						addresses;
+	std::vector<std::string>					hostnames;
+	std::vector<std::pair<int, std::string> >	error_pages;
+	std::vector<std::string>					serv_index;
+	std::string									root;
+	size_t										client_max_body_size;
+	bool										autoindex;
+	std::vector<std::string>					allow_methods;
+	std::vector<Location>						locations;
 };
 
 class Server

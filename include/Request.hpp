@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Request.hpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
+/*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:23:14 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/20 21:55:48 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/24 16:26:22 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -48,6 +48,7 @@ class Request
 		int validate_request_line();
 		bool is_valid_method(std::string const &method);
 		bool parse_headers();
+		static e_method parse_methods(std::string const &str);
 
 	private:
 		std::stringstream	raw_;

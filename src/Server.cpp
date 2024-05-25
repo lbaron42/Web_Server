@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/24 15:52:58 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/25 04:52:42 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,6 +37,18 @@ struct AssignFd
 ////////////////////////////////////////////////////////////////////////////////
 //	CTORs/DTOR
 ////////////////////////////////////////////////////////////////////////////////
+
+ServerData::ServerData()
+	:	addresses(),
+		hostnames(),
+		error_pages(),
+		serv_index(),
+		root(),
+		client_max_body_size(1024),
+		autoindex(false),
+		allow_methods(),
+		locations()
+{}
 
 Server::Server(ServerData const &server_data, Log &log)
 	: info(server_data), log(log)
@@ -340,8 +352,8 @@ int Server::parse_request(int fd)
 	log << Log::DEBUG << "Request headers: " << std::endl
 		<< this->requests[fd]->get_headers()
 		<< std::endl;
-	if (!(this->requests[fd]->get_method() & this->info.allow_methods))
-		status = 405;
+	// if (!(this->requests[fd]->get_method() & this->info.allow_methods))
+	// 	status = 405;
 	return status;
 }
 

@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/24 14:59:28 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/25 05:34:56 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,7 +21,9 @@
 #include <vector>
 #include <cstdlib>
 
-# include "Log.hpp"
+# include "Utils.hpp"
+# include "Request.hpp"
+# include "Server.hpp"
 
 const int errorCodes[] = {
     100, // Continue
@@ -67,51 +69,25 @@ const int errorCodes[] = {
 };
 
 
-struct ServerData2
-{
-	struct Address
-	{
-		std::string								ip;	//done
-		std::string								port; //done
-	};
-	struct Location
-	{
-		std::string								location_path; //done
-		std::string								alias; //done
-		std::vector<std::string>				loc_index; //done
-		std::vector<std::string>				allow_methods; // missing protections
-		bool 									is_redirection; // ?
-	};
-
-	std::vector<Address>						addresses;//done
-	std::vector<std::string>					hostnames;	//done
-	std::vector<std::pair<int, std::string> >	error_pages; //done
-	std::vector<std::string>					serv_index; //done
-	std::string									root;	//done
-	size_t										client_max_body_size; //missing protections
-	bool										autoindex; //done
-	std::vector<std::string>					allow_methods; //missing protections
-	std::vector<Location>						locations; //missing protections and is_redirection
-};
-
 
 class Config {
 public:
 	Config(Log &log);
 	~Config();
 	int configInit(const std::string& argv1);
-	const std::vector<ServerData2>& getServers() const;
+	const std::vector<Server>& getServers() const;
 
 private:
 	Log &log;
-	std::vector<ServerData2> servers;
+	std::vector<Server> servers;
 	void validError(int error);
-	std::string trimLine(std::string line, std::string message);
-	void getAddress(std::string line, ServerData2 &current);
-	void getErrors(std::string line, ServerData2 &current);
+	std::string trimLine(std::string line, std::string message, int lineNum);
+	void getAddress(std::string line, ServerData &current, int lineNum);
+	void getErrors(std::string line, ServerData &current, int lineNum);
+	// friend std::ostream &operator<<(std::ostream &os, const Config &config);
 };
 
-std::ostream &operator<<(std::ostream& os, const Config& config);
+// std::ostream &operator<<(std::ostream& os, const Config& config);
 
 #endif // CONFIG_HPP
 

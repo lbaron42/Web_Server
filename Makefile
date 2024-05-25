@@ -3,10 +3,10 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+         #
+#    By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/05/14 11:22:55 by mcutura           #+#    #+#              #
-#    Updated: 2024/05/21 09:40:37 by mcutura          ###   ########.fr        #
+#    Updated: 2024/05/25 00:52:09 by lbaron           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -24,7 +24,7 @@ TESTS := $(addprefix $(UNITTESTDIR)/test_, $(SRCS))
 UNITTESTSLOG := $(UNITTESTDIR)/tests.log
 
 CXX := c++
-CXXFLAGS := -Wall -Wextra -Werror -std=c++98 -Wpedantic
+CXXFLAGS := -Wall -Wextra -std=c++98 -Wpedantic
 CXXFLAGS += -march=native -O3
 CPPFLAGS := -I$(INCDIR)
 debug: CXXFLAGS += -Og -ggdb3

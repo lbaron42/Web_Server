@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:59:51 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/24 14:48:29 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/24 18:24:35 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -34,6 +34,24 @@ std::string trim(const std::string &str) {
 	return str.substr(first, (last - first + 1));
 }
 
+std::string c_trim(const std::string &str) {
+
+    size_t first = str.find_first_not_of(' ');
+    if (std::string::npos == first) {
+        return "";
+    }
+
+    size_t semicolon_pos = str.find(';');
+    std::string trimmed;
+    if (semicolon_pos != std::string::npos) {
+        trimmed = str.substr(0, semicolon_pos + 1);
+    } else {
+        trimmed = str;
+    }
+
+    size_t last = trimmed.find_last_not_of(' ');
+    return trimmed.substr(first, (last - first + 1));
+}
 std::vector<std::string> split(const std::string &s, char delimiter) {
 	std::vector<std::string> tokens;
 	std::string token;
