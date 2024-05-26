@@ -6,11 +6,15 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/25 23:49:02 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/26 22:43:07 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Request.hpp"
+#include <cstddef>
+#include <iosfwd>
+#include <iterator>
+#include <vector>
 
 namespace {
 	static char const *const	methodnames[] = {
@@ -29,12 +33,15 @@ Request::Request(std::string const &raw, Log &logger)
 		req_line(),
 		method(Request::NONE),
 		url(),
+		query(),
 		v_11(true),
 		is_parsed_(false),
 		is_dirlist_(false),
 		status(0),
 		headers(),
 		target(),
+		loaded_body_size(0),
+		is_body_loaded_(false),
 		payload()
 {}
 
@@ -45,12 +52,15 @@ Request::Request(Request const &rhs)
 		req_line(rhs.req_line),
 		method(rhs.method),
 		url(rhs.url),
+		query(rhs.query),
 		v_11(rhs.v_11),
 		is_parsed_(rhs.is_parsed_),
 		is_dirlist_(rhs.is_dirlist_),
 		status(rhs.status),
 		headers(rhs.headers),
 		target(rhs.target),
+		loaded_body_size(rhs.loaded_body_size),
+		is_body_loaded_(rhs.is_body_loaded_),
 		payload(rhs.payload)
 {}
 
@@ -69,6 +79,11 @@ Request::e_method Request::get_method() const
 std::string Request::get_url() const
 {
 	return this->url;
+}
+
+std::string Request::get_query() const
+{
+	return this->query;
 }
 
 bool Request::is_version_11() const
@@ -101,6 +116,11 @@ std::string Request::get_target() const
 	return this->target;
 }
 
+std::vector<char> Request::get_payload() const
+{
+	return this->payload;
+}
+
 bool Request::is_dirlist() const
 {
 	return this->is_dirlist_;
@@ -114,6 +134,16 @@ bool Request::is_parsed() const
 bool Request::is_done() const
 {
 	return (this->raw_.rdbuf()->in_avail() == 0);
+}
+
+size_t Request::get_loaded_body_size() const
+{
+	return this->loaded_body_size;
+}
+
+bool Request::is_body_loaded() const
+{
+	return this->is_body_loaded_;
 }
 
 void Request::set_status(int status)
@@ -176,7 +206,6 @@ int Request::validate_request_line()
 		if (this->req_line.empty()
 		|| (this->req_line.length() == 1 && this->req_line == "\r"))
 			continue;
-		// trim(this->req_line);
 		log << Log::DEBUG << "Request line: " << this->req_line << std::endl;
 
 		std::string::size_type first(this->req_line.find(' '));
@@ -193,7 +222,16 @@ int Request::validate_request_line()
 		if (second == std::string::npos || second == first + 1)
 			return 400;
 		this->url = this->req_line.substr(first + 1, second - first - 1);
+		std::string::size_type q(this->url.find('?'));
+		if (q != std::string::npos && q) {
+			this->query = this->url.substr(q);
+			this->url.erase(q);
+		}
 		log << Log::DEBUG << "URL:		[" << this->url << "]" << std::endl;
+		if (!this->query.empty()) {
+			log << Log::DEBUG << "Query		[" << this->query << "]"
+				<< std::endl;
+		}
 
 		std::string::size_type end(this->req_line.find('\r', second + 1));
 		if (end == std::string::npos) {
@@ -202,11 +240,11 @@ int Request::validate_request_line()
 				<< std::endl;
 		} else if (end != second + 9 || end != this->req_line.length() - 1)
 			return 400;
+		this->req_line = trim(this->req_line, "\r");
 		log << Log::DEBUG << "Version:	["
 			<< this->req_line.substr(second + 1, end - second - 1)
 			<< "]" << std::endl;
 		std::string vers(this->req_line.substr(second + 1, end - second - 1));
-		trim(vers, "\r");
 		if (vers == "HTTP/1.1") {
 			this->v_11 = true;
 			return 200;
@@ -270,28 +308,30 @@ bool Request::parse_headers()
 	return false;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//  Static methods
-////////////////////////////////////////////////////////////////////////////////
+void Request::load_payload(size_t size)
+{
+	std::istreambuf_iterator<char>	body_start(this->raw_);
+	std::istreambuf_iterator<char>	body_end(body_start);
 
-// Request::e_method Request::parse_methods(std::string const &str)
-// {
-//     int                 allowed_methods(0);
-//     std::string         method;
-//     std::stringstream   ss;
-//     size_t              i;
+	std::streampos	begin = this->raw_.tellg();
+	std::streampos	end = this->raw_.tellp();
 
-//     ss.str(str);
-//     while (std::getline(ss, method, ' ')) {
-//         method = trim(method);
-//         for (i = 1; i < sizeof(methodnames); ++i) {
-//             if (method.c_str() != methodnames[i])
-//                 continue;
-//             allowed_methods |= (1 << (i - 1));
-//             break;
-//         }
-//         if (i == sizeof(methodnames))
-//             return Request::NONE;
-//     }
-//     return static_cast<Request::e_method>(allowed_methods);
-// }
+	bool	partial(static_cast<std::streampos>(size) > (end - begin));
+
+	log << Log::DEBUG << "Stream begin: " << begin
+		<< " | Stream end: " << end << std::endl;
+	if (partial) {
+		log << Log::DEBUG << "Partial body in buffer: "
+			<< (end - begin) << "/" << size << " bytes received"
+			<< std::endl;
+		std::advance(body_end, end - begin);
+	} else {
+		std::advance(body_end, size);
+	}
+	this->payload.reserve(size);
+	this->payload.insert(this->payload.begin(), body_start, body_end);
+	this->loaded_body_size = partial ? static_cast<size_t>(end - begin) : size;
+	this->is_body_loaded_ = !partial;
+	log << Log::DEBUG << "AFTER Stream begin: " << this->raw_.tellg()
+		<< " | Stream end: " << this->raw_.tellp() << std::endl;
+}
