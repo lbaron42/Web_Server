@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
+/*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/25 23:25:10 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/27 00:27:58 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -64,7 +64,7 @@ struct ServerData
 
 	std::vector<Address>						addresses;
 	std::vector<std::string>					hostnames;
-	std::vector<std::pair<int, std::string> >	error_pages;
+	std::map<int, std::string>					error_pages;
 	std::vector<std::string>					serv_index;
 	std::string									root;
 	size_t										client_max_body_size;

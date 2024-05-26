@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/26 23:06:13 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/27 00:48:02 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -124,24 +124,18 @@ bool Config::getErrors(std::string line, ServerData &current, int lineNum)
 	if (!trimLine(line, "error_page", lineNum, trimmedLine)) {
 		return false;
 	}
-
 	std::vector<std::string> splitError = split(trimmedLine, ' ');
-	for (std::vector<std::string>::const_iterator split_it = splitError.begin(); split_it != splitError.end(); ++split_it)
+	if(splitError.size() != 2 || !isDigitString(splitError[0]))
 	{
-		const std::string &split = *split_it;
-		if (isDigitString(split))
-		{
-			int temp = atoi(split.c_str());
-			if (!validError(temp, lineNum)) {
-				return false;
-			}
-			current.error_pages.push_back(std::make_pair(temp, split));
-		}
-		else
-		{
-			current.error_pages.push_back(std::make_pair(-1, split));
-		}
+		log << log.ERROR << "Wrong number of error_page elements on line: " << lineNum << "Example: 504 /50x.html" << std::endl;
+		return false;
 	}
+	int temp = atoi(splitError[0].c_str());
+	if (!validError(temp, lineNum))
+	{
+		return false;
+	}
+	current.error_pages.insert(std::pair<int, std::string>(temp, splitError[1]));
 	return true;
 }
 
@@ -264,6 +258,8 @@ int Config::configInit(const std::string &argv1)
 				}
 			}
 			lineNum++;
+			std::cout << sd << std::endl;
+
 			servers.push_back(Server(sd, log));
 		}
 		else
@@ -302,9 +298,9 @@ std::ostream& operator<<(std::ostream& os, const ServerData &data)
 
 	// Print error pages
 	os << "\nError pages:\n\n";
-	for (std::vector<std::pair<int, std::string> >::const_iterator err_it = data.error_pages.begin(); err_it != data.error_pages.end(); ++err_it)
+	for (std::map<int, std::string>::const_iterator err_it = data.error_pages.begin(); err_it != data.error_pages.end(); ++err_it)
 	{
-		os << "	Error code: " << err_it->first << " Page: " << err_it->second << "\n";
+		os << "Error code: " << err_it->first << " Page: " << err_it->second << "\n";
 	}
 
 	// Print server index
