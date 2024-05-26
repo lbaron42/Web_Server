@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/27 00:59:05 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/27 01:28:42 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -151,6 +151,7 @@ int Config::configInit(const std::string &argv1)
 	while (std::getline(config_file, line)) {
 		lineNum++;
 		line = c_trim(line);
+		line = trim(line, "\t");
 		if (line.empty() || line[0] == '#') {
 			continue;
 		}
@@ -161,6 +162,10 @@ int Config::configInit(const std::string &argv1)
 			{
 				lineNum++;
 				line = c_trim(line);
+				line = trim(line, "\t");
+				if (line.empty() || line[0] == '#') {
+					continue;
+				}
 				if (line.find("location") != std::string::npos)
 				{
 					ServerData::Location loc;
@@ -172,13 +177,17 @@ int Config::configInit(const std::string &argv1)
 					{
 						lineNum++;
 						line = c_trim(line);
+						line = trim(line, "\t");
+						if (line.empty() || line[0] == '#') {
+							continue;
+						}
 						std::string trimmed;
 						if (line.find("alias") != std::string::npos)
 						{
 							if (!trimLine(line, "alias", lineNum, trimmed)) return EXIT_FAILURE;
 							loc.alias = trimmed;
 						}
-						if (line.find("autoindex") != std::string::npos)
+						else if (line.find("autoindex") != std::string::npos)
 						{
 							loc.is_redirection = false;
 							if (!trimLine(line, "autoindex", lineNum, trimmed)) return EXIT_FAILURE;
@@ -190,37 +199,42 @@ int Config::configInit(const std::string &argv1)
 							else if (trimmed == "on")
 								loc.is_redirection = true;
 						}
-						if (line.find("index") != std::string::npos)
+						else if (line.find("index") != std::string::npos)
 						{
 							if (!trimLine(line, "index", lineNum, trimmed)) return EXIT_FAILURE;
 							loc.loc_index = split(trimmed, ' ');
 						}
-						if (line.find("allow_methods") != std::string::npos)
+						else if (line.find("allow_methods") != std::string::npos)
 						{
 							if (!trimLine(line, "allow_methods", lineNum, trimmed)) return EXIT_FAILURE;
 							loc.allow_methods = Request::parse_methods(trimmed);
+						}
+						else
+						{
+							log << log.ERROR << ".conf error: Wrong syntax on line: " << lineNum << std::endl;
+							return EXIT_FAILURE;
 						}
 					}
 					lineNum++;
 					sd.locations.push_back(loc);
 				}
-				if (line.find("listen") != std::string::npos)
+				else if (line.find("listen") != std::string::npos)
 				{
 					if (!getAddress(line, sd, lineNum))
 						return EXIT_FAILURE;
 				}
-				if (line.find("server_name") != std::string::npos)
+				else if (line.find("server_name") != std::string::npos)
 				{
 					std::string trimmed;
 					if (!trimLine(line, "server_name", lineNum, trimmed)) return EXIT_FAILURE;
 					sd.hostnames = split(trimmed, ' ');
 				}
-				if (line.find("error_page") != std::string::npos)
+				else if (line.find("error_page") != std::string::npos)
 				{
 					if (!getErrors(line, sd, lineNum))
 						return EXIT_FAILURE;
 				}
-				if (line.find("autoindex") != std::string::npos)
+				else if (line.find("autoindex") != std::string::npos)
 				{
 					std::string trimmed;
 					if (!trimLine(line, "autoindex", lineNum, trimmed)) return EXIT_FAILURE;
@@ -232,29 +246,34 @@ int Config::configInit(const std::string &argv1)
 					else if (trimmed == "on")
 						sd.autoindex = true;
 				}
-				if (line.find("index") != std::string::npos)
+				else if (line.find("index") != std::string::npos)
 				{
 					std::string trimmed;
 					if (!trimLine(line, "index", lineNum, trimmed)) return EXIT_FAILURE;
 					sd.serv_index = split(trimmed, ' ');
 				}
-				if (line.find("root") != std::string::npos)
+				else if (line.find("root") != std::string::npos)
 				{
 					std::string trimmed;
 					if (!trimLine(line, "root", lineNum, trimmed)) return EXIT_FAILURE;
 					sd.root = trimmed;
 				}
-				if (line.find("client_max_body_size") != std::string::npos)
+				else if (line.find("client_max_body_size") != std::string::npos)
 				{
 					std::string trimmed;
 					if (!trimLine(line, "client_max_body_size", lineNum, trimmed)) return EXIT_FAILURE;
 					sd.client_max_body_size = atoi(trimmed.c_str());
 				}
-				if (line.find("allow_methods") != std::string::npos)
+				else if (line.find("allow_methods") != std::string::npos)
 				{
 					std::string trimmed;
 					if (!trimLine(line, "allow_methods", lineNum, trimmed)) return EXIT_FAILURE;
 					sd.allow_methods = Request::parse_methods(trimmed);
+				}
+				else
+				{
+					log << log.ERROR << ".conf error: Wrong syntax on line: " << lineNum << std::endl;
+					return EXIT_FAILURE;
 				}
 			}
 			lineNum++;
