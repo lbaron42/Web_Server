@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 07:56:07 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/20 22:08:11 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/25 03:45:00 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,12 +14,18 @@
 # define REPLY_HPP
 
 # include <cstddef>
+# include <ctime>
 # include <fstream>
+# include <iomanip>
 # include <ios>
 # include <iterator>
 # include <sstream>
 # include <string>
 # include <vector>
+
+# include <dirent.h>
+# include <sys/stat.h>
+# include <sys/types.h>
 
 # include "Utils.hpp"
 
@@ -31,7 +37,12 @@ class Reply
 		static std::string const get_content(std::string const &filename);
 		static std::vector<char> const get_payload(
 				std::string const &filename);
-		static std::string const get_listing(std::string const &filename);
+		static std::string const get_listing(std::string const &filename,
+				std::string const &url);
+		static std::string const generate_error_page(int status = 500);
+		static size_t get_html_size(int status);
+		static size_t get_html_size(std::string const &listed_directory,
+				std::string const &url);
 
 	private:
 		Reply();

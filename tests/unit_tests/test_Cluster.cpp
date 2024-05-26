@@ -48,20 +48,20 @@ std::vector<Server> create_mock_servers(Log &log, int n_of_servers)
 		port << (i + 8080);
 		ServerData	sd;
 		sd.root = "extra/webspace/mc-putchar.github.io";
-		sd.index = "index.html";
-		sd.allowed_methods = static_cast<Request::e_method>(
+		sd.serv_index.push_back("index.html");
+		sd.allow_methods = static_cast<Request::e_method>(
 				Request::HEAD | Request::GET | Request::POST);
-		sd.directory_listing = true;
+		sd.autoindex = true;
 		ServerData::Address		addr;
 		addr.ip = "127.0.0.1";
 		addr.port = port.str();
-		sd.address.push_back(addr);
+		sd.addresses.push_back(addr);
 		hostname << "marvinx" << i << ".42.fr";
-		sd.hostname.push_back(hostname.str());
+		sd.hostnames.push_back(hostname.str());
 		hostname.clear();
 		hostname.str(std::string());
 		hostname << "www." << "marvinx" << i << ".42.fr";
-		sd.hostname.push_back(hostname.str());
+		sd.hostnames.push_back(hostname.str());
 		mockservs.push_back(Server(sd, log));
 	}
 	return mockservs;

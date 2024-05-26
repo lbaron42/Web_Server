@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/19 16:21:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/20 01:44:43 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/25 14:51:11 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,6 +25,13 @@ Headers::~Headers()
 Headers::Headers(Headers const &rhs) : headers(rhs.headers)
 {}
 
+Headers &Headers::operator=(Headers const &rhs)
+{
+	if (this == &rhs)	return *this;
+	this->headers = rhs.get_headers();
+	return *this;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //	Public methods
 ////////////////////////////////////////////////////////////////////////////////
@@ -32,6 +39,11 @@ Headers::Headers(Headers const &rhs) : headers(rhs.headers)
 bool Headers::is_set(std::string const &key) const
 {
 	return this->headers.count(key);
+}
+
+std::map<std::string, std::string> Headers::get_headers() const
+{
+	return this->headers;
 }
 
 std::string Headers::get_header(std::string const &key) const
@@ -78,7 +90,7 @@ std::ostream &operator<<(std::ostream &os, Headers const &hdrs)
 	std::set<std::string> keys = hdrs.get_keys();
 	for (std::set<std::string>::const_iterator it = keys.begin();
 	it != keys.end(); ++it) {
-		os << *it << ": " << hdrs.get_header(*it) << std::endl;
+		os << *it << ": " << hdrs.get_header(*it) << "\r\n";
 	}
 	return os;
 }

@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 07:54:45 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/20 22:08:54 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/26 00:04:42 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,7 +30,7 @@ std::string const Reply::get_content(std::string const &filename)
 
 std::vector<char> const Reply::get_payload(std::string const &filename)
 {
-	std::ifstream				file(filename.c_str(), std::ios::binary);
+	std::ifstream		file(filename.c_str(), std::ios::binary);
 	std::vector<char>	bytes;
 
 	ssize_t file_size = get_file_size(filename);
@@ -42,17 +42,55 @@ std::vector<char> const Reply::get_payload(std::string const &filename)
 	return bytes;
 }
 
-std::string const Reply::get_listing(std::string const &path)
+std::string const Reply::get_listing(std::string const &path,
+		std::string const &url)
 {
 	std::stringstream	html;
+	DIR					*dirp;
+	struct dirent		*dire;
 
+	dirp = opendir(path.c_str());
+	if (!dirp)
+		return std::string();
 	html << "<html>" << std::endl << "<head><title>"
-		<< "Index of " << path << "</title></head>" << std::endl
+		<< "Index of " << url << "</title></head>" << std::endl
 		<< "<body>" << std::endl
-		<< "<h1>Index of " << path 
-		<< "</h1><hr><pre><a href=\"../\">..</a>" << std::endl
-		<< "<h2>TODO</h2>" << std::endl
-		<< "</body>" << std::endl << "</html>" << std::endl;
+		<< "<h1>Index of " << url << "</h1><hr><pre>" << std::endl;
+	while ((dire = readdir(dirp)) != NULL) {
+		std::string	name(dire->d_name);
+		std::string	anchor(path + name);
+		std::string	mod_time;
+		std::string	file_size;
+		struct stat	sb;
+
+		if (name == ".")
+			continue;
+		if (name == "..")
+			name.append("/");
+		else if(!stat(anchor.c_str(), &sb)) {
+			char	tmp[64];
+			if (std::strftime(tmp, sizeof(tmp), "%d-%b-%Y %H:%M",
+			std::gmtime(&sb.st_mtime))) {
+				mod_time = tmp;
+			}
+			if (S_ISREG(sb.st_mode)) {
+				std::ostringstream	oss;
+				oss << sb.st_size;
+				if (!oss.fail())
+					file_size = oss.str();
+			} else if (S_ISDIR(sb.st_mode)) {
+				name.append("/");
+				anchor.append("/");
+				file_size = "-";
+			}
+		}
+		html << "<a href=\"" << url + name << "\">";
+		html << std::left << std::setw(64) << name + "</a>"
+			<< std::setw(18) << mod_time;
+		html << std::right << std::setw(18) << file_size << std::endl;
+	}
+	closedir(dirp);
+	html << "</pre><hr></body>" << std::endl << "</html>" << std::endl;
 	return html.str();
 }
 
@@ -61,9 +99,36 @@ std::string const Reply::get_status_line(bool v11, int status)
 	std::ostringstream	oss;
 	if (v11)	oss << "HTTP/1.1 ";
 	else		oss << "HTTP/1.0 ";
-	oss << status << " " << Reply::get_status_message(status)
-		<< "\r\n";
+	oss << status << " " << Reply::get_status_message(status) << "\r\n";
 	return oss.str();
+}
+
+// TODO:
+std::string const Reply::generate_error_page(int status)
+{
+	std::stringstream	html;
+
+	html << "<html>" << std::endl
+		<< "<head><title>"
+		<< status << " - " << Reply::get_status_message(status)
+		<< "</title></head>" << std::endl
+		<< "<body>" << std::endl
+		<< "<h1>" << "Error " << status
+		<< "</h1><hr><pre>" << "<h2>" << Reply::get_status_message(status)
+		<< "</h2>" << std::endl
+		<< "</body>" << std::endl << "</html>" << std::endl;
+	return html.str();
+}
+
+size_t Reply::get_html_size(int status)
+{
+	return (Reply::generate_error_page(status)).length();
+}
+
+size_t Reply::get_html_size(std::string const &listed_directory,
+		std::string const &url)
+{
+	return (Reply::get_listing(listed_directory, url)).length();
 }
 
 std::string const Reply::get_status_message(int status)

@@ -6,103 +6,310 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/17 17:23:34 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/25 23:58:38 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Config.hpp"
-#include "Utils.hpp"
 
-Config::Config() {
-    keyWords.push_back("listen");
-    keyWords.push_back("server_name");
-    keyWords.push_back("port_to_listen");
-    keyWords.push_back("error_page");
-    keyWords.push_back("client_max_body_size");
-    keyWords.push_back("index");
+Config::Config(Log &log) : log(log)
+{}
+
+Config::~Config()
+{}
+
+void Config::verifyIp(std::string ip, int lineNum)
+{
+	int temp;
+	std::vector<std::string> split_ip;
+	split_ip = split(ip, '.');
+	for(std::vector<std::string>::const_iterator it = split_ip.begin(); it != split_ip.end(); ++it)
+	{
+		temp = atoi(*it);
+		if(!isDigitString(*it) || (temp < 0 || temp > 255))
+		{
+			log << log.ERROR << "Invalid IP address on line: " << lineNum << std::endl;
+			exit(EXIT_FAILURE);
+		}
+	}
 }
 
-int Config::configInit(const std::string& argv1) {
-    std::ifstream config_file(argv1.c_str());
-    
-    if (!config_file.is_open()) {
-        std::cerr << "ERROR: Couldn't open config file" << std::endl;
-        return EXIT_FAILURE;
-    }
-    
-    int set = 0;
-    std::string line;
-    s_Server* currentServer = NULL;
-    
-    while (std::getline(config_file, line)) {
-        line = trim(line);
-        
-        if (line.find("server {") != std::string::npos) {
-            set++;
-            std::string setname = "Server" + itoa(set);
-            s_Server obj(setname, set);
-            servers.push_back(obj);
-            currentServer = &servers.back();
-        } else if (line.find("location") != std::string::npos && currentServer != NULL) {
-            size_t pos = line.find("location");
-            pos += 8;
-            while (pos < line.size() && (line[pos] == ' ' || line[pos] == '\t')) {
-                pos++;
-            }
-            size_t end_pos = line.find('{', pos);
-            std::string location_path = line.substr(pos, end_pos - pos);
-            location_path = trim(location_path);
-            
-            s_Location location;
-            while (std::getline(config_file, line)) {
-                line = trim(line);
-                if (line.find('}') != std::string::npos) {
-                    break;
-                }
-                size_t directive_pos = line.find(' ');
-                std::string directive = line.substr(0, directive_pos);
-                std::string value = line.substr(directive_pos + 1, line.find(';') - directive_pos - 1);
-                location.directives[directive] = trim(value);
-            }
-            currentServer->locations[location_path] = location;
-        } else if (currentServer != NULL) {
-            for (size_t i = 0; i < keyWords.size(); ++i) {
-                size_t pos = line.find(keyWords[i]);
-                if (pos != std::string::npos) {
-                    pos += keyWords[i].length();
-                    while (pos < line.size() && (line[pos] == ' ' || line[pos] == '\t')) {
-                        pos++;
-                    }
-                    size_t end_pos = line.find(';', pos);
-                    if (end_pos != std::string::npos) {
-                        std::string value = line.substr(pos, end_pos - pos);
-                        currentServer->servKeywords[keyWords[i]] = value;
-                    }
-                }
-            }
-        }
-    }
-    config_file.close();
-    return EXIT_SUCCESS;
+void Config::verifyPort(std::string port, int lineNum)
+{
+	size_t p = atoi(port);
+	if(!isDigitString(port) || p > 65535)
+	{
+		log << log.ERROR << "Port number is not a \"digit\" or it is out of Range, line: " << lineNum << std::endl;
+		exit(EXIT_FAILURE);
+	}
+
 }
 
-void Config::log() const {
-    for (size_t i = 0; i < servers.size(); ++i) {
-        const s_Server& server = servers[i];
-        std::cout << "\n" << server.index_name << " index: " << server.index << "\n\n";
-        for (std::map<std::string, std::string>::const_iterator it = server.servKeywords.begin(); it != server.servKeywords.end(); ++it) {
-            std::cout << "  " << it->first << ": " << it->second << "\n";
-        }
-        for (std::map<std::string, s_Location>::const_iterator loc_it = server.locations.begin(); loc_it != server.locations.end(); ++loc_it) {
-            std::cout << "  location: " << loc_it->first << "\n";
-            const s_Location& location = loc_it->second;
-            for (std::map<std::string, std::string>::const_iterator dir_it = location.directives.begin(); dir_it != location.directives.end(); ++dir_it) {
-                std::cout << "    " << dir_it->first << ": " << dir_it->second << "\n";
-            }
-        }
-    }  
+void Config::validError(int error)
+{
+	bool found = false;
+	for (size_t i = 0; i < sizeof(errorCodes) / sizeof(errorCodes[0]); ++i)
+	{
+		if (error == errorCodes[i])
+		{
+			found = true;
+			break;
+		}
+	}
+	if (!found)
+	{
+		log << Log::ERROR << "Code doesn't exist: " << error << std::endl;
+		exit(EXIT_FAILURE);
+	}
 }
 
-const std::vector<s_Server>& Config::getServers() const {
+std::string Config::trimLine(std::string line, std::string message, int lineNum)
+{
+	size_t pos = line.find(message) + message.length();
+	while (pos < line.size() && (line[pos] == ' ' || line[pos] == '\t')) {pos++;}
+	size_t end_pos = line.find(';', pos);
+	if (end_pos == std::string::npos)
+	{
+		log << log.ERROR << "Expected ';' " << message << " in line: " << lineNum  << " " << line << std::endl;
+		exit(EXIT_FAILURE);
+	}
+	return line.substr(pos, end_pos - pos);
+}
+
+void Config::getAddress(std::string line, ServerData &current, int lineNum)
+{
+	ServerData::Address _address;
+	std::string newLine = trimLine(line, "listen", lineNum);
+	if(isdigit(newLine[0]) != 1 /* && Address[0] != '['*/)
+	{
+		log << log.ERROR << "Invalid IP address on line: " << lineNum << std::endl;
+		exit(EXIT_FAILURE);
+	}
+	size_t pos = 0;
+		size_t end_pos = newLine.find(':', pos);
+		if (end_pos == std::string::npos)
+		{
+			_address.ip = "0.0.0.0";
+			_address.port = newLine;
+			verifyPort(_address.port, lineNum);
+			current.addresses.push_back(_address);
+			return;
+		}
+		_address.ip = newLine.substr(pos, end_pos - pos);
+		verifyIp(_address.ip, lineNum);
+		pos = end_pos + 1;
+		end_pos = std::string::npos;
+		_address.port = newLine.substr(pos, end_pos - pos);
+		verifyPort(_address.port, lineNum);
+		current.addresses.push_back(_address);
+}
+
+void Config::getErrors(std::string line, ServerData &current, int lineNum)
+{
+	std::vector<std::string> splitError = split(trimLine(line, "error_page", lineNum), ' ');
+	for(std::vector<std::string>::const_iterator split_it = splitError.begin(); split_it != splitError.end(); ++split_it)
+		{
+			const std::string &split = *split_it;
+			if(isDigitString(split))
+			{
+				int temp = atoi(split);
+				validError(temp);
+				current.error_pages.push_back(std::make_pair(temp, split));
+			}
+			else
+				current.error_pages.push_back(std::make_pair(-1, split));
+		}
+}
+
+int Config::configInit(const std::string &argv1)
+{
+	int lineNum = 0;
+	std::ifstream config_file(argv1.c_str());
+	if (!config_file.is_open()) {
+		log << log.ERROR << "Couldn't open config file" << std::endl;
+		return EXIT_FAILURE;
+	}
+	std::string line;
+	while (std::getline(config_file, line)) {
+		lineNum++;
+		line = c_trim(line);
+		if (line.empty() || line[0] == '#') {
+			continue;
+		}
+		if (line.find("server {") != std::string::npos)
+		{
+			ServerData sd;
+			while (std::getline(config_file, line) && line.find('}') == std::string::npos)
+			{
+				lineNum++;
+				line = c_trim(line);
+				if (line.find("location") != std::string::npos)
+				{
+					ServerData::Location loc;
+					size_t pos = line.find("location") + 9;
+					while (pos < line.size() && (line[pos] == ' ' || line[pos] == '\t')) {pos++;}
+					size_t end_pos = line.find('{', pos);
+					loc.location_path = trim(line.substr(pos, end_pos - pos));
+					while (std::getline(config_file, line) && line.find('}') == std::string::npos)
+					{
+						lineNum++;
+						line = c_trim(line);
+						if (line.find("alias") != std::string::npos)
+						{
+							loc.alias = trimLine(line, "alias", lineNum);
+						}
+						if (line.find("autoindex") != std::string::npos)
+						{
+							loc.is_redirection = false;
+							std::string trimmed = trimLine(line, "autoindex", lineNum);
+							if (trimmed != "on" && trimmed != "off")
+					 			log << log.ERROR << "autoindex is invalid on line: " << lineNum << std::endl;
+							else if (trimmed == "on")
+        		    			loc.is_redirection = true;
+						}
+						if (line.find("index") != std::string::npos)
+						{
+							loc.loc_index = split(trimLine(line, "index", lineNum), ' ');
+						}
+						if (line.find("allowed_method") != std::string::npos)
+		        		{
+							// loc.allow_methods = split(trimLine(line, "allowed_method", lineNum), ' ');
+							loc.allow_methods = Request::parse_methods(trimLine(line, "allowed_method", lineNum));
+						}
+					}
+					lineNum++;
+					sd.locations.push_back(loc);
+				}
+				if (line.find("listen") != std::string::npos)
+				{
+					getAddress(line, sd, lineNum);
+				}
+				if (line.find("server_name") != std::string::npos)
+				{
+					sd.hostnames = split(trimLine(line, "server_name", lineNum), ' ');
+				}
+				if (line.find("error_page") != std::string::npos)
+				{
+					getErrors(line, sd, lineNum);
+				}
+				if (line.find("autoindex") != std::string::npos)
+				{
+					std::string trimmed = trimLine(line, "autoindex", lineNum);
+					if (trimmed != "on" && trimmed != "off")
+        		    	log << log.ERROR << "autoindex is invalid on line: " << lineNum << std::endl;
+					else if (trimmed == "on")
+        		    	sd.autoindex = true;
+				}
+				if (line.find("index") != std::string::npos)
+				{
+					sd.serv_index = split(trimLine(line, "index", lineNum), ' ');
+				}
+				if (line.find("root") != std::string::npos)
+				{
+					sd.root = trimLine(line, "root", lineNum);
+				}
+				if (line.find("client_max_body_size") != std::string::npos)
+				{
+					sd.client_max_body_size = atoi(trimLine(line, "client_max_body_size", lineNum));
+				}
+				if (line.find("allowed_method") != std::string::npos)
+				{
+					// sd.allow_methods = split(trimLine(line, "allowed_method", lineNum), ' ');
+					sd.allow_methods = Request::parse_methods(trimLine(line, "allowed_method", lineNum));
+				}
+			}
+			lineNum++;
+			// std::cout << sd << std::endl;
+			servers.push_back(Server(sd, log));
+		}
+		else
+		{
+			log << log.ERROR << "Wrong syntax on line: " << lineNum << " of the .conf file" << std::endl;
+			exit(EXIT_FAILURE);
+		}
+	}
+	config_file.close();
+	return EXIT_SUCCESS;
+}
+
+std::vector<Server> Config::getServers() const {
     return servers;
+}
+int s = 1;
+std::ostream& operator<<(std::ostream& os, const ServerData &data)
+{
+	os << "\n                ServerData BLOCK: " << s << "\n" << std::endl;
+	s++;
+	//print ip and port addresses
+    for (std::vector<ServerData::Address>::const_iterator addr_it = data.addresses.begin(); addr_it != data.addresses.end(); ++addr_it)
+    {
+        const ServerData::Address& address = *addr_it;
+        os << "Server ip: " << address.ip << "\n";
+        os << "Server port: " << address.port << "\n";
+    }
+
+    // Print hostnames
+    os << "\nHostnames:\n\n";
+    for (std::vector<std::string>::const_iterator host_it = data.hostnames.begin(); host_it != data.hostnames.end(); ++host_it)
+    {
+        os << "	" << *host_it << "\n";
+    }
+
+    // Print error pages
+    os << "\nError pages:\n\n";
+    for (std::vector<std::pair<int, std::string> >::const_iterator err_it = data.error_pages.begin(); err_it != data.error_pages.end(); ++err_it)
+    {
+        os << "	Error code: " << err_it->first << " Page: " << err_it->second << "\n";
+    }
+
+    // Print server index
+    os << "Server index:\n";
+    for (std::vector<std::string>::const_iterator idx_it = data.serv_index.begin(); idx_it != data.serv_index.end(); ++idx_it)
+    {
+        os << *idx_it << "\n";
+    }
+
+    // Print root
+    os << "Root: " << data.root << "\n";
+
+    // Print client max body size
+    os << "Client max body size: " << data.client_max_body_size << "\n";
+
+    // Print autoindex
+    os << "Autoindex: " << (data.autoindex ? "on" : "off") << "\n";
+
+    // Print allow methods
+    os << "Allowed methods:\n";
+    // for (std::vector<std::string>::const_iterator method_it = data.allow_methods.begin(); method_it != data.allow_methods.end(); ++method_it)
+    // {
+    //     os << "		"<< *method_it << "\n";
+    // }
+
+    // Print locations
+    os << "\nLocations:\n";
+	int i = 1;
+    for (std::vector<ServerData::Location>::const_iterator loc_it = data.locations.begin(); loc_it != data.locations.end(); ++loc_it)
+    {
+		os << "	Location n: " << i << std::endl;
+		i++;
+        const ServerData::Location& location = *loc_it;
+        os << "		Location path: " << location.location_path << "\n";
+        os << "		Alias: " << location.alias << "\n";
+
+        os << "		Location index: ";
+        for (std::vector<std::string>::const_iterator loc_idx_it = location.loc_index.begin(); loc_idx_it != location.loc_index.end(); ++loc_idx_it)
+        {
+            os << *loc_idx_it << " ";
+        }
+
+        os << "\n		Allowed methods:\n";
+        // for (std::vector<std::string>::const_iterator loc_method_it = location.allow_methods.begin(); loc_method_it != location.allow_methods.end(); ++loc_method_it)
+        // {
+        //     os << "				"<< *loc_method_it << "\n";
+        // }
+
+        os << "		Redirection: " << (location.is_redirection ? "yes" : "no") << "\n";
+    }
+
+    return os;
 }

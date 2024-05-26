@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/21 00:35:22 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/25 23:33:21 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -38,8 +38,25 @@ struct AssignFd
 //	CTORs/DTOR
 ////////////////////////////////////////////////////////////////////////////////
 
+ServerData::ServerData()
+	:	addresses(),
+		hostnames(),
+		error_pages(),
+		serv_index(),
+		root(),
+		client_max_body_size(1024),
+		autoindex(false),
+		allow_methods(),
+		locations()
+{}
+
 Server::Server(ServerData const &server_data, Log &log)
-	: info(server_data), log(log)
+	:	info(server_data),
+		log(log),
+		listen_fds(),
+		clients(),
+		requests(),
+		replies()
 {}
 
 Server::~Server()
@@ -47,7 +64,13 @@ Server::~Server()
 	std::for_each(this->requests.begin(), this->requests.end(), DelValue());
 }
 
-Server::Server(Server const &rhs) : info(rhs.info), log(rhs.log)
+Server::Server(Server const &rhs)
+	:	info(rhs.info),
+		log(rhs.log),
+		listen_fds(rhs.listen_fds),
+		clients(rhs.clients),
+		requests(rhs.requests),
+		replies(rhs.replies)
 {}
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -57,9 +80,9 @@ Server::Server(Server const &rhs) : info(rhs.info), log(rhs.log)
 bool Server::initialize(int epoll_fd)
 {
 	typedef std::vector<ServerData::Address>::const_iterator AddrIter;
-	for (AddrIter it = this->info.address.begin();
-	it != this->info.address.end(); ++it) {
-		int sfd = setup_socket(it->port.c_str(), \
+	for (AddrIter it = this->info.addresses.begin();
+	it != this->info.addresses.end(); ++it) {
+		int sfd = this->setup_socket(it->port.c_str(), \
 				it->ip.empty() ? NULL : it->ip.c_str());
 		if (sfd == -1)
 			return false;
@@ -75,12 +98,12 @@ bool Server::initialize(int epoll_fd)
 	it != this->listen_fds.end(); ++it) {
 		event.data.fd = *it;
 		if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, *it, &event)) {
-			log << Log::ERROR << "Failed to add fd " << *it 
+			log << Log::ERROR << "Failed to add fd " << *it
 				<< " to epoll_ctl" << std::endl;
 			return false;
 		}
 		log << Log::DEBUG << "Added fd " << *it << " to epoll_ctl" << std::endl;
-		log << Log::INFO << "Initialized server: " << this->info.hostname[0]
+		log << Log::INFO << "Initialized server: " << this->info.hostnames[0]
 			<< std::endl;
 	}
 	return true;
@@ -143,7 +166,7 @@ void Server::close_connection(int epoll_fd, int fd)
 	log << Log::INFO << "Closed connection with client: " << fd << std::endl;
 }
 
-int Server::recv_request(int epoll_fd, int fd)
+bool Server::recv_request(int epoll_fd, int fd)
 {
 	char				buff[4096];
 	std::string			msg;
@@ -153,84 +176,91 @@ int Server::recv_request(int epoll_fd, int fd)
 		case -1:
 			log << Log::WARN << "recv client " << fd << " returned error"
 				<< std::endl;
-			return 0;
+			return false;
 		case 0:
 			log << Log::INFO << "Client closed connection" << std::endl;
 			this->close_connection(epoll_fd, fd);
-			return -1;
+			return true;
 		default:
 			msg = std::string(buff, r);
 	}
-	if (DEBUG_MODE)
-		log << Log::DEBUG << "Received " << r << "b: " << msg << std::endl;
+	log << Log::DEBUG << "Received " << r << "b: " << msg << std::endl;
 
 	std::map<int, Request*>::iterator it = this->requests.find(fd);
-	if (it == this->requests.end())
-		this->requests[fd] = new Request(msg, this->log);
-	else
+	if (it == this->requests.end()) {
+		Request *request = new (std::nothrow) Request(msg, this->log);
+		if (!request) {
+			log << Log::ERROR << "Memory allocation failed!" << std::endl;
+			// TODO: Send 500 Error ??
+			this->close_connection(epoll_fd, fd);
+			return true;
+		}
+		this->requests.insert(std::make_pair(fd, request));
+	} else {
+		log << Log::DEBUG << "Appending to previous received request"
+			<< std::endl;
 		it->second->append(msg);
-	this->handle_request(fd, this->parse_request(fd));
-	if (!this->switch_epoll_mode(epoll_fd, fd, EPOLLOUT))
-		return -1;
-	return 0;
+	}
+	this->parse_request(fd);
+	if (this->requests[fd]->is_parsed()) {
+		this->handle_request(fd);
+		if (!this->switch_epoll_mode(epoll_fd, fd, EPOLLOUT))
+			return true;
+	}
+	return false;
 }
 
-void Server::handle_request(int fd, int status)
+void Server::handle_request(int fd)
 {
 	Request				*request = this->requests[fd];
 	Headers				hdrs;
 	std::vector<char>	payload;
 	std::vector<char>	repl;
 
-	if (status == 200) {
+	if (request->get_status() < 400) {
 		switch (request->get_method()) {
 			case Request::GET:
-				status = this->handle_get_request(request, hdrs, &payload);
+				this->get_payload(request, hdrs, &payload);
 				break;
-			// case Request::POST: break;
-			// case Request::DELETE: break;
 			case Request::HEAD:
-				status = 200; break;
+				this->get_head(request, hdrs);
+				break;
+			case Request::POST:
+				this->handle_post_request(request, hdrs);
+				break;
+			// case Request::DELETE: break;
 			default:
-				status = 400; break;
+				request->set_status(400); break;
 		}
-		hdrs.set_header("Connection", "keep-alive");
+		if (!request->is_version_11()
+		|| request->get_header("Connection") == "close"
+		|| request->get_header("Connection") == "Close"
+		|| request->get_header("connection") == "close"
+		|| request->get_header("connection") == "Close")
+			hdrs.set_header("Connection", "close");
+		else
+			hdrs.set_header("Connection", "keep-alive");
 	}
-	if (status != 200) {
-		hdrs.set_header("Content-Type", "text/plain");
+	if (request->get_status() >= 400) {
+		if (request->get_method() != Request::HEAD) {
+			std::string tmp = Reply::generate_error_page(request->get_status());
+			payload.insert(payload.end(), tmp.begin(), tmp.end());
+		}
+		hdrs.set_header("Content-Length",
+				num_tostr(Reply::get_html_size(request->get_status())));
+		hdrs.set_header("Content-Type", "text/html");
 		hdrs.set_header("Connection", "close");
 	}
 
-	log << Log::INFO << "Request from client: " << fd << std::endl
-		<< "\t\t\t\t" << request->get_req_line() << " => "
-		<< status << " " << Reply::get_status_message(status)
-		<< std::endl;
+	log << Log::INFO << "Request from client: " << fd
+		<< "	=> " << request->get_status() << " "
+		<< Reply::get_status_message(request->get_status()) << std::endl
+		<< "\t\t\t\t" << request->get_req_line() << std::endl;
 
-	std::string tmp(Reply::get_status_line(request->is_version_11(), status));
-	repl.insert(repl.end(), tmp.begin(), tmp.end());
-
-	std::stringstream ss;
-	ss << payload.size();
-	hdrs.set_header("Content-Length", ss.str());
-	ss.clear();
-	ss.str(std::string());
-	ss << hdrs;
-	ss >> std::noskipws;
-	char c;
-	while (ss >> c)
-		repl.push_back(c);
-	repl.push_back('\r');
-	repl.push_back('\n');
-	if (!payload.empty()) {
-		repl.insert(repl.end(), payload.begin(), payload.end());
-		repl.push_back('\r');
-		repl.push_back('\n');
-	}
-	repl.push_back('\r');
-	repl.push_back('\n');
-
-	this->drop_request(fd)
-		.enqueue_reply(fd, repl);
+	this->generate_response(request, hdrs, payload, repl)
+		.enqueue_reply(fd, repl)
+		.drop_request(fd)
+		.check_queue(fd);
 }
 
 int Server::send_reply(int epoll_fd, int fd)
@@ -240,7 +270,7 @@ int Server::send_reply(int epoll_fd, int fd)
 	std::map<int, std::vector<char> >::iterator it = this->replies.find(fd);
 	if (it == this->replies.end()) {
 		log << Log::WARN << "Un numero sbagliato" << std::endl;
-		return 0;
+		return -1;
 	}
 	s = send(fd, it->second.data(), it->second.size(), MSG_DONTWAIT);
 	log << Log::DEBUG << "Reply sent " << s << " bytes" << std::endl;
@@ -325,34 +355,69 @@ int Server::setup_socket(char const *service, char const *node)
 	return sfd;
 }
 
-int Server::parse_request(int fd)
+void Server::parse_request(int fd)
 {
-	int status = this->requests[fd]->validate_request_line();
-	if (status != 200)
-		return status;
-	if (!this->requests[fd]->parse_headers()) {
-		log << Log::WARN << "Failed parsing headers" << std::endl;
-		log << Log::DEBUG << "Recognized: " << std::endl
-			<< this->requests[fd]->get_headers()
-			<< std::endl;
-		return 0;
+	Request	*request = this->requests[fd];
+	if (!request->get_status())
+		request->set_status(request->validate_request_line());
+	if (!request->get_status())
+		return ;
+	if (request->get_status() != 200) {
+		request->set_parsed(true);
+		return ;
 	}
-	log << Log::DEBUG << "Request headers: " << std::endl
-		<< this->requests[fd]->get_headers()
+	if (!request->parse_headers()) {
+		log << Log::DEBUG << "Received headers: " << std::endl
+			<< request->get_headers()
+			<< std::endl;
+		return ;
+	}
+	request->set_parsed(true);
+	log << Log::DEBUG << "Parsed headers: " << std::endl
+		<< request->get_headers()
 		<< std::endl;
-	if (!(this->requests[fd]->get_method() & this->info.allowed_methods))
-		status = 405;
-	return status;
+	if (!(request->get_method() & this->info.allow_methods)) {
+		log << Log::DEBUG << "Requested method:	" << request->get_method()
+			<< std::endl;
+		log << Log::DEBUG << "Allowed methods:	" << this->info.allow_methods
+			<< std::endl;
+		request->set_status(405);
+	}
+	log << Log::DEBUG << "Current status: " << request->get_status()
+		<< std::endl;
+	if (!(this->requests[fd]->get_method() & this->info.allow_methods))
+		request->set_status(405);
+	return ;
 }
 
 Server &Server::drop_request(int fd)
 {
 	std::map<int, Request*>::iterator it = this->requests.find(fd);
-	if (it != this->requests.end())
-	{
+	if (it == this->requests.end())
+		return *this;
+	if (it->second->get_status() < 400 && !it->second->is_done()) {
+		Request *next_request = new (std::nothrow) Request(*it->second);
+		delete it->second;
+		if (!next_request) {
+			log << Log::ERROR << "Memory allocation failed!" << std::endl;
+			this->requests.erase(it);
+			// TODO: Send 500 Error ??
+			return *this;
+		}
+		this->requests[fd] = next_request;
+	} else {
 		delete it->second;
 		this->requests.erase(it);
 	}
+	return *this;
+}
+
+Server &Server::check_queue(int fd)
+{
+	std::map<int, Request*>::iterator it = this->requests.find(fd);
+	if (it == this->requests.end())
+		return *this;
+	this->handle_request(fd);
 	return *this;
 }
 
@@ -366,41 +431,142 @@ Server &Server::enqueue_reply(int fd, std::vector<char> const &reply)
 	return *this;
 }
 
-int Server::handle_get_request(Request *request, Headers &headers,
-		std::vector<char> *body)
+// TODO: rewrite
+std::string Server::resolve_address(Request *request)
 {
 	std::string const	&url = request->get_url();
 	std::string			path(this->info.root);
-	std::string			msg_body;
 
-	if (url[url.size() - 1] != '/') {
-		path.append(url);
-	} else if (this->info.directory_listing) {
-		// TODO: Check if permissions allow access
-		msg_body = Reply::get_listing(url);
-		std::copy(msg_body.begin(), msg_body.end(), std::back_inserter(*body));
-		headers.set_header("Content-Type", "text/html");
-		return 200;
-	} else if (url == "/" && !this->info.index.empty()) {
-		path.append(url);
-		path.append(this->info.index);
-	} else {
-		return 400; // TODO: confirm status code for this case, maybe 404?
+	if (this->info.autoindex)
+		request->set_dirlist(true);
+	if (url[url.size() - 1] == '/' && !request->is_dirlist()) {
+		if (!this->info.serv_index.empty()) {
+			path.append(url);
+			path.append(*this->info.serv_index.begin());
+			return path;
+		}
+		return std::string();
 	}
-	log << Log::DEBUG << "Requested file: " << path << std::endl;
-	if (access(path.c_str(), F_OK))
-		return 404;
+	if (url[0] != '/' && path[path.size() - 1] != '/')
+		path.append("/");
+	path.append(url);
+	return path;
+}
+
+void Server::get_head(Request *request, Headers &headers)
+{
+	std::string	path = this->resolve_address(request);
+	struct stat	statbuf;
+
+	log << Log::DEBUG << "Resolved URL: [" << path << "]" << std::endl;
+	if (!stat(path.c_str(), &statbuf) && S_ISDIR(statbuf.st_mode)) {
+		if (request->is_dirlist()) {
+			headers.set_header("Content-Type", "text/html");
+			headers.set_header("Content-Length",
+					num_tostr(Reply::get_html_size(path, request->get_url())));
+			request->set_target(path);
+			request->set_status(200);
+		} else {
+			log << Log::DEBUG << "Requested file is a directory" << std::endl;
+			request->set_status(404);
+		}
+		return ;
+	}
+	if (path.empty() || access(path.c_str(), F_OK)) {
+		request->set_status(404);
+		log << Log::DEBUG << "File not found" << std::endl;
+		return ;
+	}
 	if (access(path.c_str(), R_OK)) {
 		log << Log::ERROR << "Cannot open requested file: "
-			<< url << std::endl;
-		return 403;
+			<< request->get_url() << std::endl;
+		request->set_status(403);
+		return ;
 	}
 	headers.set_header("Content-Type", get_mime_type(path));
-	if (!get_mime_type(path).rfind("text", 0)) {
-		msg_body = Reply::get_content(path);
-		std::copy(msg_body.begin(), msg_body.end(), std::back_inserter(*body));
+	headers.set_header("Content-Length",
+			num_tostr(get_file_size(path)));
+	request->set_target(path);
+	request->set_status(200);
+}
+
+void Server::get_payload(Request *request, Headers &headers,
+		std::vector<char> *body)
+{
+	this->get_head(request, headers);
+	if (request->get_status() < 400) {
+		struct stat statbuf;
+		if (!stat(request->get_target().c_str(), &statbuf)
+		&& S_ISDIR(statbuf.st_mode)) {
+			if (request->is_dirlist()) {
+				std::string tmp = Reply::get_listing(request->get_target(),
+						request->get_url());
+				if (!tmp.empty())
+					body->insert(body->end(), tmp.begin(), tmp.end());
+				else {
+					request->set_status(404);
+					log << Log::DEBUG << "Failed to open dir" << std::endl;
+					std::string tmp = Reply::generate_error_page(404);
+					body->insert(body->end(), tmp.begin(), tmp.end());
+				}
+			} else {
+				request->set_status(404);
+				log << Log::DEBUG << "Requested file is a directory"
+					<< request->get_target() << std::endl;
+				std::string tmp = Reply::generate_error_page(404);
+				body->insert(body->end(), tmp.begin(), tmp.end());
+			}
+		} else {
+			*body = Reply::get_payload(request->get_target());
+		}
 	} else {
-		*body = Reply::get_payload(path);
+		std::string tmp = Reply::generate_error_page(request->get_status());
+		body->insert(body->end(), tmp.begin(), tmp.end());
 	}
-	return 200;
+}
+
+int Server::handle_post_request(Request *request, Headers &headers)
+{
+	std::string type = request->get_header("Content-Type");
+	if (type.empty())
+		type = request->get_header("Content-type");
+	if (type.empty())
+		type = request->get_header("content-type");
+	if (type.empty())
+		return 400;
+
+	if (type == "application/x-www-form-urlencoded") {
+
+	} else if (type == "multipart/form-data") {
+
+	} else if (type == "text/plain") {
+
+	} else {
+
+	}
+	headers.set_header("Connection", "close");
+	return 201;
+}
+
+Server &Server::generate_response(Request *request, Headers &headers,
+		std::vector<char> const &body, std::vector<char> &repl)
+{
+	std::string tmp = Reply::get_status_line(request->is_version_11(),
+			request->get_status());
+	repl.insert(repl.end(), tmp.begin(), tmp.end());
+
+	std::stringstream ss;
+	ss >> std::noskipws;
+	ss << headers << "\r\n";
+	char c;
+	while (ss >> c)
+		repl.push_back(c);
+	if (!body.empty()) {
+		repl.insert(repl.end(), body.begin(), body.end());
+		repl.push_back('\r');
+		repl.push_back('\n');
+	}
+	repl.push_back('\r');
+	repl.push_back('\n');
+	return *this;
 }
