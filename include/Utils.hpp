@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:52:42 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/25 23:13:01 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/26 14:28:45 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,6 +27,15 @@ std::string num_tostr(T num)
 	std::ostringstream oss;
 	oss << num;
 	return oss.str();
+}
+
+template<typename T>
+T str_tonum(std::string const &str)
+{
+	T					num = T();
+	std::istringstream	oss(str);
+	oss >> num;
+	return num;
 }
 
 std::string itoa(int num);
