@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/27 00:48:02 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/27 00:59:05 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -127,7 +127,7 @@ bool Config::getErrors(std::string line, ServerData &current, int lineNum)
 	std::vector<std::string> splitError = split(trimmedLine, ' ');
 	if(splitError.size() != 2 || !isDigitString(splitError[0]))
 	{
-		log << log.ERROR << "Wrong number of error_page elements on line: " << lineNum << "Example: 504 /50x.html" << std::endl;
+		log << log.ERROR << "Wrong number of error_page elements on line: " << lineNum << " Example: 504 /50x.html" << std::endl;
 		return false;
 	}
 	int temp = atoi(splitError[0].c_str());
@@ -258,8 +258,6 @@ int Config::configInit(const std::string &argv1)
 				}
 			}
 			lineNum++;
-			std::cout << sd << std::endl;
-
 			servers.push_back(Server(sd, log));
 		}
 		else
