@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   main.cpp                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
+/*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:22:31 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/25 23:48:39 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/26 22:50:08 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -34,7 +34,6 @@ int	main(int ac, char **av)
 
 	if (conf.configInit(av[1]))
 	{
-		log << Log::ERROR << "Couldn't open config file" << std::endl;
 		return EXIT_FAILURE;
 	}
 	std::vector<Server>	servers = conf.getServers();

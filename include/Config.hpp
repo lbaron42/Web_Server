@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/26 14:09:29 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/26 22:43:09 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -80,12 +80,12 @@ public:
 private:
 	Log &log;
 	std::vector<Server> servers;
-	void verifyIp(std::string ip, int lineNum);
-	void verifyPort(std::string Port, int lineNum);
-	void validError(int error, int lineNum);
-	std::string trimLine(std::string line, std::string message, int lineNum);
-	void getAddress(std::string line, ServerData &current, int lineNum);
-	void getErrors(std::string line, ServerData &current, int lineNum);
+	bool verifyIp(std::string ip, int lineNum);
+	bool verifyPort(std::string Port, int lineNum);
+	bool validError(int error, int lineNum);
+	bool trimLine(const std::string& line, const std::string& message, int lineNum, std::string& trimmedLine);
+	bool getAddress(std::string line, ServerData &current, int lineNum);
+	bool getErrors(std::string line, ServerData &current, int lineNum);
 };
 
 std::ostream &operator<<(std::ostream &os, const ServerData &data);
