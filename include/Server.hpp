@@ -6,14 +6,13 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/25 23:25:10 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/27 00:15:20 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef SERVER_HPP
 # define SERVER_HPP
 
-#include <cstddef>
 # ifndef STRICT_EVALUATOR
 #  define STRICT_EVALUATOR 0
 # endif
@@ -23,6 +22,7 @@
 # endif
 
 # include <algorithm>
+# include <cstddef>
 # include <cstdlib>
 # include <map>
 # include <set>
@@ -64,7 +64,7 @@ struct ServerData
 
 	std::vector<Address>						addresses;
 	std::vector<std::string>					hostnames;
-	std::vector<std::pair<int, std::string> >	error_pages;
+	std::map<int, std::string>					error_pages;
 	std::vector<std::string>					serv_index;
 	std::string									root;
 	size_t										client_max_body_size;
@@ -85,7 +85,7 @@ class Server
 		int add_client(int epoll_fd, int listen_fd);
 		void close_connection(int epoll_fd, int fd);
 		bool recv_request(int epoll_fd, int fd);
-		void handle_request(int fd);
+		bool handle_request(int fd);
 		int send_reply(int epoll_fd, int fd);
 
 	private:
@@ -106,7 +106,7 @@ class Server
 		void get_head(Request *request, Headers &headers);
 		void get_payload(Request *request, Headers &headers,
 				std::vector<char> *body);
-		int handle_post_request(Request *request, Headers &headers);
+		void handle_post_request(Request *request, Headers &headers);
 		Server &generate_response(Request *request, Headers &headers,
 				std::vector<char> const &body, std::vector<char> &repl);
 

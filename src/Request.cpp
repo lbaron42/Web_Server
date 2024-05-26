@@ -6,15 +6,11 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/26 22:43:07 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/27 00:53:46 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Request.hpp"
-#include <cstddef>
-#include <iosfwd>
-#include <iterator>
-#include <vector>
 
 namespace {
 	static char const *const	methodnames[] = {

@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/18 19:51:33 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/22 12:31:32 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/27 00:16:33 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -52,7 +52,6 @@ bool Cluster::init_all()
 			<< std::endl;
 		return false;
 	}
-	if (STRICT_EVALUATOR)	fcntl(this->epoll_fd, F_SETFL, O_CLOEXEC);
 
 	for (std::vector<Server>::iterator it = this->servers.begin();
 	it != this->servers.end(); ++it) {

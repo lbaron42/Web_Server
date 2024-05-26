@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/25 23:33:21 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/27 00:15:43 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -129,7 +129,6 @@ int Server::add_client(int epoll_fd, int listen_fd)
 		log << Log::ERROR << "Failed to accept connection" << std::endl;
 		return -1;
 	}
-	if (STRICT_EVALUATOR)	fcntl(client_fd, F_SETFL, O_NONBLOCK | O_CLOEXEC);
 
 	epoll_event event = {};
 	event.events = EPOLLIN;
@@ -201,16 +200,16 @@ bool Server::recv_request(int epoll_fd, int fd)
 			<< std::endl;
 		it->second->append(msg);
 	}
-	this->parse_request(fd);
+	if (!this->requests[fd]->is_parsed())
+		this->parse_request(fd);
 	if (this->requests[fd]->is_parsed()) {
-		this->handle_request(fd);
-		if (!this->switch_epoll_mode(epoll_fd, fd, EPOLLOUT))
-			return true;
+		if (this->handle_request(fd))
+			return !this->switch_epoll_mode(epoll_fd, fd, EPOLLOUT);
 	}
 	return false;
 }
 
-void Server::handle_request(int fd)
+bool Server::handle_request(int fd)
 {
 	Request				*request = this->requests[fd];
 	Headers				hdrs;
@@ -242,14 +241,24 @@ void Server::handle_request(int fd)
 			hdrs.set_header("Connection", "keep-alive");
 	}
 	if (request->get_status() >= 400) {
-		if (request->get_method() != Request::HEAD) {
+		std::map<int, std::string>::const_iterator it = this
+				->info.error_pages.find(request->get_status());
+		if (it != this->info.error_pages.end()) {
+			payload = Reply::get_payload(it->second);
+			hdrs.set_header("Content-Length", num_tostr(it->second.length()));
+		} else {
 			std::string tmp = Reply::generate_error_page(request->get_status());
 			payload.insert(payload.end(), tmp.begin(), tmp.end());
+			hdrs.set_header("Content-Length", num_tostr(tmp.length());
 		}
-		hdrs.set_header("Content-Length",
-				num_tostr(Reply::get_html_size(request->get_status())));
+		if (request->get_method() == Request::HEAD) {
+			payload.clear();
+		}
 		hdrs.set_header("Content-Type", "text/html");
 		hdrs.set_header("Connection", "close");
+	} else if (request->get_method() == Request::POST
+	&& !request->is_body_loaded()) {
+		return false;
 	}
 
 	log << Log::INFO << "Request from client: " << fd
@@ -261,6 +270,7 @@ void Server::handle_request(int fd)
 		.enqueue_reply(fd, repl)
 		.drop_request(fd)
 		.check_queue(fd);
+	return true;
 }
 
 int Server::send_reply(int epoll_fd, int fd)
@@ -385,8 +395,6 @@ void Server::parse_request(int fd)
 	}
 	log << Log::DEBUG << "Current status: " << request->get_status()
 		<< std::endl;
-	if (!(this->requests[fd]->get_method() & this->info.allow_methods))
-		request->set_status(405);
 	return ;
 }
 
@@ -506,46 +514,46 @@ void Server::get_payload(Request *request, Headers &headers,
 				else {
 					request->set_status(404);
 					log << Log::DEBUG << "Failed to open dir" << std::endl;
-					std::string tmp = Reply::generate_error_page(404);
-					body->insert(body->end(), tmp.begin(), tmp.end());
 				}
 			} else {
 				request->set_status(404);
 				log << Log::DEBUG << "Requested file is a directory"
 					<< request->get_target() << std::endl;
-				std::string tmp = Reply::generate_error_page(404);
-				body->insert(body->end(), tmp.begin(), tmp.end());
 			}
 		} else {
 			*body = Reply::get_payload(request->get_target());
 		}
-	} else {
-		std::string tmp = Reply::generate_error_page(request->get_status());
-		body->insert(body->end(), tmp.begin(), tmp.end());
 	}
 }
 
-int Server::handle_post_request(Request *request, Headers &headers)
+void Server::handle_post_request(Request *request, Headers &headers)
 {
-	std::string type = request->get_header("Content-Type");
-	if (type.empty())
-		type = request->get_header("Content-type");
-	if (type.empty())
-		type = request->get_header("content-type");
-	if (type.empty())
-		return 400;
-
-	if (type == "application/x-www-form-urlencoded") {
-
-	} else if (type == "multipart/form-data") {
-
-	} else if (type == "text/plain") {
-
-	} else {
-
+	if (!request->is_body_loaded()) {
+		size_t		body_size(0);
+		std::string	content_len = request->get_header("Content-Length");
+		if (!is_uint(content_len)) {
+			log << Log::DEBUG << "Content-Length value is not a valid number"
+				<< std::endl;
+			request->set_status(400);
+			return ;
+		}
+		body_size = str_tonum<size_t>(content_len);
+		if (!request->get_loaded_body_size()) {
+			if (body_size > this->info.client_max_body_size) {
+				log << Log::DEBUG << "Content-Length exceeds max body size"
+					<< std::endl;
+				request->set_status(413);
+				return ;
+			}
+		}
+		request->load_payload(body_size - request->get_loaded_body_size());
 	}
-	headers.set_header("Connection", "close");
-	return 201;
+	if (!request->is_body_loaded())
+		return ;
+	// TODO do something with this POST request
+	headers.set_header("Location", "/action.html");
+	request->set_status(303);
+	// request->set_status(201);
 }
 
 Server &Server::generate_response(Request *request, Headers &headers,
