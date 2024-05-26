@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:59:51 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/25 23:35:15 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/26 22:27:47 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -36,21 +36,21 @@ std::string trim(std::string const &str, std::string const &trimchars)
 
 std::string c_trim(const std::string &str) {
 
-    size_t first = str.find_first_not_of(' ');
-    if (std::string::npos == first) {
-        return "";
-    }
+	size_t first = str.find_first_not_of(' ');
+	if (std::string::npos == first) {
+		return std::string();
+	}
 
-    size_t semicolon_pos = str.find(';');
-    std::string trimmed;
-    if (semicolon_pos != std::string::npos) {
-        trimmed = str.substr(0, semicolon_pos + 1);
-    } else {
-        trimmed = str;
-    }
+	size_t semicolon_pos = str.find(';');
+	std::string trimmed;
+	if (semicolon_pos != std::string::npos) {
+		trimmed = str.substr(0, semicolon_pos + 1);
+	} else {
+		trimmed = str;
+	}
 
-    size_t last = trimmed.find_last_not_of(' ');
-    return trimmed.substr(first, (last - first + 1));
+	size_t last = trimmed.find_last_not_of(' ');
+	return trimmed.substr(first, (last - first + 1));
 }
 
 std::vector<std::string> split(const std::string &s, char delimiter) {
@@ -96,11 +96,23 @@ std::string const get_mime_type(std::string const &file)
 }
 
 bool isDigitString(const std::string& str) {
-    if (str.empty()) {
-        return false;
-    }
-    if (str.find_first_not_of("0123456789") != std::string::npos) {
-        return false;
-    }
-    return true;
+	if (str.empty()) {
+		return false;
+	}
+	if (str.find_first_not_of("0123456789") != std::string::npos) {
+		return false;
+	}
+	return true;
+}
+
+bool is_uint(std::string const &str)
+{
+	long	result;
+	char	*end;
+
+	if (str.empty())
+		return false;
+	errno = 0;
+	result = std::strtol(str.c_str(), &end, 10);
+	return (errno != ERANGE && *end == 0 && result >= 0);
 }
