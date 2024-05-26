@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Config.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
+/*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/25 23:58:38 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/26 16:01:38 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,7 +28,7 @@ void Config::verifyIp(std::string ip, int lineNum)
 		temp = atoi(*it);
 		if(!isDigitString(*it) || (temp < 0 || temp > 255))
 		{
-			log << log.ERROR << "Invalid IP address on line: " << lineNum << std::endl;
+			log << log.ERROR << ".conf error: Invalid IP address on line: " << lineNum << std::endl;
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -39,13 +39,13 @@ void Config::verifyPort(std::string port, int lineNum)
 	size_t p = atoi(port);
 	if(!isDigitString(port) || p > 65535)
 	{
-		log << log.ERROR << "Port number is not a \"digit\" or it is out of Range, line: " << lineNum << std::endl;
+		log << log.ERROR << ".conf error: Port number is not a \"digit\" or it is out of Range, line: " << lineNum << std::endl;
 		exit(EXIT_FAILURE);
 	}
 
 }
 
-void Config::validError(int error)
+void Config::validError(int error, int lineNum)
 {
 	bool found = false;
 	for (size_t i = 0; i < sizeof(errorCodes) / sizeof(errorCodes[0]); ++i)
@@ -58,7 +58,7 @@ void Config::validError(int error)
 	}
 	if (!found)
 	{
-		log << Log::ERROR << "Code doesn't exist: " << error << std::endl;
+		log << Log::ERROR << ".conf error: Error code doesn't exist: " << error <<  " line: " << lineNum << std::endl;
 		exit(EXIT_FAILURE);
 	}
 }
@@ -70,7 +70,8 @@ std::string Config::trimLine(std::string line, std::string message, int lineNum)
 	size_t end_pos = line.find(';', pos);
 	if (end_pos == std::string::npos)
 	{
-		log << log.ERROR << "Expected ';' " << message << " in line: " << lineNum  << " " << line << std::endl;
+		trim(line);
+		log << log.ERROR << ".conf error: Expected ';' in line: " << lineNum  << " " << message << std::endl;
 		exit(EXIT_FAILURE);
 	}
 	return line.substr(pos, end_pos - pos);
@@ -82,7 +83,7 @@ void Config::getAddress(std::string line, ServerData &current, int lineNum)
 	std::string newLine = trimLine(line, "listen", lineNum);
 	if(isdigit(newLine[0]) != 1 /* && Address[0] != '['*/)
 	{
-		log << log.ERROR << "Invalid IP address on line: " << lineNum << std::endl;
+		log << log.ERROR << ".conf error: Invalid IP address on line: " << lineNum << std::endl;
 		exit(EXIT_FAILURE);
 	}
 	size_t pos = 0;
@@ -113,7 +114,7 @@ void Config::getErrors(std::string line, ServerData &current, int lineNum)
 			if(isDigitString(split))
 			{
 				int temp = atoi(split);
-				validError(temp);
+				validError(temp, lineNum);
 				current.error_pages.push_back(std::make_pair(temp, split));
 			}
 			else
@@ -163,7 +164,10 @@ int Config::configInit(const std::string &argv1)
 							loc.is_redirection = false;
 							std::string trimmed = trimLine(line, "autoindex", lineNum);
 							if (trimmed != "on" && trimmed != "off")
-					 			log << log.ERROR << "autoindex is invalid on line: " << lineNum << std::endl;
+							{
+        		    			log << log.ERROR << ".conf error: autoindex is invalid on line: " << lineNum << std::endl;
+								exit(EXIT_FAILURE);
+							}
 							else if (trimmed == "on")
         		    			loc.is_redirection = true;
 						}
@@ -171,10 +175,9 @@ int Config::configInit(const std::string &argv1)
 						{
 							loc.loc_index = split(trimLine(line, "index", lineNum), ' ');
 						}
-						if (line.find("allowed_method") != std::string::npos)
+						if (line.find("allow_methods") != std::string::npos)
 		        		{
-							// loc.allow_methods = split(trimLine(line, "allowed_method", lineNum), ' ');
-							loc.allow_methods = Request::parse_methods(trimLine(line, "allowed_method", lineNum));
+							loc.allow_methods = Request::parse_methods(trimLine(line, "allow_methods", lineNum));
 						}
 					}
 					lineNum++;
@@ -196,7 +199,10 @@ int Config::configInit(const std::string &argv1)
 				{
 					std::string trimmed = trimLine(line, "autoindex", lineNum);
 					if (trimmed != "on" && trimmed != "off")
-        		    	log << log.ERROR << "autoindex is invalid on line: " << lineNum << std::endl;
+					{
+        		    	log << log.ERROR << ".conf error: autoindex is invalid on line: " << lineNum << std::endl;
+						exit(EXIT_FAILURE);
+					}
 					else if (trimmed == "on")
         		    	sd.autoindex = true;
 				}
@@ -212,10 +218,10 @@ int Config::configInit(const std::string &argv1)
 				{
 					sd.client_max_body_size = atoi(trimLine(line, "client_max_body_size", lineNum));
 				}
-				if (line.find("allowed_method") != std::string::npos)
+				if (line.find("allow_methods") != std::string::npos)
 				{
 					// sd.allow_methods = split(trimLine(line, "allowed_method", lineNum), ' ');
-					sd.allow_methods = Request::parse_methods(trimLine(line, "allowed_method", lineNum));
+					sd.allow_methods = Request::parse_methods(trimLine(line, "allow_methods", lineNum));
 				}
 			}
 			lineNum++;
@@ -224,7 +230,7 @@ int Config::configInit(const std::string &argv1)
 		}
 		else
 		{
-			log << log.ERROR << "Wrong syntax on line: " << lineNum << " of the .conf file" << std::endl;
+			log << log.ERROR << ".conf error: Wrong syntax on line: " << lineNum << std::endl;
 			exit(EXIT_FAILURE);
 		}
 	}
