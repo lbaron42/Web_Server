@@ -6,7 +6,7 @@
 #    By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/05/14 11:22:55 by mcutura           #+#    #+#              #
-#    Updated: 2024/05/25 23:08:14 by mcutura          ###   ########.fr        #
+#    Updated: 2024/05/27 01:56:23 by mcutura          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -36,7 +36,7 @@ MKDIR := mkdir -p
 
 CONTAINER_NAME := marvinx
 PORT_MAPPING ?= -p "8080:8080" -p "8081:8081"
-MOUNT_VOLUME ?= -v extra:/var/www/html:ro
+MOUNT_VOLUME ?= -v $(shell pwd)/extra/webspace:/var/www/html:rw
 
 COLOUR_END := \033[0m
 COLOUR_GREEN := \033[0;32m
@@ -82,7 +82,7 @@ $(UNITTESTDIR)/test_%.out: $(UNITTESTDIR)/test_%.cpp
 
 debug: re		# Build for debugging
 static: all		# Compile statically linked executable
-nitpicking: re	# Insist on blindly following subject.pdf to the letter...boring
+nitpicking: re	# Insist on blindly following subject.pdf to the letter... silly
 
 container:		# Build and run a Docker container running target executable
 	docker build . -t marvinx --progress=plain
