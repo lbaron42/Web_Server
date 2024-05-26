@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/27 01:27:53 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/27 01:33:40 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -244,9 +244,10 @@ bool Server::handle_request(int fd)
 		std::map<int, std::string>::const_iterator it = this
 				->info.error_pages.find(request->get_status());
 		if (it != this->info.error_pages.end()) {
-			std::string path(this->info.root + it->second);
+			std::string path(this->info.root + "/" + it->second);
 			payload = Reply::get_payload(path);
 			hdrs.set_header("Content-Length", num_tostr(payload.size()));
+		}
 		if (payload.empty()) {
 			std::string tmp = Reply::generate_error_page(request->get_status());
 			payload.insert(payload.end(), tmp.begin(), tmp.end());
