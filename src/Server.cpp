@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/27 01:33:40 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/27 23:22:50 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -225,7 +225,10 @@ bool Server::handle_request(int fd)
 				this->get_head(request, hdrs);
 				break;
 			case Request::POST:
-				this->handle_post_request(request, hdrs);
+				this->handle_post_request(request, hdrs, &payload);
+				break;
+			case Request::PUT:
+				this->handle_put_request(request, hdrs, &payload);
 				break;
 			// case Request::DELETE: break;
 			default:
@@ -258,8 +261,11 @@ bool Server::handle_request(int fd)
 		}
 		hdrs.set_header("Content-Type", "text/html");
 		hdrs.set_header("Connection", "close");
-	} else if (request->get_method() == Request::POST
+	} else if ((request->get_method() == Request::POST
+	|| request->get_method() == Request::PUT)
 	&& !request->is_body_loaded()) {
+		log << Log::DEBUG << "Incomplete request body, returning to epoll"
+			<< std::endl;
 		return false;
 	}
 
@@ -406,15 +412,19 @@ Server &Server::drop_request(int fd)
 	if (it == this->requests.end())
 		return *this;
 	if (it->second->get_status() < 400 && !it->second->is_done()) {
-		Request *next_request = new (std::nothrow) Request(*it->second);
+		// Request *next_request = new (std::nothrow) Request(*it->second);
+		// delete it->second;
+		// if (!next_request) {
+		// 	log << Log::ERROR << "Memory allocation failed!" << std::endl;
+		// 	this->requests.erase(it);
+		// 	// TODO: Send 500 Error ??
+		// 	return *this;
+		// }
+		// this->requests[fd] = next_request;
+		log << Log::DEBUG << "More requests in queue. Dropping it anyway"
+			<< std::endl;
 		delete it->second;
-		if (!next_request) {
-			log << Log::ERROR << "Memory allocation failed!" << std::endl;
-			this->requests.erase(it);
-			// TODO: Send 500 Error ??
-			return *this;
-		}
-		this->requests[fd] = next_request;
+		this->requests.erase(it);
 	} else {
 		delete it->second;
 		this->requests.erase(it);
@@ -528,34 +538,96 @@ void Server::get_payload(Request *request, Headers &headers,
 	}
 }
 
-void Server::handle_post_request(Request *request, Headers &headers)
+void Server::load_request_body(Request *request)
 {
-	if (!request->is_body_loaded()) {
-		size_t		body_size(0);
-		std::string	content_len = request->get_header("Content-Length");
-		if (!is_uint(content_len)) {
-			log << Log::DEBUG << "Content-Length value is not a valid number"
-				<< std::endl;
-			request->set_status(400);
-			return ;
-		}
-		body_size = str_tonum<size_t>(content_len);
-		if (!request->get_loaded_body_size()) {
-			if (body_size > this->info.client_max_body_size) {
-				log << Log::DEBUG << "Content-Length exceeds max body size"
-					<< std::endl;
-				request->set_status(413);
-				return ;
-			}
-		}
-		request->load_payload(body_size - request->get_loaded_body_size());
+	size_t		body_size(0);
+	std::string	content_len = request->get_header("Content-Length");
+	if (!is_uint(content_len)) {
+		log << Log::DEBUG << "Content-Length value is not a valid number"
+			<< std::endl;
+		request->set_status(400);
+		return ;
 	}
+	body_size = str_tonum<size_t>(content_len);
+	if (!request->get_loaded_body_size()
+	&& body_size > this->info.client_max_body_size) {
+			log << Log::DEBUG << "Content-Length exceeds max body size"
+				<< std::endl;
+			request->set_status(413);
+			return ;
+	}
+	request->load_payload(body_size - request->get_loaded_body_size());
+}
+
+void Server::handle_post_request(Request *request, Headers &headers,
+		std::vector<char> *body)
+{
+	if (!request->is_body_loaded())
+		this->load_request_body(request);
 	if (!request->is_body_loaded())
 		return ;
 	// TODO do something with this POST request
 	headers.set_header("Location", "/action.html");
 	request->set_status(303);
+	(void)body;
 	// request->set_status(201);
+}
+
+void Server::handle_put_request(Request *request, Headers &headers,
+		std::vector<char> *body)
+{
+	if (!request->is_body_loaded())
+		this->load_request_body(request);
+	if (!request->is_body_loaded())
+		return ;
+	log << Log::DEBUG << "Loaded body size: " << request->get_loaded_body_size()
+		<< std::endl;
+	std::string	type(request->get_header("Content-Type"));
+	bool		is_text(!type.rfind("text", 0));
+	if (is_text)
+		log << Log::DEBUG << "Text type file with PUT" << std::endl;
+	else
+		log << Log::DEBUG << "Binary type file with PUT" << std::endl;
+	std::string	relative_location(request->get_url());
+	if (relative_location.empty()) {
+		request->set_status(400);
+		return ;
+	}
+	std::string	target(this->info.root + relative_location);
+	bool		file_exists(access(target.c_str(), F_OK) == 0);
+	// TODO check permissions to create file
+	if (!file_exists || !access(target.c_str(), W_OK)) {
+		std::ofstream	file;
+		if (is_text)
+			file.open(target.c_str(), std::ios::trunc);
+		else
+			file.open(target.c_str(), std::ios::trunc | std::ios::binary);
+		if (!file.is_open()) {
+			log << Log::DEBUG << "Failed to open file: " << target << std::endl;
+			request->set_status(409);
+			return ;
+		}
+		file.write(request->get_payload().data(),
+				request->get_loaded_body_size());
+		if (is_text)
+			file << "\n";
+		file.close();
+		request->set_status(file_exists ? 200 : 201);
+		// request->set_status(204); // success - no content
+		headers.set_header("Content-Type", type);
+		headers.set_header("Content-Location", relative_location);
+		if (file_exists) {
+			std::string const	msg("Updated file " + relative_location);
+			body->insert(body->end(), msg.begin(), msg.end());
+		} else {
+			std::string const	msg("Created file " + relative_location);
+			body->insert(body->end(), msg.begin(), msg.end());
+		}
+	} else {
+		log << Log::DEBUG << "Couldn't create/access file specified"
+			<< std::endl;
+		request->set_status(403);
+	}
 }
 
 Server &Server::generate_response(Request *request, Headers &headers,

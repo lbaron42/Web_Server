@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/27 00:59:40 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/27 23:21:34 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -106,7 +106,11 @@ class Server
 		void get_head(Request *request, Headers &headers);
 		void get_payload(Request *request, Headers &headers,
 				std::vector<char> *body);
-		void handle_post_request(Request *request, Headers &headers);
+		void load_request_body(Request *request);
+		void handle_post_request(Request *request, Headers &headers,
+				std::vector<char> *body);
+		void handle_put_request(Request *request, Headers &headers,
+				std::vector<char> *body);
 		Server &generate_response(Request *request, Headers &headers,
 				std::vector<char> const &body, std::vector<char> &repl);
 
