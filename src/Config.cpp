@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/27 13:48:33 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/27 16:30:33 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -225,7 +225,7 @@ int Config::configInit(const std::string &argv1)
 						else if (line.find("allow_methods") != std::string::npos)
 						{
 							if (!trimLine(line, "allow_methods", lineNum, trimmed)) return EXIT_FAILURE;
-							// loc.allow_methods = Request::parse_methods(trimmed);
+							loc.allow_methods = Request::parse_methods(trimmed);
 						}
 						else
 						{
@@ -286,7 +286,7 @@ int Config::configInit(const std::string &argv1)
 				{
 					std::string trimmed;
 					if (!trimLine(line, "allow_methods", lineNum, trimmed)) return EXIT_FAILURE;
-					// sd.allow_methods = Request::parse_methods(trimmed);
+					sd.allow_methods = Request::parse_methods(trimmed);
 				}
 				else
 				{
