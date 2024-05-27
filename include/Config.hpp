@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/26 22:43:09 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/27 13:47:35 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -68,6 +68,14 @@ const int errorCodes[] = {
     505, // HTTP Version Not Supported
 };
 
+const int SERVER_TAB = 1;
+const int LOCATION_TAB = 2;
+const std::string IDENT = "\nserver {\n"
+                          "\t[TAB][KEY][SP][VALUE][;] // variables\n\n"
+                          "\tlocation /path {\t\t[TAB][TAB][KEY][SP][VALUE][;] // location variables\n"
+                          "\t}\n"
+                          "}";
+
 
 
 class Config {
@@ -83,6 +91,7 @@ private:
 	bool verifyIp(std::string ip, int lineNum);
 	bool verifyPort(std::string Port, int lineNum);
 	bool validError(int error, int lineNum);
+	bool validIndentation(std::string line, int tabNum, int lineNum);
 	bool trimLine(const std::string& line, const std::string& message, int lineNum, std::string& trimmedLine);
 	bool getAddress(std::string line, ServerData &current, int lineNum);
 	bool getErrors(std::string line, ServerData &current, int lineNum);

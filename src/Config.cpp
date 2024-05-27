@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/27 01:28:42 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/27 13:48:33 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -63,6 +63,20 @@ bool Config::validError(int error, int lineNum)
 		return false;
 	}
 	return true;
+}
+
+bool Config::validIndentation(std::string line, int tabNum, int lineNum)
+{
+	int tab = tabNum;
+	for (int i = 0; i < tab; ++i)
+	{
+		if(line[i] != '\t')
+		{
+			log << log.ERROR << "Wrong indentation on line: " << lineNum << IDENT <<std::endl;
+			return true;
+		}	
+	}
+	return false;
 }
 
 bool Config::trimLine(const std::string& line, const std::string& message, int lineNum, std::string& trimmedLine)
@@ -162,10 +176,12 @@ int Config::configInit(const std::string &argv1)
 			{
 				lineNum++;
 				line = c_trim(line);
-				line = trim(line, "\t");
 				if (line.empty() || line[0] == '#') {
 					continue;
 				}
+				if(validIndentation(line, SERVER_TAB, lineNum))
+					return EXIT_FAILURE;
+				line = trim(line, "\t");
 				if (line.find("location") != std::string::npos)
 				{
 					ServerData::Location loc;
@@ -177,10 +193,12 @@ int Config::configInit(const std::string &argv1)
 					{
 						lineNum++;
 						line = c_trim(line);
-						line = trim(line, "\t");
 						if (line.empty() || line[0] == '#') {
 							continue;
 						}
+						if(validIndentation(line, LOCATION_TAB, lineNum))
+							return EXIT_FAILURE;
+						line = trim(line, "\t");
 						std::string trimmed;
 						if (line.find("alias") != std::string::npos)
 						{
@@ -207,7 +225,7 @@ int Config::configInit(const std::string &argv1)
 						else if (line.find("allow_methods") != std::string::npos)
 						{
 							if (!trimLine(line, "allow_methods", lineNum, trimmed)) return EXIT_FAILURE;
-							loc.allow_methods = Request::parse_methods(trimmed);
+							// loc.allow_methods = Request::parse_methods(trimmed);
 						}
 						else
 						{
@@ -268,7 +286,7 @@ int Config::configInit(const std::string &argv1)
 				{
 					std::string trimmed;
 					if (!trimLine(line, "allow_methods", lineNum, trimmed)) return EXIT_FAILURE;
-					sd.allow_methods = Request::parse_methods(trimmed);
+					// sd.allow_methods = Request::parse_methods(trimmed);
 				}
 				else
 				{
