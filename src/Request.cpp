@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/27 00:53:46 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/27 23:07:43 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,7 +25,8 @@ namespace {
 
 Request::Request(std::string const &raw, Log &logger)
 	:	log(logger),
-		raw_(raw, std::ios_base::in | std::ios_base::out | std::ios_base::ate),
+		raw_(raw, std::ios_base::in | std::ios_base::out
+			| std::ios_base::ate | std::ios_base::binary),
 		req_line(),
 		method(Request::NONE),
 		url(),
@@ -43,8 +44,8 @@ Request::Request(std::string const &raw, Log &logger)
 
 Request::Request(Request const &rhs)
 	:	log(rhs.log),
-		raw_(rhs.raw_.str(),
-			std::ios_base::in | std::ios_base::out | std::ios_base::ate),
+		raw_(rhs.raw_.str(), std::ios_base::in | std::ios_base::out
+			| std::ios_base::ate | std::ios_base::binary),
 		req_line(rhs.req_line),
 		method(rhs.method),
 		url(rhs.url),
@@ -129,7 +130,7 @@ bool Request::is_parsed() const
 
 bool Request::is_done() const
 {
-	return (this->raw_.rdbuf()->in_avail() == 0);
+	return (this->raw_.eof());
 }
 
 size_t Request::get_loaded_body_size() const
@@ -228,6 +229,10 @@ int Request::validate_request_line()
 			log << Log::DEBUG << "Query		[" << this->query << "]"
 				<< std::endl;
 		}
+		if (this->url.empty()) {
+			log << Log::DEBUG << "Requested URL not valid" << std::endl;
+			return 400;
+		}
 
 		std::string::size_type end(this->req_line.find('\r', second + 1));
 		if (end == std::string::npos) {
@@ -306,28 +311,35 @@ bool Request::parse_headers()
 
 void Request::load_payload(size_t size)
 {
-	std::istreambuf_iterator<char>	body_start(this->raw_);
-	std::istreambuf_iterator<char>	body_end(body_start);
+	if (!this->loaded_body_size)
+		this->payload.reserve(size);
+	// this->raw_.clear();
+	std::streampos	inpos = this->raw_.tellg();
+	std::streampos	outpos = this->raw_.tellp();
 
-	std::streampos	begin = this->raw_.tellg();
-	std::streampos	end = this->raw_.tellp();
-
-	bool	partial(static_cast<std::streampos>(size) > (end - begin));
-
-	log << Log::DEBUG << "Stream begin: " << begin
-		<< " | Stream end: " << end << std::endl;
+	bool partial(static_cast<std::streampos>(size) > (outpos - inpos));
+	log << Log::DEBUG << "Partial: " << partial << std::endl
+		<< "Inpos: " << inpos << " | Outpos: " << outpos << std::endl
+		<< "Size: " << size << std::endl
+		<< "EOF: " << this->raw_.eof() << std::endl;
 	if (partial) {
-		log << Log::DEBUG << "Partial body in buffer: "
-			<< (end - begin) << "/" << size << " bytes received"
-			<< std::endl;
-		std::advance(body_end, end - begin);
+		this->payload.insert(this->payload.end(), this->raw_.str().begin(),
+				this->raw_.str().end());
 	} else {
-		std::advance(body_end, size);
+		this->payload.insert(this->payload.end(), this->raw_.str().begin(),
+				this->raw_.str().begin() + (outpos - inpos));
 	}
-	this->payload.reserve(size);
-	this->payload.insert(this->payload.begin(), body_start, body_end);
-	this->loaded_body_size = partial ? static_cast<size_t>(end - begin) : size;
+	this->loaded_body_size += partial	? static_cast<size_t>(outpos - inpos)
+										: size;
 	this->is_body_loaded_ = !partial;
-	log << Log::DEBUG << "AFTER Stream begin: " << this->raw_.tellg()
-		<< " | Stream end: " << this->raw_.tellp() << std::endl;
+	if (!partial) {
+		this->raw_.seekg(this->payload.size() - 1, std::ios_base::cur);
+		if (this->raw_.peek() == std::char_traits<char>::eof())
+			this->raw_.ignore(1);
+		log << Log::DEBUG << "AFTER " << std::endl
+			<< "Inpos: " << this->raw_.tellg()
+			<< " | Outpos: " << this->raw_.tellp() << std::endl
+			<< "Body loaded:" << std::endl << &this->payload[0] << std::endl
+			<< "EOF: " << this->raw_.eof() << std::endl;
+	}
 }
