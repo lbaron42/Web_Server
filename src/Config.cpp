@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/27 16:30:33 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/27 19:01:50 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -153,6 +153,20 @@ bool Config::getErrors(std::string line, ServerData &current, int lineNum)
 	return true;
 }
 
+bool Config::getCGI(std::string line, ServerData &current, int lineNum) {
+	std::string trimmedLine;
+	if (!trimLine(line, "cgi", lineNum, trimmedLine)) {
+		return false;
+	}
+	std::vector<std::string> splitCgi = split(trimmedLine, ' ');
+	if (splitCgi.size() != 2) {
+		log << log.ERROR << ".conf error: Wrong number of CGI elements on line: " << lineNum << std::endl;
+		return false;
+	}
+	current.cgi[splitCgi[0]] = splitCgi[1];
+	return true;
+}
+
 int Config::configInit(const std::string &argv1)
 {
 	int lineNum = 0;
@@ -287,6 +301,11 @@ int Config::configInit(const std::string &argv1)
 					std::string trimmed;
 					if (!trimLine(line, "allow_methods", lineNum, trimmed)) return EXIT_FAILURE;
 					sd.allow_methods = Request::parse_methods(trimmed);
+				}
+				else if  (line.find("cgi") != std::string::npos)
+				{
+					if (!getCGI(line, sd, lineNum))
+						return EXIT_FAILURE;
 				}
 				else
 				{

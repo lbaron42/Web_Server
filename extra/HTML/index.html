@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog Posts</title>
+    <link rel="icon" href="images/favicon.ico">
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .container {
+            max-width: 800px;
+            margin-top: 50px;
+        }
+
+        .header-image {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header-image img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .header-title {
+            text-align: center;
+            margin-bottom: 20px;
+            font-family: 'Arial', sans-serif;
+            font-size: 2em;
+            font-weight: bold;
+            color: #343a40;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="/">My Blog</a>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="/login.html">Login</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/register.html">Register</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+    <div class="container">
+        <div class="header-title">MarvinX - Server Blog</div>
+        <div class="header-image">
+            <img src="images/Layer 5.png" alt="Header Image">
+        </div>
+        <h2>Blog Posts</h2>
+        <div class="list-group">
+            <a href="/post/1" class="list-group-item list-group-item-action">
+                <h5 class="mb-1">Post Title 1</h5>
+                <p class="mb-1">Post content snippet...</p>
+            </a>
+            <a href="/post/2" class="list-group-item list-group-item-action">
+                <h5 class="mb-1">Post Title 2</h5>
+                <p class="mb-1">Post content snippet...</p>
+            </a>
+            <!-- Add more posts here -->
+        </div>
+    </div>
+</body>
+
+</html>

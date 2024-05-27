@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/27 00:27:58 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/27 18:55:39 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -70,6 +70,7 @@ struct ServerData
 	size_t										client_max_body_size;
 	bool										autoindex;
 	Request::e_method							allow_methods;
+	std::map<std::string, std::string>			cgi;
 	std::vector<Location>						locations;
 };
 
