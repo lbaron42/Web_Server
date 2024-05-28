@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/27 00:48:02 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/27 19:01:50 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -63,6 +63,20 @@ bool Config::validError(int error, int lineNum)
 		return false;
 	}
 	return true;
+}
+
+bool Config::validIndentation(std::string line, int tabNum, int lineNum)
+{
+	int tab = tabNum;
+	for (int i = 0; i < tab; ++i)
+	{
+		if(line[i] != '\t')
+		{
+			log << log.ERROR << "Wrong indentation on line: " << lineNum << IDENT <<std::endl;
+			return true;
+		}	
+	}
+	return false;
 }
 
 bool Config::trimLine(const std::string& line, const std::string& message, int lineNum, std::string& trimmedLine)
@@ -127,7 +141,7 @@ bool Config::getErrors(std::string line, ServerData &current, int lineNum)
 	std::vector<std::string> splitError = split(trimmedLine, ' ');
 	if(splitError.size() != 2 || !isDigitString(splitError[0]))
 	{
-		log << log.ERROR << "Wrong number of error_page elements on line: " << lineNum << "Example: 504 /50x.html" << std::endl;
+		log << log.ERROR << "Wrong number of error_page elements on line: " << lineNum << " Example: 504 /50x.html" << std::endl;
 		return false;
 	}
 	int temp = atoi(splitError[0].c_str());
@@ -136,6 +150,20 @@ bool Config::getErrors(std::string line, ServerData &current, int lineNum)
 		return false;
 	}
 	current.error_pages.insert(std::pair<int, std::string>(temp, splitError[1]));
+	return true;
+}
+
+bool Config::getCGI(std::string line, ServerData &current, int lineNum) {
+	std::string trimmedLine;
+	if (!trimLine(line, "cgi", lineNum, trimmedLine)) {
+		return false;
+	}
+	std::vector<std::string> splitCgi = split(trimmedLine, ' ');
+	if (splitCgi.size() != 2) {
+		log << log.ERROR << ".conf error: Wrong number of CGI elements on line: " << lineNum << std::endl;
+		return false;
+	}
+	current.cgi[splitCgi[0]] = splitCgi[1];
 	return true;
 }
 
@@ -151,6 +179,7 @@ int Config::configInit(const std::string &argv1)
 	while (std::getline(config_file, line)) {
 		lineNum++;
 		line = c_trim(line);
+		line = trim(line, "\t");
 		if (line.empty() || line[0] == '#') {
 			continue;
 		}
@@ -161,6 +190,12 @@ int Config::configInit(const std::string &argv1)
 			{
 				lineNum++;
 				line = c_trim(line);
+				if (line.empty() || line[0] == '#') {
+					continue;
+				}
+				if(validIndentation(line, SERVER_TAB, lineNum))
+					return EXIT_FAILURE;
+				line = trim(line, "\t");
 				if (line.find("location") != std::string::npos)
 				{
 					ServerData::Location loc;
@@ -172,13 +207,19 @@ int Config::configInit(const std::string &argv1)
 					{
 						lineNum++;
 						line = c_trim(line);
+						if (line.empty() || line[0] == '#') {
+							continue;
+						}
+						if(validIndentation(line, LOCATION_TAB, lineNum))
+							return EXIT_FAILURE;
+						line = trim(line, "\t");
 						std::string trimmed;
 						if (line.find("alias") != std::string::npos)
 						{
 							if (!trimLine(line, "alias", lineNum, trimmed)) return EXIT_FAILURE;
 							loc.alias = trimmed;
 						}
-						if (line.find("autoindex") != std::string::npos)
+						else if (line.find("autoindex") != std::string::npos)
 						{
 							loc.is_redirection = false;
 							if (!trimLine(line, "autoindex", lineNum, trimmed)) return EXIT_FAILURE;
@@ -190,37 +231,42 @@ int Config::configInit(const std::string &argv1)
 							else if (trimmed == "on")
 								loc.is_redirection = true;
 						}
-						if (line.find("index") != std::string::npos)
+						else if (line.find("index") != std::string::npos)
 						{
 							if (!trimLine(line, "index", lineNum, trimmed)) return EXIT_FAILURE;
 							loc.loc_index = split(trimmed, ' ');
 						}
-						if (line.find("allow_methods") != std::string::npos)
+						else if (line.find("allow_methods") != std::string::npos)
 						{
 							if (!trimLine(line, "allow_methods", lineNum, trimmed)) return EXIT_FAILURE;
 							loc.allow_methods = Request::parse_methods(trimmed);
+						}
+						else
+						{
+							log << log.ERROR << ".conf error: Wrong syntax on line: " << lineNum << std::endl;
+							return EXIT_FAILURE;
 						}
 					}
 					lineNum++;
 					sd.locations.push_back(loc);
 				}
-				if (line.find("listen") != std::string::npos)
+				else if (line.find("listen") != std::string::npos)
 				{
 					if (!getAddress(line, sd, lineNum))
 						return EXIT_FAILURE;
 				}
-				if (line.find("server_name") != std::string::npos)
+				else if (line.find("server_name") != std::string::npos)
 				{
 					std::string trimmed;
 					if (!trimLine(line, "server_name", lineNum, trimmed)) return EXIT_FAILURE;
 					sd.hostnames = split(trimmed, ' ');
 				}
-				if (line.find("error_page") != std::string::npos)
+				else if (line.find("error_page") != std::string::npos)
 				{
 					if (!getErrors(line, sd, lineNum))
 						return EXIT_FAILURE;
 				}
-				if (line.find("autoindex") != std::string::npos)
+				else if (line.find("autoindex") != std::string::npos)
 				{
 					std::string trimmed;
 					if (!trimLine(line, "autoindex", lineNum, trimmed)) return EXIT_FAILURE;
@@ -232,34 +278,42 @@ int Config::configInit(const std::string &argv1)
 					else if (trimmed == "on")
 						sd.autoindex = true;
 				}
-				if (line.find("index") != std::string::npos)
+				else if (line.find("index") != std::string::npos)
 				{
 					std::string trimmed;
 					if (!trimLine(line, "index", lineNum, trimmed)) return EXIT_FAILURE;
 					sd.serv_index = split(trimmed, ' ');
 				}
-				if (line.find("root") != std::string::npos)
+				else if (line.find("root") != std::string::npos)
 				{
 					std::string trimmed;
 					if (!trimLine(line, "root", lineNum, trimmed)) return EXIT_FAILURE;
 					sd.root = trimmed;
 				}
-				if (line.find("client_max_body_size") != std::string::npos)
+				else if (line.find("client_max_body_size") != std::string::npos)
 				{
 					std::string trimmed;
 					if (!trimLine(line, "client_max_body_size", lineNum, trimmed)) return EXIT_FAILURE;
 					sd.client_max_body_size = atoi(trimmed.c_str());
 				}
-				if (line.find("allow_methods") != std::string::npos)
+				else if (line.find("allow_methods") != std::string::npos)
 				{
 					std::string trimmed;
 					if (!trimLine(line, "allow_methods", lineNum, trimmed)) return EXIT_FAILURE;
 					sd.allow_methods = Request::parse_methods(trimmed);
 				}
+				else if  (line.find("cgi") != std::string::npos)
+				{
+					if (!getCGI(line, sd, lineNum))
+						return EXIT_FAILURE;
+				}
+				else
+				{
+					log << log.ERROR << ".conf error: Wrong syntax on line: " << lineNum << std::endl;
+					return EXIT_FAILURE;
+				}
 			}
 			lineNum++;
-			std::cout << sd << std::endl;
-
 			servers.push_back(Server(sd, log));
 		}
 		else

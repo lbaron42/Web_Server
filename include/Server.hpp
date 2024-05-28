@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/28 13:50:34 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/28 18:03:54 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -70,6 +70,7 @@ struct ServerData
 	size_t										client_max_body_size;
 	bool										autoindex;
 	Request::e_method							allow_methods;
+	std::map<std::string, std::string>			cgi;
 	std::vector<Location>						locations;
 };
 
