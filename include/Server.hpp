@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/28 18:03:54 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/28 18:24:26 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -83,9 +83,7 @@ class Server
 
 		std::vector<ServerData::Address> get_addresses() const;
 		std::vector<std::string> get_hostnames() const;
-		// std::map<int, Server const*> get_listen_fds() const;
 
-		// bool initialize(int epoll_fd);
 		int setup_socket(char const *service, char const *node);
 		int add_client(int epoll_fd, int listen_fd);
 		void close_connection(int epoll_fd, int fd);

@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/28 18:04:20 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/28 18:25:27 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -137,48 +137,6 @@ int Server::setup_socket(char const *service, char const *node)
 	return sfd;
 }
 
-// bool Server::initialize(int epoll_fd)
-// {
-// 	typedef std::vector<ServerData::Address>::const_iterator AddrIter;
-// 	for (AddrIter it = this->info.addresses.begin();
-// 	it != this->info.addresses.end(); ++it) {
-// 		int sfd = this->setup_socket(it->port.c_str(), \
-// 				it->ip.empty() ? NULL : it->ip.c_str());
-// 		if (sfd == -1)
-// 			return false;
-// 		this->listen_fds.insert(sfd);
-// 		log << Log::DEBUG << "Listening on: " << it->ip.c_str() << ":"
-// 			<< it->port.c_str() << " | File desc: " << sfd
-// 			<< std::endl;
-// 	}
-
-// 	epoll_event event = {};
-// 	event.events = EPOLLIN;
-// 	for (std::set<int>::const_iterator it = this->listen_fds.begin();
-// 	it != this->listen_fds.end(); ++it) {
-// 		event.data.fd = *it;
-// 		if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, *it, &event)) {
-// 			log << Log::ERROR << "Failed to add fd " << *it
-// 				<< " to epoll_ctl" << std::endl;
-// 			return false;
-// 		}
-// 		log << Log::DEBUG << "Added fd " << *it << " to epoll_ctl" << std::endl;
-// 		log << Log::INFO << "Initialized server: " << this->info.hostnames[0]
-// 			<< std::endl;
-// 	}
-// 	return true;
-// }
-
-// std::map<int, Server const*> Server::get_listen_fds() const
-// {
-// 	AssignFd						assign_fd(this);
-// 	std::map<int, Server const*>	listen_map;
-
-// 	std::transform(this->listen_fds.begin(), this->listen_fds.end(), \
-// 			std::inserter(listen_map, listen_map.end()), assign_fd);
-// 	return listen_map;
-// }
-
 int Server::add_client(int epoll_fd, int listen_fd)
 {
 	// We default to be anonymous accepting (non-tracking) server
@@ -264,9 +222,10 @@ bool Server::recv_request(int epoll_fd, int fd)
 		this->parse_request(fd);
 	if (this->requests[fd]->is_parsed()) {
 		if (!this->requests[fd]->is_bounced()
-		&& !this->matches_hostname(this->requests[fd]))
+		&& !this->matches_hostname(this->requests[fd])) {
 			;
-			// this->bounce_request()
+			// TODO: this->bounce_request()
+		}
 		if (this->handle_request(fd))
 			return !this->switch_epoll_mode(epoll_fd, fd, EPOLLOUT);
 	}
