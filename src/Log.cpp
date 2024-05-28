@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 23:58:03 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/27 12:03:27 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/28 16:35:31 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -60,16 +60,20 @@ Log &Log::operator<<(e_loglevel const &severity)
 	this->verbosity_curr_ = severity;
 	if (!this->out_ || this->verbosity_curr_ < this->verbosity_)
 		return *this;
-	switch (severity) {
-		case DEBUG: (*this->out_) << CYAN << "[DEBUG]    " << RESET; break;
-		case INFO:  (*this->out_) << GREEN << "[INFO]    " << RESET; break;
-		case WARN:  (*this->out_) << YELLOW << "[WARN]    " << RESET; break;
-		case ERROR: (*this->out_) << RED << "[ERROR]    " << RESET; break;
-		default:    (*this->out_) << MAGENTA << "[MESSAGE]    " << RESET; break;
-	}
-	this->timestamp();
-	return *this;
+		
+    bool use_colors = is_terminal(this->out_);
+
+    switch (severity) {
+        case DEBUG: (*this->out_) << (use_colors ? CYAN : "") << "[DEBUG]    " << (use_colors ? RESET : ""); break;
+        case INFO:  (*this->out_) << (use_colors ? GREEN : "") << "[INFO]    " << (use_colors ? RESET : ""); break;
+        case WARN:  (*this->out_) << (use_colors ? YELLOW : "") << "[WARN]    " << (use_colors ? RESET : ""); break;
+        case ERROR: (*this->out_) << (use_colors ? RED : "") << "[ERROR]    " << (use_colors ? RESET : ""); break;
+        default:    (*this->out_) << (use_colors ? MAGENTA : "") << "[MESSAGE]    " << (use_colors ? RESET : ""); break;
+    }
+    this->timestamp();
+    return *this;
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////
 //	Private innards
@@ -84,4 +88,14 @@ void Log::timestamp()
 	if (std::strftime(timestamp, sizeof(timestamp), \
 		"%Y-%m-%d %H:%M:%S", std::localtime(&t)))
 		(*this->out_) << "[" << timestamp << "]\t";
+}
+
+bool Log::is_terminal(std::ostream* stream) {
+	if (stream == &std::cout) {
+		return isatty(fileno(stdout));
+	} else if (stream == &std::cerr) {
+		return isatty(fileno(stderr));
+	} else {
+		return false;
+	}
 }

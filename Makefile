@@ -6,7 +6,7 @@
 #    By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/05/14 11:22:55 by mcutura           #+#    #+#              #
-#    Updated: 2024/05/27 17:31:09 by lbaron           ###   ########.fr        #
+#    Updated: 2024/05/28 16:39:03 by lbaron           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -56,9 +56,6 @@ $(BINDIR)/%.o: $(SRCDIR)/%.cpp $(INCDIR)/%.hpp | $(BINDIR)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 $(BINDIR):
 	$(MKDIR) $(BINDIR)
-
-# lower:
-# 	$(CXX)	$(CPPFLAGS) -Wall -Wextra -Werror -std=c++98 -Wpedantic -Og -ggdb3 -march=native -O3 -o webserv ./src/Log.cpp ./src/Config.cpp ./src/Cluster.cpp ./src/Headers.cpp ./src/Reply.cpp ./src/Request.cpp ./src/Server.cpp ./src/Utils.cpp ./src/main.cpp
 
 clean:			# Clean binary object files
 	$(RM) $(SRCS:%=$(BINDIR)/%.o)

@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 23:51:31 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/27 12:01:26 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/28 16:29:11 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,6 +16,8 @@
 # include <ctime>
 # include <fstream>
 # include <iostream>
+#include <unistd.h>
+#include <typeinfo>
 
 class Log
 {
@@ -45,6 +47,7 @@ class Log
 		Log &operator<<(std::ostream &(*os)(std::ostream &));
 
 	private:
+		bool is_terminal(std::ostream* stream);
 		std::ostream	*out_;
 		bool			is_file_;
 		e_loglevel		verbosity_;
