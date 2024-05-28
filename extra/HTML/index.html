@@ -5,7 +5,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Blog Posts</title>
-    <link rel="icon" href="images/favicon.ico">
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <style>
         .container {
@@ -36,26 +35,29 @@
 
 <body>
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <a class="navbar-brand" href="/">My Blog</a>
+        <a class="navbar-brand" href="/">MarvinX Blog</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ml-auto">
                 <li class="nav-item">
-                    <a class="nav-link" href="/login.html">Login</a>
+                    <a class="nav-link" href="login.html">Login</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/register.html">Register</a>
+                    <a class="nav-link" href="register.html">Register</a>
                 </li>
             </ul>
         </div>
     </nav>
     <div class="container">
-        <div class="header-title">MarvinX - Server Blog</div>
+        <div class="header-title">The it is not!! going to end up in "memory leaks" - Blog</div>
         <div class="header-image">
-            <img src="images/Layer 5.png" alt="Header Image">
+            <img src="images/Layer5.png" alt="Header Image">
         </div>
         <h2>Blog Posts</h2>
         <div class="list-group">
-            <a href="/post/1" class="list-group-item list-group-item-action">
+            <a href="create_post.html" class="list-group-item list-group-item-action">
                 <h5 class="mb-1">Post Title 1</h5>
                 <p class="mb-1">Post content snippet...</p>
             </a>
@@ -66,6 +68,9 @@
             <!-- Add more posts here -->
         </div>
     </div>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 
 </html>

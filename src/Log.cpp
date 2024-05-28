@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 23:58:03 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/28 16:35:31 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/28 17:12:09 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -60,18 +60,18 @@ Log &Log::operator<<(e_loglevel const &severity)
 	this->verbosity_curr_ = severity;
 	if (!this->out_ || this->verbosity_curr_ < this->verbosity_)
 		return *this;
-		
-    bool use_colors = is_terminal(this->out_);
 
-    switch (severity) {
-        case DEBUG: (*this->out_) << (use_colors ? CYAN : "") << "[DEBUG]    " << (use_colors ? RESET : ""); break;
-        case INFO:  (*this->out_) << (use_colors ? GREEN : "") << "[INFO]    " << (use_colors ? RESET : ""); break;
-        case WARN:  (*this->out_) << (use_colors ? YELLOW : "") << "[WARN]    " << (use_colors ? RESET : ""); break;
-        case ERROR: (*this->out_) << (use_colors ? RED : "") << "[ERROR]    " << (use_colors ? RESET : ""); break;
-        default:    (*this->out_) << (use_colors ? MAGENTA : "") << "[MESSAGE]    " << (use_colors ? RESET : ""); break;
-    }
-    this->timestamp();
-    return *this;
+	bool use_colors = is_terminal(this->out_);
+
+	switch (severity) {
+		case DEBUG: (*this->out_) << (use_colors ? CYAN : "") << "[DEBUG]	" << (use_colors ? RESET : ""); break;
+		case INFO:  (*this->out_) << (use_colors ? GREEN : "") << "[INFO]	" << (use_colors ? RESET : ""); break;
+		case WARN:  (*this->out_) << (use_colors ? YELLOW : "") << "[WARN]	" << (use_colors ? RESET : ""); break;
+		case ERROR: (*this->out_) << (use_colors ? RED : "") << "[ERROR]	" << (use_colors ? RESET : ""); break;
+		default:    (*this->out_) << (use_colors ? MAGENTA : "") << "[MESSAGE]	" << (use_colors ? RESET : ""); break;
+	}
+	this->timestamp();
+	return *this;
 }
 
 
