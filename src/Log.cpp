@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Log.cpp                                            :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
+/*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 23:58:03 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/28 17:12:09 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/28 18:07:03 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -61,7 +61,7 @@ Log &Log::operator<<(e_loglevel const &severity)
 	if (!this->out_ || this->verbosity_curr_ < this->verbosity_)
 		return *this;
 
-	bool use_colors = is_terminal(this->out_);
+	bool use_colors = !this->is_file_;
 
 	switch (severity) {
 		case DEBUG: (*this->out_) << (use_colors ? CYAN : "") << "[DEBUG]	" << (use_colors ? RESET : ""); break;
@@ -88,14 +88,4 @@ void Log::timestamp()
 	if (std::strftime(timestamp, sizeof(timestamp), \
 		"%Y-%m-%d %H:%M:%S", std::localtime(&t)))
 		(*this->out_) << "[" << timestamp << "]\t";
-}
-
-bool Log::is_terminal(std::ostream* stream) {
-	if (stream == &std::cout) {
-		return isatty(fileno(stdout));
-	} else if (stream == &std::cerr) {
-		return isatty(fileno(stderr));
-	} else {
-		return false;
-	}
 }

@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Log.hpp                                            :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
+/*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 23:51:31 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/28 16:29:11 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/28 18:07:10 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -47,7 +47,6 @@ class Log
 		Log &operator<<(std::ostream &(*os)(std::ostream &));
 
 	private:
-		bool is_terminal(std::ostream* stream);
 		std::ostream	*out_;
 		bool			is_file_;
 		e_loglevel		verbosity_;
