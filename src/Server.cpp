@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/27 23:22:50 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/28 13:59:24 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -74,50 +74,109 @@ Server::Server(Server const &rhs)
 {}
 
 ////////////////////////////////////////////////////////////////////////////////
+//	Getters/setters
+////////////////////////////////////////////////////////////////////////////////
+
+std::vector<ServerData::Address> Server::get_addresses() const
+{
+	return this->info.addresses;
+}
+
+std::vector<std::string> Server::get_hostnames() const
+{
+	return this->info.hostnames;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 //	Public methods
 ////////////////////////////////////////////////////////////////////////////////
 
-bool Server::initialize(int epoll_fd)
+int Server::setup_socket(char const *service, char const *node)
 {
-	typedef std::vector<ServerData::Address>::const_iterator AddrIter;
-	for (AddrIter it = this->info.addresses.begin();
-	it != this->info.addresses.end(); ++it) {
-		int sfd = this->setup_socket(it->port.c_str(), \
-				it->ip.empty() ? NULL : it->ip.c_str());
+	int			sfd(-1);
+	addrinfo	*servinfo;
+	addrinfo	*ptr;
+	addrinfo	hints = {};
+
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_PASSIVE;
+
+	if (int ret = getaddrinfo(node, service, &hints, &servinfo)) {
+		log << Log::ERROR << "getaddrinfo error: " \
+			<< gai_strerror(ret) << std::endl;
+		return -1;
+	}
+	for(ptr = servinfo; ptr != NULL; ptr = ptr->ai_next) {
+		sfd = socket(ptr->ai_family, \
+			ptr->ai_socktype | SOCK_NONBLOCK | SOCK_CLOEXEC, ptr->ai_protocol);
 		if (sfd == -1)
-			return false;
-		this->listen_fds.insert(sfd);
-		log << Log::DEBUG << "Listening on: " << it->ip.c_str() << ":"
-			<< it->port.c_str() << " | File desc: " << sfd
-			<< std::endl;
-	}
-
-	epoll_event event = {};
-	event.events = EPOLLIN;
-	for (std::set<int>::const_iterator it = this->listen_fds.begin();
-	it != this->listen_fds.end(); ++it) {
-		event.data.fd = *it;
-		if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, *it, &event)) {
-			log << Log::ERROR << "Failed to add fd " << *it
-				<< " to epoll_ctl" << std::endl;
-			return false;
+			continue;
+		int re = 1L;
+		if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &re, sizeof re) == -1) {
+			log << Log::ERROR << "Failed to set socket as reusable"
+				<< std::endl;
 		}
-		log << Log::DEBUG << "Added fd " << *it << " to epoll_ctl" << std::endl;
-		log << Log::INFO << "Initialized server: " << this->info.hostnames[0]
-			<< std::endl;
+		if (bind(sfd, ptr->ai_addr, ptr->ai_addrlen) == -1) {
+			(void)close(sfd);
+			continue;
+		}
+		break;
 	}
-	return true;
+	freeaddrinfo(servinfo);
+	if (!ptr) {
+		log << Log::ERROR << "Failed to initialize server socket" << std::endl;
+		return -1;
+	}
+	if (listen(sfd, SOMAXCONN) == -1) {
+		log << Log::ERROR << "Failed to listen on bound socket" << std::endl;
+		(void)close(sfd);
+		return -1;
+	}
+	return sfd;
 }
 
-std::map<int, Server const*> Server::get_listen_fds() const
-{
-	AssignFd						assign_fd(this);
-	std::map<int, Server const*>	listen_map;
+// bool Server::initialize(int epoll_fd)
+// {
+// 	typedef std::vector<ServerData::Address>::const_iterator AddrIter;
+// 	for (AddrIter it = this->info.addresses.begin();
+// 	it != this->info.addresses.end(); ++it) {
+// 		int sfd = this->setup_socket(it->port.c_str(), \
+// 				it->ip.empty() ? NULL : it->ip.c_str());
+// 		if (sfd == -1)
+// 			return false;
+// 		this->listen_fds.insert(sfd);
+// 		log << Log::DEBUG << "Listening on: " << it->ip.c_str() << ":"
+// 			<< it->port.c_str() << " | File desc: " << sfd
+// 			<< std::endl;
+// 	}
 
-	std::transform(this->listen_fds.begin(), this->listen_fds.end(), \
-			std::inserter(listen_map, listen_map.end()), assign_fd);
-	return listen_map;
-}
+// 	epoll_event event = {};
+// 	event.events = EPOLLIN;
+// 	for (std::set<int>::const_iterator it = this->listen_fds.begin();
+// 	it != this->listen_fds.end(); ++it) {
+// 		event.data.fd = *it;
+// 		if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, *it, &event)) {
+// 			log << Log::ERROR << "Failed to add fd " << *it
+// 				<< " to epoll_ctl" << std::endl;
+// 			return false;
+// 		}
+// 		log << Log::DEBUG << "Added fd " << *it << " to epoll_ctl" << std::endl;
+// 		log << Log::INFO << "Initialized server: " << this->info.hostnames[0]
+// 			<< std::endl;
+// 	}
+// 	return true;
+// }
+
+// std::map<int, Server const*> Server::get_listen_fds() const
+// {
+// 	AssignFd						assign_fd(this);
+// 	std::map<int, Server const*>	listen_map;
+
+// 	std::transform(this->listen_fds.begin(), this->listen_fds.end(), \
+// 			std::inserter(listen_map, listen_map.end()), assign_fd);
+// 	return listen_map;
+// }
 
 int Server::add_client(int epoll_fd, int listen_fd)
 {
@@ -203,8 +262,23 @@ bool Server::recv_request(int epoll_fd, int fd)
 	if (!this->requests[fd]->is_parsed())
 		this->parse_request(fd);
 	if (this->requests[fd]->is_parsed()) {
+		if (!this->requests[fd]->is_bounced()
+		&& !this->matches_hostname(this->requests[fd]))
+			;
+			// this->bounce_request()
 		if (this->handle_request(fd))
 			return !this->switch_epoll_mode(epoll_fd, fd, EPOLLOUT);
+	}
+	return false;
+}
+
+bool Server::matches_hostname(Request *request)
+{
+	std::string const	hostname = request->get_header("Host");
+	std::vector<std::string>::const_iterator it = this->info.hostnames.begin();
+	for ( ; it != this->info.hostnames.end(); ++it) {
+		if (*it == hostname)
+			return true;
 	}
 	return false;
 }
@@ -323,54 +397,6 @@ bool Server::switch_epoll_mode(int epoll_fd, int fd, uint32_t events)
 		return false;
 	}
 	return true;
-}
-
-int Server::setup_socket(char const *service, char const *node)
-{
-	int			sfd(-1);
-	addrinfo	*servinfo;
-	addrinfo	*ptr;
-	addrinfo	hints = {};
-
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_PASSIVE;
-
-	if (int ret = getaddrinfo(node, service, &hints, &servinfo)) {
-		log << Log::ERROR << "getaddrinfo error: " \
-			<< gai_strerror(ret) << std::endl;
-		return -1;
-	}
-	for(ptr = servinfo; ptr != NULL; ptr = ptr->ai_next) {
-		sfd = socket(ptr->ai_family, \
-			ptr->ai_socktype | SOCK_NONBLOCK | SOCK_CLOEXEC, ptr->ai_protocol);
-		if (sfd == -1)
-			continue;
-		int re = 1L;
-		if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &re, sizeof re) == -1) {
-			log << Log::ERROR << "Failed to set socket as reusable"
-				<< std::endl;
-			(void)close(sfd);
-			return -1;
-		}
-		if (bind(sfd, ptr->ai_addr, ptr->ai_addrlen) == -1) {
-			(void)close(sfd);
-			continue;
-		}
-		break;
-	}
-	freeaddrinfo(servinfo);
-	if (!ptr) {
-		log << Log::ERROR << "Failed to initialize server socket on port: "
-			<< service << std::endl;
-		return -1;
-	}
-	if (listen(sfd, SOMAXCONN) == -1) {
-		log << Log::ERROR << "Failed to listen on bound socket" << std::endl;
-		(void)close(sfd);
-		return -1;
-	}
-	return sfd;
 }
 
 void Server::parse_request(int fd)

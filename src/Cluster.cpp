@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/18 19:51:33 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/27 00:16:33 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/28 13:55:13 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -55,10 +55,35 @@ bool Cluster::init_all()
 
 	for (std::vector<Server>::iterator it = this->servers.begin();
 	it != this->servers.end(); ++it) {
-		if (!it->initialize(this->epoll_fd))
-			return false;
-		std::map<int, Server const*> tmp = it->get_listen_fds();
-		this->listen_fds.insert(tmp.begin(), tmp.end());
+		// if (!it->initialize(this->epoll_fd))
+		// 	return false;
+		// std::map<int, Server const*> tmp = it->get_listen_fds();
+		// this->listen_fds.insert(tmp.begin(), tmp.end());
+		std::vector<ServerData::Address>	addresses(it->get_addresses());
+		std::vector<ServerData::Address>::const_iterator ad = addresses.begin();
+		for ( ; ad != addresses.end(); ++ad) {
+			int sfd = it->setup_socket(ad->port.c_str(), \
+					ad->ip.empty() ? NULL : ad->ip.c_str());
+			if (sfd == -1) {
+				log << Log::ERROR << "Failed to setup listening socket for "
+					<< it->get_hostnames()[0] << " at "
+					<< ad->ip << ":" << ad->port << std::endl;
+				continue;
+			}
+			this->listen_fds.insert(std::make_pair(sfd, &(*it)));
+
+			epoll_event event = {};
+			event.events = EPOLLIN;
+			event.data.fd = sfd;
+			if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sfd, &event)) {
+				log << Log::ERROR << "Failed to add fd " << sfd
+					<< " to epoll_ctl" << std::endl;
+				continue;
+			}
+			log << Log::DEBUG << "Added fd " << sfd << " to epoll_ctl" << std::endl;
+			log << Log::INFO << "Initialized server: "
+				<< it->get_hostnames()[0] << std::endl;
+		}
 	}
 	return true;
 }

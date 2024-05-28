@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/27 23:21:34 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/28 13:50:34 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -80,12 +80,17 @@ class Server
 		~Server();
 		Server(Server const &rhs);
 
-		bool initialize(int epoll_fd);
-		std::map<int, Server const*> get_listen_fds() const;
+		std::vector<ServerData::Address> get_addresses() const;
+		std::vector<std::string> get_hostnames() const;
+		// std::map<int, Server const*> get_listen_fds() const;
+
+		// bool initialize(int epoll_fd);
+		int setup_socket(char const *service, char const *node);
 		int add_client(int epoll_fd, int listen_fd);
 		void close_connection(int epoll_fd, int fd);
 		bool recv_request(int epoll_fd, int fd);
 		bool handle_request(int fd);
+		bool matches_hostname(Request *request);
 		int send_reply(int epoll_fd, int fd);
 
 	private:
@@ -96,7 +101,6 @@ class Server
 		std::map<int, Request*>				requests;
 		std::map<int, std::vector<char> >	replies;
 
-		int setup_socket(char const *service, char const *node);
 		bool switch_epoll_mode(int epoll_fd, int fd, uint32_t events);
 		void parse_request(int fd);
 		Server &drop_request(int fd);

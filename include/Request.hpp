@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:23:14 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/27 00:52:25 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/28 13:48:19 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -62,11 +62,13 @@ class Request
 		bool is_done() const;
 		size_t get_loaded_body_size() const;
 		bool is_body_loaded() const;
+		bool is_bounced() const;
 
 		void set_status(int status);
 		void set_target(std::string const &path);
 		void set_dirlist(bool value);
 		void set_parsed(bool value);
+		void set_bounced(bool value);
 
 		void append(std::string const &str);
 		int validate_request_line();
@@ -90,6 +92,7 @@ class Request
 		size_t				loaded_body_size;
 		bool				is_body_loaded_;
 		std::vector<char>	payload;
+		bool				bounced;
 
 		Request &operator=(Request const &rhs);
 };

@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/27 23:07:43 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/28 11:15:33 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -39,7 +39,8 @@ Request::Request(std::string const &raw, Log &logger)
 		target(),
 		loaded_body_size(0),
 		is_body_loaded_(false),
-		payload()
+		payload(),
+		bounced(false)
 {}
 
 Request::Request(Request const &rhs)
@@ -58,7 +59,8 @@ Request::Request(Request const &rhs)
 		target(rhs.target),
 		loaded_body_size(rhs.loaded_body_size),
 		is_body_loaded_(rhs.is_body_loaded_),
-		payload(rhs.payload)
+		payload(rhs.payload),
+		bounced(rhs.bounced)
 {}
 
 Request::~Request()
@@ -133,6 +135,11 @@ bool Request::is_done() const
 	return (this->raw_.eof());
 }
 
+bool Request::is_bounced() const
+{
+	return this->bounced;
+}
+
 size_t Request::get_loaded_body_size() const
 {
 	return this->loaded_body_size;
@@ -163,6 +170,11 @@ void Request::set_parsed(bool value)
 	this->is_parsed_ = value;
 	log << Log::DEBUG << "Remaining raw buffer:" << std::endl
 		<< this->raw_.str() << std::endl;
+}
+
+void Request::set_bounced(bool value)
+{
+	this->bounced = value;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
