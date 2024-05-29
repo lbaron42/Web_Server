@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/28 18:24:26 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/29 16:32:44 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,6 +25,7 @@
 # include <cstddef>
 # include <cstdlib>
 # include <map>
+# include <queue>
 # include <set>
 # include <sstream>
 # include <string>
@@ -50,28 +51,34 @@ struct ServerData
 	ServerData();
 	struct Address
 	{
-		std::string								ip;
-		std::string								port;
+		std::string							ip;
+		std::string							port;
+		inline bool operator<(Address const &rhs) const {
+			return (this->port < rhs.port || this->ip < rhs.ip);
+		}
+		inline bool operator==(Address const &rhs) const {
+			return (this->ip == rhs.ip && this->port == rhs.port);
+		}
 	};
 	struct Location
 	{
-		std::string								location_path;
-		std::string								alias;
-		std::vector<std::string>				loc_index;
-		Request::e_method						allow_methods;
-		bool 									is_redirection;
+		std::string							location_path;
+		std::string							alias;
+		std::vector<std::string>			loc_index;
+		Request::e_method					allow_methods;
+		bool 								is_redirection;
 	};
 
-	std::vector<Address>						addresses;
-	std::vector<std::string>					hostnames;
-	std::map<int, std::string>					error_pages;
-	std::vector<std::string>					serv_index;
-	std::string									root;
-	size_t										client_max_body_size;
-	bool										autoindex;
-	Request::e_method							allow_methods;
-	std::map<std::string, std::string>			cgi;
-	std::vector<Location>						locations;
+	std::vector<Address>					addresses;
+	std::vector<std::string>				hostnames;
+	std::map<int, std::string>				error_pages;
+	std::vector<std::string>				serv_index;
+	std::string								root;
+	size_t									client_max_body_size;
+	bool									autoindex;
+	Request::e_method						allow_methods;
+	std::map<std::string, std::string>		cgi;
+	std::vector<Location>					locations;
 };
 
 class Server
@@ -87,20 +94,22 @@ class Server
 		int setup_socket(char const *service, char const *node);
 		int add_client(int epoll_fd, int listen_fd);
 		void close_connection(int epoll_fd, int fd);
-		bool recv_request(int epoll_fd, int fd);
+		bool recv_request(int epoll_fd, int fd,
+				std::queue<std::pair<Request*, int> > &que);
+		void register_request(int client_fd, Request *request);
 		bool handle_request(int fd);
 		bool matches_hostname(Request *request);
+		bool switch_epoll_mode(int epoll_fd, int fd, uint32_t events);
 		int send_reply(int epoll_fd, int fd);
 
 	private:
 		ServerData							info;
 		Log									&log;
-		std::set<int>						listen_fds;
 		std::set<int>						clients;
 		std::map<int, Request*>				requests;
 		std::map<int, std::vector<char> >	replies;
+		std::set<int>						keep_alive;
 
-		bool switch_epoll_mode(int epoll_fd, int fd, uint32_t events);
 		void parse_request(int fd);
 		Server &drop_request(int fd);
 		Server &check_queue(int fd);
@@ -116,6 +125,7 @@ class Server
 				std::vector<char> *body);
 		Server &generate_response(Request *request, Headers &headers,
 				std::vector<char> const &body, std::vector<char> &repl);
+		void internal_error(int fd, int code);
 
 		/* no assign to object with reference member (here: Log) */
 		Server &operator=(Server const &rhs);

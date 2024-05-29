@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/18 19:51:30 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/19 14:45:49 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/29 07:32:46 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,10 +24,12 @@
 # include <algorithm>
 # include <csignal>
 # include <map>
+# include <queue>
 # include <vector>
 
 # include "Log.hpp"
 # include "Server.hpp"
+# include "Request.hpp"
 
 namespace marvinX
 {
@@ -47,11 +49,13 @@ class Cluster
 		void start();
 
 	private:
-		Log								&log;
-		int								epoll_fd;
-		std::vector<Server>				servers;
-		std::map<int, Server const*>	listen_fds;
-		std::map<int, Server const*>	client_fds;
+		Log											&log;
+		int											epoll_fd;
+		std::vector<Server>							servers;
+		std::map<ServerData::Address, int>			bound_addresses;
+		std::map<int, std::vector<Server const*> >	listen_fds;
+		std::map<int, Server const*>				client_fds;
+		std::queue<std::pair<Request*, int> >		bounce_que;
 
 		Cluster(Cluster const &rhs);
 		Cluster &operator=(Cluster const &rhs);

@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/28 18:25:27 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/29 16:29:29 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -54,10 +54,10 @@ ServerData::ServerData()
 Server::Server(ServerData const &server_data, Log &log)
 	:	info(server_data),
 		log(log),
-		listen_fds(),
 		clients(),
 		requests(),
-		replies()
+		replies(),
+		keep_alive()
 {}
 
 Server::~Server()
@@ -68,10 +68,10 @@ Server::~Server()
 Server::Server(Server const &rhs)
 	:	info(rhs.info),
 		log(rhs.log),
-		listen_fds(rhs.listen_fds),
 		clients(rhs.clients),
 		requests(rhs.requests),
-		replies(rhs.replies)
+		replies(rhs.replies),
+		keep_alive(rhs.keep_alive)
 {}
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -158,10 +158,8 @@ int Server::add_client(int epoll_fd, int listen_fd)
 		return -1;
 	}
 	if (!this->clients.insert(client_fd).second) {
-		log << Log::ERROR << "Failed storing client fd: " << client_fd
-			<< std::endl;
-		this->close_connection(epoll_fd, client_fd);
-		return -1;
+		log << Log::WARN << "Already tracking connection with client fd: "
+			<< client_fd << std::endl;
 	}
 	log << Log::INFO << "Client connected: " << client_fd << std::endl;
 	return client_fd;
@@ -183,7 +181,8 @@ void Server::close_connection(int epoll_fd, int fd)
 	log << Log::INFO << "Closed connection with client: " << fd << std::endl;
 }
 
-bool Server::recv_request(int epoll_fd, int fd)
+bool Server::recv_request(int epoll_fd, int fd,
+		std::queue<std::pair<Request*, int> > &que)
 {
 	char				buff[4096];
 	std::string			msg;
@@ -208,9 +207,8 @@ bool Server::recv_request(int epoll_fd, int fd)
 		Request *request = new (std::nothrow) Request(msg, this->log);
 		if (!request) {
 			log << Log::ERROR << "Memory allocation failed!" << std::endl;
-			// TODO: Send 500 Error ??
-			this->close_connection(epoll_fd, fd);
-			return true;
+			this->internal_error(fd, 500);
+			return !this->switch_epoll_mode(epoll_fd, fd, EPOLLOUT);
 		}
 		this->requests.insert(std::make_pair(fd, request));
 	} else {
@@ -223,8 +221,12 @@ bool Server::recv_request(int epoll_fd, int fd)
 	if (this->requests[fd]->is_parsed()) {
 		if (!this->requests[fd]->is_bounced()
 		&& !this->matches_hostname(this->requests[fd])) {
-			;
-			// TODO: this->bounce_request()
+			log << Log::DEBUG << "Hostname doesn't match, bouncing request"
+				<< std::endl;
+			this->requests[fd]->set_bounced(true);
+			que.push(std::make_pair(this->requests[fd], fd));
+			this->requests.erase(fd);
+			return false;
 		}
 		if (this->handle_request(fd))
 			return !this->switch_epoll_mode(epoll_fd, fd, EPOLLOUT);
@@ -235,12 +237,39 @@ bool Server::recv_request(int epoll_fd, int fd)
 bool Server::matches_hostname(Request *request)
 {
 	std::string const	hostname = request->get_header("Host");
+	if (hostname.empty())
+		return !request->is_version_11();
+	std::string::size_type	div = hostname.find(":");
+	std::string	ip;
+	std::string	port;
+	if (div != std::string::npos) {
+		ip = hostname.substr(0, div);
+		port = hostname.substr(div + 1);
+	} else {
+		ip = hostname;
+		port = std::string();
+	}
+	std::vector<ServerData::Address>::const_iterator ads;
+	for (ads = this->info.addresses.begin();
+	ads != this->info.addresses.end(); ++ads) {
+		if (ads->ip == ip && (port.empty() || ads->port == port))
+			return true;
+	}
 	std::vector<std::string>::const_iterator it = this->info.hostnames.begin();
 	for ( ; it != this->info.hostnames.end(); ++it) {
-		if (*it == hostname)
+		if (*it == ip)
 			return true;
 	}
 	return false;
+}
+
+void Server::register_request(int client_fd, Request *request)
+{
+	if (!this->requests.count(client_fd))
+		this->requests.insert(std::make_pair(client_fd, request));
+	else
+		log << Log::DEBUG << "Already assigned this request to this connection"
+			<< std::endl;
 }
 
 bool Server::handle_request(int fd)
@@ -250,6 +279,19 @@ bool Server::handle_request(int fd)
 	std::vector<char>	payload;
 	std::vector<char>	repl;
 
+	if (request->is_bounced()) {
+		std::string const host = request->get_header("Host");
+		if (host.empty() && request->is_version_11())
+			request->set_status(400);
+	}
+	// TODO check method per location first
+	if (!(request->get_method() & this->info.allow_methods)) {
+		log << Log::DEBUG << "Requested method:	" << request->get_method()
+			<< std::endl;
+		log << Log::DEBUG << "Allowed methods:	" << this->info.allow_methods
+			<< std::endl;
+		request->set_status(405);
+	}
 	if (request->get_status() < 400) {
 		switch (request->get_method()) {
 			case Request::GET:
@@ -266,7 +308,7 @@ bool Server::handle_request(int fd)
 				break;
 			// case Request::DELETE: break;
 			default:
-				request->set_status(400); break;
+				request->set_status(501); break;
 		}
 		if (!request->is_version_11()
 		|| request->get_header("Connection") == "close"
@@ -308,10 +350,28 @@ bool Server::handle_request(int fd)
 		<< Reply::get_status_message(request->get_status()) << std::endl
 		<< "\t\t\t\t" << request->get_req_line() << std::endl;
 
+	if (hdrs.get_header("Connection") != "close")
+		this->keep_alive.insert(fd);
+	else
+		this->keep_alive.erase(fd);
 	this->generate_response(request, hdrs, payload, repl)
 		.enqueue_reply(fd, repl)
 		.drop_request(fd)
 		.check_queue(fd);
+	return true;
+}
+
+bool Server::switch_epoll_mode(int epoll_fd, int fd, uint32_t events)
+{
+	epoll_event event = {};
+	event.events = events;
+	event.data.fd = fd;
+	if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &event)) {
+		log << Log::ERROR << "Failed to modify polling for fd "
+			<< fd << std::endl;
+		this->close_connection(epoll_fd, fd);
+		return false;
+	}
 	return true;
 }
 
@@ -336,28 +396,17 @@ int Server::send_reply(int epoll_fd, int fd)
 		return 0;
 	}
 	this->replies.erase(fd);
-	if (!this->switch_epoll_mode(epoll_fd, fd, EPOLLIN))
+	if (!this->keep_alive.count(fd)
+	|| !this->switch_epoll_mode(epoll_fd, fd, EPOLLIN)) {
+		this->close_connection(epoll_fd, fd);
 		return -1;
+	}
 	return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 //	Private innards
 ////////////////////////////////////////////////////////////////////////////////
-
-bool Server::switch_epoll_mode(int epoll_fd, int fd, uint32_t events)
-{
-	epoll_event event = {};
-	event.events = events;
-	event.data.fd = fd;
-	if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &event)) {
-		log << Log::ERROR << "Failed to modify polling for fd "
-			<< fd << std::endl;
-		this->close_connection(epoll_fd, fd);
-		return false;
-	}
-	return true;
-}
 
 void Server::parse_request(int fd)
 {
@@ -379,15 +428,6 @@ void Server::parse_request(int fd)
 	request->set_parsed(true);
 	log << Log::DEBUG << "Parsed headers: " << std::endl
 		<< request->get_headers()
-		<< std::endl;
-	if (!(request->get_method() & this->info.allow_methods)) {
-		log << Log::DEBUG << "Requested method:	" << request->get_method()
-			<< std::endl;
-		log << Log::DEBUG << "Allowed methods:	" << this->info.allow_methods
-			<< std::endl;
-		request->set_status(405);
-	}
-	log << Log::DEBUG << "Current status: " << request->get_status()
 		<< std::endl;
 	return ;
 }
@@ -637,4 +677,30 @@ Server &Server::generate_response(Request *request, Headers &headers,
 	repl.push_back('\r');
 	repl.push_back('\n');
 	return *this;
+}
+
+void Server::internal_error(int fd, int code)
+{
+	std::string const	stat_line = Reply::get_status_line(true, code);
+	std::vector<char>	reply(stat_line.begin(), stat_line.end());
+	std::string const	body = Reply::generate_error_page(code);
+	Headers				hdrs;
+
+	hdrs.set_header("Connection", "close");
+	hdrs.set_header("Content-Type", "text/html");
+	hdrs.set_header("Content-Length", num_tostr(body.size()));
+	std::stringstream ss;
+	ss >> std::noskipws;
+	ss << hdrs << "\r\n";
+	char c;
+	while (ss >> c)
+		reply.push_back(c);
+	std::copy(body.begin(), body.end(), std::back_inserter(reply));
+	reply.push_back('\r');
+	reply.push_back('\n');
+	reply.push_back('\r');
+	reply.push_back('\n');
+	this->keep_alive.erase(fd);
+	log << Log::DEBUG << "505 response:" << std::endl << &reply[0] << std::endl;
+	(void)this->enqueue_reply(fd, reply);
 }
