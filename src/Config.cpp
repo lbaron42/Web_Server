@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/27 19:01:50 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/29 12:36:51 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -70,7 +70,7 @@ bool Config::validIndentation(std::string line, int tabNum, int lineNum)
 	int tab = tabNum;
 	for (int i = 0; i < tab; ++i)
 	{
-		if(line[i] != '\t')
+		if(line[i] != '\t' || line[tabNum] == '\t')
 		{
 			log << log.ERROR << "Wrong indentation on line: " << lineNum << IDENT <<std::endl;
 			return true;
@@ -312,6 +312,11 @@ int Config::configInit(const std::string &argv1)
 					log << log.ERROR << ".conf error: Wrong syntax on line: " << lineNum << std::endl;
 					return EXIT_FAILURE;
 				}
+			}
+			if(sd.root == "" || sd.addresses[0].port.empty())
+			{
+				log << log.ERROR << "Server Block need: \"root\" and valid \"0.0.0.0:validPortNumber" << std::endl;
+				return EXIT_FAILURE;
 			}
 			lineNum++;
 			servers.push_back(Server(sd, log));
