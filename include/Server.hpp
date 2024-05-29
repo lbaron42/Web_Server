@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/29 19:31:43 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/29 19:53:21 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -66,7 +66,8 @@ struct ServerData
 		std::string							alias;
 		std::vector<std::string>			loc_index;
 		Request::e_method					allow_methods;
-		bool 								is_redirection;
+		bool 								autoindex;
+		std::string							redirection;
 	};
 
 	std::vector<Address>					addresses;

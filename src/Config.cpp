@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/27 19:01:50 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/29 18:45:23 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -70,11 +70,11 @@ bool Config::validIndentation(std::string line, int tabNum, int lineNum)
 	int tab = tabNum;
 	for (int i = 0; i < tab; ++i)
 	{
-		if(line[i] != '\t')
+		if(line[i] != '\t' || line[tabNum] == '\t')
 		{
 			log << log.ERROR << "Wrong indentation on line: " << lineNum << IDENT <<std::endl;
 			return true;
-		}	
+		}
 	}
 	return false;
 }
@@ -221,7 +221,7 @@ int Config::configInit(const std::string &argv1)
 						}
 						else if (line.find("autoindex") != std::string::npos)
 						{
-							loc.is_redirection = false;
+							loc.autoindex = false;
 							if (!trimLine(line, "autoindex", lineNum, trimmed)) return EXIT_FAILURE;
 							if (trimmed != "on" && trimmed != "off")
 							{
@@ -229,7 +229,7 @@ int Config::configInit(const std::string &argv1)
 								return EXIT_FAILURE;
 							}
 							else if (trimmed == "on")
-								loc.is_redirection = true;
+								loc.autoindex = true;
 						}
 						else if (line.find("index") != std::string::npos)
 						{
@@ -240,6 +240,11 @@ int Config::configInit(const std::string &argv1)
 						{
 							if (!trimLine(line, "allow_methods", lineNum, trimmed)) return EXIT_FAILURE;
 							loc.allow_methods = Request::parse_methods(trimmed);
+						}
+						else if(line.find("return") != std::string::npos)
+						{
+							if (!trimLine(line, "return", lineNum, trimmed)) return EXIT_FAILURE;
+							loc.redirection = trimmed;
 						}
 						else
 						{
@@ -312,6 +317,11 @@ int Config::configInit(const std::string &argv1)
 					log << log.ERROR << ".conf error: Wrong syntax on line: " << lineNum << std::endl;
 					return EXIT_FAILURE;
 				}
+			}
+			if(sd.root.empty() || sd.addresses.empty())
+			{
+				log << log.ERROR << "Server Block need: \"root\" and valid \"0.0.0.0:validPortNumber" << std::endl;
+				return EXIT_FAILURE;
 			}
 			lineNum++;
 			servers.push_back(Server(sd, log));
@@ -403,7 +413,7 @@ std::ostream& operator<<(std::ostream& os, const ServerData &data)
 		// os << "				"<< *loc_method_it << "\n";
 		// }
 
-		os << "		Redirection: " << (location.is_redirection ? "yes" : "no") << "\n";
+		os << "		Redirection: " << (location.autoindex ? "yes" : "no") << "\n";
 	}
 
 	return os;
