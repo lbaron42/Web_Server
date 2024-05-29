@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/18 19:51:33 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/29 16:29:35 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/29 19:38:45 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -62,6 +62,7 @@ bool Cluster::init_all()
 
 	for (std::vector<Server>::iterator it = this->servers.begin();
 	it != this->servers.end(); ++it) {
+		it->init();
 		std::vector<ServerData::Address>	addresses(it->get_addresses());
 		std::vector<ServerData::Address>::const_iterator ad = addresses.begin();
 		for ( ; ad != addresses.end(); ++ad) {
@@ -109,6 +110,7 @@ bool Cluster::init_all()
 	return true;
 }
 
+// TODO: implement connection timeouts
 void Cluster::start()
 {
 	int const	timeout = 420;

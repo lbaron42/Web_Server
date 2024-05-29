@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/29 16:32:44 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/29 19:31:43 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -91,6 +91,7 @@ class Server
 		std::vector<ServerData::Address> get_addresses() const;
 		std::vector<std::string> get_hostnames() const;
 
+		void init(void);
 		int setup_socket(char const *service, char const *node);
 		int add_client(int epoll_fd, int listen_fd);
 		void close_connection(int epoll_fd, int fd);
@@ -98,6 +99,7 @@ class Server
 				std::queue<std::pair<Request*, int> > &que);
 		void register_request(int client_fd, Request *request);
 		bool handle_request(int fd);
+		Server &check_queue(int fd);
 		bool matches_hostname(Request *request);
 		bool switch_epoll_mode(int epoll_fd, int fd, uint32_t events);
 		int send_reply(int epoll_fd, int fd);
@@ -112,7 +114,6 @@ class Server
 
 		void parse_request(int fd);
 		Server &drop_request(int fd);
-		Server &check_queue(int fd);
 		Server &enqueue_reply(int fd, std::vector<char> const &reply);
 		std::string resolve_address(Request *request);
 		void get_head(Request *request, Headers &headers);

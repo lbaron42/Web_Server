@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/29 16:29:29 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/29 19:42:26 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,17 +21,14 @@ struct DelValue
 	void operator()(std::pair<int, Request*> pair)	{ delete pair.second; }
 };
 
-struct AssignFd
+struct CompareLocLen
 {
-	AssignFd(Server const *s) : serv(s) {}
-
-	std::pair<int, Server const*> operator()(int fd) const
-	{
-		return std::make_pair(fd, serv);
+	bool operator()(
+		ServerData::Location const &one,
+		ServerData::Location const &two
+	) const {
+		return (one.location_path.length() > two.location_path.length());
 	}
-
-	private:
-		Server const	*serv;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -91,6 +88,12 @@ std::vector<std::string> Server::get_hostnames() const
 ////////////////////////////////////////////////////////////////////////////////
 //	Public methods
 ////////////////////////////////////////////////////////////////////////////////
+
+void Server::init(void)
+{
+	CompareLocLen comp;
+	std::sort(this->info.locations.begin(), this->info.locations.end(), comp);
+}
 
 int Server::setup_socket(char const *service, char const *node)
 {
@@ -361,6 +364,16 @@ bool Server::handle_request(int fd)
 	return true;
 }
 
+// TODO: rework pipelining to properly sequence request-replies
+Server &Server::check_queue(int fd)
+{
+	std::map<int, Request*>::iterator it = this->requests.find(fd);
+	if (it == this->requests.end())
+		return *this;
+	this->handle_request(fd);
+	return *this;
+}
+
 bool Server::switch_epoll_mode(int epoll_fd, int fd, uint32_t events)
 {
 	epoll_event event = {};
@@ -432,6 +445,7 @@ void Server::parse_request(int fd)
 	return ;
 }
 
+// TODO: make check if data left in stream to be proc'd as new request
 Server &Server::drop_request(int fd)
 {
 	std::map<int, Request*>::iterator it = this->requests.find(fd);
@@ -458,15 +472,6 @@ Server &Server::drop_request(int fd)
 	return *this;
 }
 
-Server &Server::check_queue(int fd)
-{
-	std::map<int, Request*>::iterator it = this->requests.find(fd);
-	if (it == this->requests.end())
-		return *this;
-	this->handle_request(fd);
-	return *this;
-}
-
 Server &Server::enqueue_reply(int fd, std::vector<char> const &reply)
 {
 	std::map<int, std::vector<char> >::iterator rip = this->replies.find(fd);
@@ -480,23 +485,74 @@ Server &Server::enqueue_reply(int fd, std::vector<char> const &reply)
 // TODO: rewrite
 std::string Server::resolve_address(Request *request)
 {
-	std::string const	&url = request->get_url();
-	std::string			path(this->info.root);
+	std::string	path(this->info.root);
+	std::string	url = request->get_url();
 
-	if (this->info.autoindex)
-		request->set_dirlist(true);
-	if (url[url.size() - 1] == '/' && !request->is_dirlist()) {
-		if (!this->info.serv_index.empty()) {
-			path.append(url);
-			path.append(*this->info.serv_index.begin());
-			return path;
+	std::vector<ServerData::Location> const	locs = this->info.locations;
+	std::vector<ServerData::Location>::const_iterator	lo;
+	for (lo = locs.begin(); lo != locs.end(); ++lo) {
+		if (url.rfind(lo->location_path, 0) != std::string::npos) {
+			log << Log::DEBUG << "Matched location: " << lo->location_path
+				<< std::endl;
+			if (lo->allow_methods
+			&& !(request->get_method() & lo->allow_methods)) {
+				log << Log::DEBUG << "Requested method:	"
+					<< request->get_method() << std::endl
+					<< "Allowed methods:	" << lo->allow_methods
+					<< std::endl;
+				request->set_status(405);
+				return std::string();
+			}
+			// TODO: check redirection first
+			// if (!lo->redirection.empty())
+			if (!lo->alias.empty())
+				url.replace(0, lo->location_path.length(), lo->alias);
+			// TODO: check autoindex
+			// if (lo->autoindex)
+			// request->set_dirlist(true);
+			if (try_file(path + url))
+				return (path + url);
+			if (!lo->loc_index.empty()) {
+				std::vector<std::string>::const_iterator idx;
+				if (url[url.length() - 1] != '/')
+					url.append("/");
+				for (idx = lo->loc_index.begin();
+				idx != lo->loc_index.end(); ++idx) {
+					if (try_file(path + url + *idx)) {
+						return (path + url + *idx);
+					}
+				}
+			}
+			break;
 		}
+	}
+	if (!(request->get_method() & this->info.allow_methods)) {
+		log << Log::DEBUG << "Requested method:	"
+			<< request->get_method() << std::endl
+			<< "Allowed methods:	" << this->info.allow_methods
+			<< std::endl;
+		request->set_status(405);
 		return std::string();
 	}
-	if (url[0] != '/' && path[path.size() - 1] != '/')
-		path.append("/");
-	path.append(url);
-	return path;
+	url = request->get_url();
+	if (this->info.autoindex) {
+		request->set_dirlist(true);
+		return (path + url);
+	}
+	if (try_file(path + url))
+		return (path + url);
+	if (!this->info.serv_index.empty()) {
+		std::vector<std::string>::const_iterator idx;
+		if (url[url.length() - 1] != '/')
+			url.append("/");
+		for (idx = this->info.serv_index.begin();
+		idx != this->info.serv_index.end(); ++idx) {
+			if (try_file(path + url + *idx)) {
+				return (path + url + *idx);
+			}
+		}
+	}
+	return std::string();
 }
 
 void Server::get_head(Request *request, Headers &headers)
@@ -505,6 +561,13 @@ void Server::get_head(Request *request, Headers &headers)
 	struct stat	statbuf;
 
 	log << Log::DEBUG << "Resolved URL: [" << path << "]" << std::endl;
+	if (request->get_status() >= 400)
+		return ;
+	if (path.empty()) {
+		request->set_status(404);
+		log << Log::DEBUG << "File not found" << std::endl;
+		return ;
+	}
 	if (!stat(path.c_str(), &statbuf) && S_ISDIR(statbuf.st_mode)) {
 		if (request->is_dirlist()) {
 			headers.set_header("Content-Type", "text/html");
@@ -516,11 +579,6 @@ void Server::get_head(Request *request, Headers &headers)
 			log << Log::DEBUG << "Requested file is a directory" << std::endl;
 			request->set_status(404);
 		}
-		return ;
-	}
-	if (path.empty() || access(path.c_str(), F_OK)) {
-		request->set_status(404);
-		log << Log::DEBUG << "File not found" << std::endl;
 		return ;
 	}
 	if (access(path.c_str(), R_OK)) {

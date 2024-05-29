@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:59:51 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/26 22:27:47 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/29 19:46:44 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -115,4 +115,10 @@ bool is_uint(std::string const &str)
 	errno = 0;
 	result = std::strtol(str.c_str(), &end, 10);
 	return (errno != ERANGE && *end == 0 && result >= 0);
+}
+
+bool try_file(std::string const &path)
+{
+	struct stat	sb;
+	return (!stat(path.c_str(), &sb) && S_ISREG(sb.st_mode));
 }

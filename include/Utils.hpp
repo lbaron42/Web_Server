@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:52:42 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/26 16:04:52 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/29 19:09:56 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -50,6 +50,7 @@ ssize_t get_file_size(std::string const &filename);
 std::stringstream::pos_type size_of_stream(const std::stringstream& ss);
 bool isDigitString(const std::string& str);
 bool is_uint(std::string const &str);
+bool try_file(std::string const &path);
 
 struct MimeType
 {
