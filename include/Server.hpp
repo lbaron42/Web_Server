@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/27 18:55:39 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/29 18:44:14 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -59,7 +59,8 @@ struct ServerData
 		std::string								alias;
 		std::vector<std::string>				loc_index;
 		Request::e_method						allow_methods;
-		bool 									is_redirection;
+		bool 									autoindex;
+		std::string								redirection;
 	};
 
 	std::vector<Address>						addresses;
