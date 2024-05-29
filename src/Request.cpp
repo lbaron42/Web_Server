@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/28 11:15:33 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/30 00:15:56 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -311,12 +311,14 @@ bool Request::parse_headers()
 		}
 		std::string::size_type div = header.find(':');
 		if (div == std::string::npos) {
-			log << Log::WARN << "Received malformatted header" << std::endl;
+			log << Log::WARN << "Received malformatted header:" << std::endl
+				<< header << std::endl;
 			continue;
 		}
-		std::string key = header.substr(0, div);
-		std::string val = header.substr(div + 1);
-		this->headers.set_header(trim(key), trim(val, " \t\r"));
+		std::string key = trim(header.substr(0, div));
+		std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+		std::string val = trim(header.substr(div + 1), " \t\r");
+		this->headers.set_header(key, val);
 	}
 	return false;
 }

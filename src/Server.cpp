@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/29 23:40:53 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/30 00:16:45 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -239,7 +239,7 @@ bool Server::recv_request(int epoll_fd, int fd,
 
 bool Server::matches_hostname(Request *request)
 {
-	std::string const	hostname = request->get_header("Host");
+	std::string const	hostname = request->get_header("host");
 	if (hostname.empty())
 		return !request->is_version_11();
 	std::string::size_type	div = hostname.find(":");
@@ -283,7 +283,7 @@ bool Server::handle_request(int fd)
 	std::vector<char>	repl;
 
 	if (request->is_bounced()) {
-		std::string const host = request->get_header("Host");
+		std::string const host = request->get_header("host");
 		if (host.empty() && request->is_version_11())
 			request->set_status(400);
 	}
@@ -306,10 +306,7 @@ bool Server::handle_request(int fd)
 				request->set_status(501); break;
 		}
 		if (!request->is_version_11()
-		|| request->get_header("Connection") == "close"
-		|| request->get_header("Connection") == "Close"
-		|| request->get_header("connection") == "close"
-		|| request->get_header("connection") == "Close")
+		|| icompare(request->get_header("connection"), "close"))
 			hdrs.set_header("Connection", "close");
 		else
 			hdrs.set_header("Connection", "keep-alive");
@@ -619,7 +616,7 @@ void Server::get_payload(Request *request, Headers &headers,
 void Server::load_request_body(Request *request)
 {
 	size_t		body_size(0);
-	std::string	content_len = request->get_header("Content-Length");
+	std::string	content_len = request->get_header("content-length");
 	if (!is_uint(content_len)) {
 		log << Log::DEBUG << "Content-Length value is not a valid number"
 			<< std::endl;
@@ -644,6 +641,8 @@ void Server::handle_post_request(Request *request, Headers &headers,
 		this->load_request_body(request);
 	if (!request->is_body_loaded())
 		return ;
+
+	// std::string	type(request->get_header("content-type"));
 	// TODO do something with this POST request
 	headers.set_header("Location", "/action.html");
 	request->set_status(303);
@@ -660,12 +659,12 @@ void Server::handle_put_request(Request *request, Headers &headers,
 		return ;
 	log << Log::DEBUG << "Loaded body size: " << request->get_loaded_body_size()
 		<< std::endl;
-	std::string	type(request->get_header("Content-Type"));
+	std::string	type(request->get_header("content-type"));
 	bool		is_text(!type.rfind("text", 0));
 	if (is_text)
-		log << Log::DEBUG << "Text type file with PUT" << std::endl;
+		log << Log::DEBUG << "PUT Text file" << std::endl;
 	else
-		log << Log::DEBUG << "Binary type file with PUT" << std::endl;
+		log << Log::DEBUG << "PUT Binary file" << std::endl;
 	std::string	relative_location(request->get_url());
 	if (relative_location.empty()) {
 		request->set_status(400);
@@ -673,7 +672,6 @@ void Server::handle_put_request(Request *request, Headers &headers,
 	}
 	std::string	target(this->info.root + relative_location);
 	bool		file_exists(access(target.c_str(), F_OK) == 0);
-	// TODO check permissions to create file
 	if (!file_exists || !access(target.c_str(), W_OK)) {
 		std::ofstream	file;
 		if (is_text)
@@ -691,7 +689,8 @@ void Server::handle_put_request(Request *request, Headers &headers,
 			file << "\n";
 		file.close();
 		request->set_status(file_exists ? 200 : 201);
-		// request->set_status(204); // success - no content
+		if (!request->get_loaded_body_size())
+			request->set_status(204); // success - no content
 		headers.set_header("Content-Type", type);
 		headers.set_header("Content-Location", relative_location);
 		if (file_exists) {

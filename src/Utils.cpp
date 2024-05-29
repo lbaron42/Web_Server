@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:59:51 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/29 19:46:44 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/29 23:57:00 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -121,4 +121,16 @@ bool try_file(std::string const &path)
 {
 	struct stat	sb;
 	return (!stat(path.c_str(), &sb) && S_ISREG(sb.st_mode));
+}
+
+inline bool icompare_pred(unsigned char lhs, unsigned char rhs)
+{
+	return (std::tolower(lhs) == std::tolower(rhs));
+}
+
+bool icompare(std::string const &lhs, std::string const &rhs)
+{
+	if (lhs.length() == rhs.length())
+		return std::equal(rhs.begin(), rhs.end(), lhs.begin(), icompare_pred);
+	return false;
 }

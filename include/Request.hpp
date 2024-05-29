@@ -6,13 +6,14 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:23:14 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/28 13:48:19 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/30 00:11:31 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef REQUEST_HPP
 # define REQUEST_HPP
 
+# include <algorithm>
 # include <cstddef>
 # include <ios>
 # include <iterator>
