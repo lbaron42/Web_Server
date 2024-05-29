@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/29 19:53:21 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/29 22:41:05 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -116,7 +116,7 @@ class Server
 		void parse_request(int fd);
 		Server &drop_request(int fd);
 		Server &enqueue_reply(int fd, std::vector<char> const &reply);
-		std::string resolve_address(Request *request);
+		std::string resolve_address(Request *request, Headers &headers);
 		void get_head(Request *request, Headers &headers);
 		void get_payload(Request *request, Headers &headers,
 				std::vector<char> *body);

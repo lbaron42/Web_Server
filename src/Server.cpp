@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/29 19:42:26 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/29 23:40:53 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -41,7 +41,7 @@ ServerData::ServerData()
 		error_pages(),
 		serv_index(),
 		root(),
-		client_max_body_size(1024),
+		client_max_body_size(1024 * 1024),
 		autoindex(false),
 		allow_methods(),
 		cgi(),
@@ -143,8 +143,8 @@ int Server::setup_socket(char const *service, char const *node)
 int Server::add_client(int epoll_fd, int listen_fd)
 {
 	// We default to be anonymous accepting (non-tracking) server
-	int client_fd = STRICT_EVALUATOR ? \
-			accept(listen_fd, NULL, NULL) : \
+	int client_fd = STRICT_EVALUATOR ?
+			accept(listen_fd, NULL, NULL) :
 			accept4(listen_fd, NULL, NULL, SOCK_CLOEXEC | SOCK_NONBLOCK);
 	if (client_fd == -1) {
 		log << Log::ERROR << "Failed to accept connection" << std::endl;
@@ -287,14 +287,6 @@ bool Server::handle_request(int fd)
 		if (host.empty() && request->is_version_11())
 			request->set_status(400);
 	}
-	// TODO check method per location first
-	if (!(request->get_method() & this->info.allow_methods)) {
-		log << Log::DEBUG << "Requested method:	" << request->get_method()
-			<< std::endl;
-		log << Log::DEBUG << "Allowed methods:	" << this->info.allow_methods
-			<< std::endl;
-		request->set_status(405);
-	}
 	if (request->get_status() < 400) {
 		switch (request->get_method()) {
 			case Request::GET:
@@ -364,7 +356,7 @@ bool Server::handle_request(int fd)
 	return true;
 }
 
-// TODO: rework pipelining to properly sequence request-replies
+// TODO: rework pipelining to properly sequence multiple request-replies
 Server &Server::check_queue(int fd)
 {
 	std::map<int, Request*>::iterator it = this->requests.find(fd);
@@ -432,12 +424,8 @@ void Server::parse_request(int fd)
 		request->set_parsed(true);
 		return ;
 	}
-	if (!request->parse_headers()) {
-		log << Log::DEBUG << "Received headers: " << std::endl
-			<< request->get_headers()
-			<< std::endl;
+	if (!request->parse_headers())
 		return ;
-	}
 	request->set_parsed(true);
 	log << Log::DEBUG << "Parsed headers: " << std::endl
 		<< request->get_headers()
@@ -461,8 +449,8 @@ Server &Server::drop_request(int fd)
 		// 	return *this;
 		// }
 		// this->requests[fd] = next_request;
-		log << Log::DEBUG << "More requests in queue. Dropping it anyway"
-			<< std::endl;
+		// log << Log::DEBUG << "More requests in queue. Dropping it anyway"
+		// 	<< std::endl;
 		delete it->second;
 		this->requests.erase(it);
 	} else {
@@ -482,8 +470,7 @@ Server &Server::enqueue_reply(int fd, std::vector<char> const &reply)
 	return *this;
 }
 
-// TODO: rewrite
-std::string Server::resolve_address(Request *request)
+std::string Server::resolve_address(Request *request, Headers &headers)
 {
 	std::string	path(this->info.root);
 	std::string	url = request->get_url();
@@ -503,13 +490,17 @@ std::string Server::resolve_address(Request *request)
 				request->set_status(405);
 				return std::string();
 			}
-			// TODO: check redirection first
-			// if (!lo->redirection.empty())
+			if (!lo->redirection.empty()) {
+				headers.set_header("Location", lo->redirection);
+				request->set_status(308);
+				return url;
+			}
 			if (!lo->alias.empty())
 				url.replace(0, lo->location_path.length(), lo->alias);
-			// TODO: check autoindex
-			// if (lo->autoindex)
-			// request->set_dirlist(true);
+			if (lo->autoindex) {
+				request->set_dirlist(true);
+				return (path + url);
+			}
 			if (try_file(path + url))
 				return (path + url);
 			if (!lo->loc_index.empty()) {
@@ -557,7 +548,7 @@ std::string Server::resolve_address(Request *request)
 
 void Server::get_head(Request *request, Headers &headers)
 {
-	std::string	path = this->resolve_address(request);
+	std::string	path = this->resolve_address(request, headers);
 	struct stat	statbuf;
 
 	log << Log::DEBUG << "Resolved URL: [" << path << "]" << std::endl;
@@ -566,6 +557,9 @@ void Server::get_head(Request *request, Headers &headers)
 	if (path.empty()) {
 		request->set_status(404);
 		log << Log::DEBUG << "File not found" << std::endl;
+		return ;
+	}
+	if (request->get_status() >= 300) {
 		return ;
 	}
 	if (!stat(path.c_str(), &statbuf) && S_ISDIR(statbuf.st_mode)) {
