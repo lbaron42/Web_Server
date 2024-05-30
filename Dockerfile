@@ -10,7 +10,7 @@ RUN make static
 FROM scratch
 LABEL authors="lbaron, mcutura, plandolf"
 COPY --from=builder /build/webserv /usr/bin/webserv
-COPY config/default.conf /etc/webserv/default.conf
+COPY config/container.conf /etc/webserv/container.conf
 ENTRYPOINT [ "/usr/bin/webserv" ]
-CMD [ "/etc/webserv/default.conf" ]
-EXPOSE 8080
+CMD [ "/etc/webserv/container.conf" ]
+EXPOSE 8080 8081

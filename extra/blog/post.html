@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post Title</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="index.html">Home</a>
+    </nav>
+    <div class="container mt-5">
+        <h2>Post Title</h2>
+        <p>Post content...</p>
+        <hr>
+        <h3>Comments</h3>
+        <div id="comments">
+            <!-- Comments will be loaded here -->
+            <div class="media mb-3">
+                <img src="avatar.png" class="mr-3" alt="..." style="width: 64px; height: 64px;">
+                <div class="media-body">
+                    <h5 class="mt-0">Commenter Name</h5>
+                    Comment content...
+                </div>
+            </div>
+        </div>
+        <hr>
+        <h3>Add a Comment</h3>
+        <form action="/post/1/comment" method="POST">
+            <div class="form-group">
+                <label for="comment">Comment</label>
+                <textarea class="form-control" id="comment" name="comment" rows="3" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+    </div>
+</body>
+</html>
+

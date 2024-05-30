@@ -6,14 +6,17 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:23:14 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/25 23:49:31 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/30 00:11:31 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef REQUEST_HPP
 # define REQUEST_HPP
 
+# include <algorithm>
+# include <cstddef>
 # include <ios>
+# include <iterator>
 # include <sstream>
 # include <string>
 # include <vector>
@@ -47,25 +50,32 @@ class Request
 
 		e_method get_method() const;
 		std::string get_url() const;
+		std::string get_query() const;
 		bool is_version_11() const;
 		std::string const get_header(std::string const &key) const;
 		Headers get_headers() const;
 		std::string get_req_line() const;
 		int get_status() const;
 		std::string get_target() const;
+		std::vector<char> get_payload() const;
 		bool is_dirlist() const;
 		bool is_parsed() const;
 		bool is_done() const;
+		size_t get_loaded_body_size() const;
+		bool is_body_loaded() const;
+		bool is_bounced() const;
 
 		void set_status(int status);
 		void set_target(std::string const &path);
 		void set_dirlist(bool value);
 		void set_parsed(bool value);
+		void set_bounced(bool value);
 
 		void append(std::string const &str);
 		int validate_request_line();
 		bool is_valid_method(std::string const &method);
 		bool parse_headers();
+		void load_payload(size_t size);
 
 	private:
 		Log					&log;
@@ -73,13 +83,17 @@ class Request
 		std::string			req_line;
 		e_method			method;
 		std::string			url;
+		std::string			query;
 		bool				v_11;
 		bool				is_parsed_;
 		bool				is_dirlist_;
 		int					status;
 		Headers				headers;
 		std::string			target;
+		size_t				loaded_body_size;
+		bool				is_body_loaded_;
 		std::vector<char>	payload;
+		bool				bounced;
 
 		Request &operator=(Request const &rhs);
 };

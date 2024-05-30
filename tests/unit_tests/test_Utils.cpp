@@ -4,13 +4,39 @@
 #include "Utils.hpp"
 #include "Log.hpp"
 
-static bool test_trim(std::string const &input, std::string const &trimchars,
-		std::string const &expect);
-
 namespace {
 	Log					log;
 	static char const	*tests_log = "tests/unit_tests/tests.log";
 }
+
+template<typename T>
+static bool test_num_tostr(T input, std::string const &expect)
+{
+	std::string	result = num_tostr(input);
+	if (result != expect) {
+		log << Log::ERROR << "Failed num_tostr" << std::endl
+			<< "Input:		" << input << std::endl
+			<< "Expected:	" << expect << std::endl
+			<< "Result:		" << result << std::endl;
+		return false;
+	}
+	return true;
+}
+template<typename T>
+static bool test_str_tonum(std::string const &input, T expect)
+{
+	T result = str_tonum<T>(input);
+	if (result != expect){
+		log << Log::ERROR << "Failed str_tonum" << std::endl
+			<< "Input:		" << input << std::endl
+			<< "Expected:	" << expect << std::endl
+			<< "Result:		" << result << std::endl;
+		return false;
+	}
+	return true;
+}
+static bool test_trim(std::string const &input, std::string const &trimchars,
+		std::string const &expect);
 
 int main()
 {
@@ -45,6 +71,33 @@ int main()
 	|| !test_trim(std::string(), whitespace, std::string())
 	|| !test_trim(punc_is_not_dead, punctuation, std::string("|^-^|")))
 		return EXIT_FAILURE;
+	if (!test_num_tostr(42L, "42")
+	|| !test_num_tostr(0L, "0")
+	|| !test_num_tostr(1000L, "1000")
+	|| !test_num_tostr(-999L, "-999")
+	|| !test_num_tostr(4242.42, "4242.42")
+	|| !test_num_tostr(0.001, "0.001")
+	|| !test_num_tostr(-0.00042, "-0.00042")
+	|| !test_num_tostr(2147483649L, "2147483649")
+	|| !test_num_tostr(-1L, "-1")
+	|| !test_num_tostr("f00bar", "f00bar")
+	|| !test_num_tostr("420123", "420123")) {
+		return EXIT_FAILURE;
+	}
+	if (!test_str_tonum("42", 42L)
+	|| !test_str_tonum("0", 0L)
+	|| !test_str_tonum("1000", 1000L)
+	|| !test_str_tonum("-999", -999L)
+	|| !test_str_tonum("4242.42", 4242.42)
+	|| !test_str_tonum("0.001", 0.001)
+	|| !test_str_tonum("-0.00042", -0.00042)
+	|| !test_str_tonum("2147483649", 2147483649L)
+	|| !test_str_tonum("-1", -1L)
+	|| !test_str_tonum("f00bar", 0)
+	|| !test_str_tonum("f00bar1", 0)
+	|| !test_str_tonum("420123", 420123L)) {
+		return EXIT_FAILURE;
+	}
 	return EXIT_SUCCESS;
 }
 

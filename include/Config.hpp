@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Config.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
+/*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/25 23:42:19 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/27 19:04:28 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -68,6 +68,14 @@ const int errorCodes[] = {
     505, // HTTP Version Not Supported
 };
 
+const int SERVER_TAB = 1;
+const int LOCATION_TAB = 2;
+const std::string IDENT = "\nserver {\n"
+                          "\t[TAB][KEY][SP][VALUE][;] // variables\n\n"
+                          "\tlocation /path {\t\t[TAB][TAB][KEY][SP][VALUE][;] // location variables\n"
+                          "\t}\n"
+                          "}";
+
 
 
 class Config {
@@ -80,12 +88,14 @@ public:
 private:
 	Log &log;
 	std::vector<Server> servers;
-	void verifyIp(std::string ip, int lineNum);
-	void verifyPort(std::string Port, int lineNum);
-	void validError(int error);
-	std::string trimLine(std::string line, std::string message, int lineNum);
-	void getAddress(std::string line, ServerData &current, int lineNum);
-	void getErrors(std::string line, ServerData &current, int lineNum);
+	bool verifyIp(std::string ip, int lineNum);
+	bool verifyPort(std::string Port, int lineNum);
+	bool validError(int error, int lineNum);
+	bool validIndentation(std::string line, int tabNum, int lineNum);
+	bool trimLine(const std::string& line, const std::string& message, int lineNum, std::string& trimmedLine);
+	bool getAddress(std::string line, ServerData &current, int lineNum);
+	bool getErrors(std::string line, ServerData &current, int lineNum);
+	bool getCGI(std::string line, ServerData &current, int lineNum);
 };
 
 std::ostream &operator<<(std::ostream &os, const ServerData &data);

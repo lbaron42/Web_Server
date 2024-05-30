@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 07:54:45 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/26 00:04:42 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/27 20:42:56 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -58,7 +58,7 @@ std::string const Reply::get_listing(std::string const &path,
 		<< "<h1>Index of " << url << "</h1><hr><pre>" << std::endl;
 	while ((dire = readdir(dirp)) != NULL) {
 		std::string	name(dire->d_name);
-		std::string	anchor(path + name);
+		std::string	fullpath(path + name);
 		std::string	mod_time;
 		std::string	file_size;
 		struct stat	sb;
@@ -67,20 +67,16 @@ std::string const Reply::get_listing(std::string const &path,
 			continue;
 		if (name == "..")
 			name.append("/");
-		else if(!stat(anchor.c_str(), &sb)) {
+		else if(!stat(fullpath.c_str(), &sb)) {
 			char	tmp[64];
 			if (std::strftime(tmp, sizeof(tmp), "%d-%b-%Y %H:%M",
 			std::gmtime(&sb.st_mtime))) {
 				mod_time = tmp;
 			}
 			if (S_ISREG(sb.st_mode)) {
-				std::ostringstream	oss;
-				oss << sb.st_size;
-				if (!oss.fail())
-					file_size = oss.str();
+				file_size = num_tostr(sb.st_size);
 			} else if (S_ISDIR(sb.st_mode)) {
 				name.append("/");
-				anchor.append("/");
 				file_size = "-";
 			}
 		}

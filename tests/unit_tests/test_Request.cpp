@@ -201,14 +201,22 @@ bool test_get_request_line(std::string const &input)
 	Request	request(input, log);
 	std::string	removed_new_line(input);
 
-	if (input[input.length() - 1] == '\n')
-		removed_new_line.erase(removed_new_line.length() - 1);
+	std::string::size_type	pos = input.find("\n");
+	if (pos != std::string::npos)
+		removed_new_line.erase(pos);
+	pos = input.find("\r");
+	if (pos != std::string::npos)
+		removed_new_line.erase(pos);
 	if (!request.validate_request_line())
 		return request.get_req_line().empty();
-	if (request.get_req_line() != removed_new_line) {
+	std::string	result = request.get_req_line();
+	pos = result.find("\r");
+	if (pos != std::string::npos)
+		result.erase(pos);
+	if (result != removed_new_line) {
 		log << Log::ERROR << "Failed get_req_line" << std::endl
-			<< "Input:	" << input << std::endl
-			<< "Result:	" << request.get_req_line() << std::endl;
+			<< "Input:	[" << removed_new_line << "]" << std::endl
+			<< "Result:	[" << request.get_req_line() << "]" << std::endl;
 		return false;
 	}
 	return true;

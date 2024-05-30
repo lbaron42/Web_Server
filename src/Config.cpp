@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Config.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
+/*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/25 23:58:38 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/29 18:45:23 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,34 +18,35 @@ Config::Config(Log &log) : log(log)
 Config::~Config()
 {}
 
-void Config::verifyIp(std::string ip, int lineNum)
+bool Config::verifyIp(std::string ip, int lineNum)
 {
-	int temp;
+	size_t temp;
 	std::vector<std::string> split_ip;
 	split_ip = split(ip, '.');
 	for(std::vector<std::string>::const_iterator it = split_ip.begin(); it != split_ip.end(); ++it)
 	{
-		temp = atoi(*it);
-		if(!isDigitString(*it) || (temp < 0 || temp > 255))
+		temp = atoi(it->c_str());
+		if(!isDigitString(*it) || temp > 255)
 		{
-			log << log.ERROR << "Invalid IP address on line: " << lineNum << std::endl;
-			exit(EXIT_FAILURE);
+			log << log.ERROR << ".conf error: Invalid IP address on line: " << lineNum << std::endl;
+			return false;
 		}
 	}
+	return true;
 }
 
-void Config::verifyPort(std::string port, int lineNum)
+bool Config::verifyPort(std::string port, int lineNum)
 {
-	size_t p = atoi(port);
+	size_t p = atoi(port.c_str());
 	if(!isDigitString(port) || p > 65535)
 	{
-		log << log.ERROR << "Port number is not a \"digit\" or it is out of Range, line: " << lineNum << std::endl;
-		exit(EXIT_FAILURE);
+		log << log.ERROR << ".conf error: Port number is not a \"digit\" or it is out of Range, line: " << lineNum << std::endl;
+		return false;
 	}
-
+	return true;
 }
 
-void Config::validError(int error)
+bool Config::validError(int error, int lineNum)
 {
 	bool found = false;
 	for (size_t i = 0; i < sizeof(errorCodes) / sizeof(errorCodes[0]); ++i)
@@ -58,67 +59,112 @@ void Config::validError(int error)
 	}
 	if (!found)
 	{
-		log << Log::ERROR << "Code doesn't exist: " << error << std::endl;
-		exit(EXIT_FAILURE);
+		log << Log::ERROR << ".conf error: Error code doesn't exist: " << error <<  " line: " << lineNum << std::endl;
+		return false;
 	}
+	return true;
 }
 
-std::string Config::trimLine(std::string line, std::string message, int lineNum)
+bool Config::validIndentation(std::string line, int tabNum, int lineNum)
 {
-	size_t pos = line.find(message) + message.length();
-	while (pos < line.size() && (line[pos] == ' ' || line[pos] == '\t')) {pos++;}
+	int tab = tabNum;
+	for (int i = 0; i < tab; ++i)
+	{
+		if(line[i] != '\t' || line[tabNum] == '\t')
+		{
+			log << log.ERROR << "Wrong indentation on line: " << lineNum << IDENT <<std::endl;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool Config::trimLine(const std::string& line, const std::string& message, int lineNum, std::string& trimmedLine)
+{
+	size_t pos = line.find(message);
+	if (pos == std::string::npos)
+	{
+		log << log.ERROR << ".conf error: Expected '" << message << "' in line: " << lineNum << std::endl;
+		return false;
+	}
+	pos += message.length();
+	while (pos < line.size() && (line[pos] == ' ' || line[pos] == '\t')) { pos++; }
 	size_t end_pos = line.find(';', pos);
 	if (end_pos == std::string::npos)
 	{
-		log << log.ERROR << "Expected ';' " << message << " in line: " << lineNum  << " " << line << std::endl;
-		exit(EXIT_FAILURE);
+		log << log.ERROR << ".conf error: Expected ';' in line: " << lineNum << " after " << message << std::endl;
+		return false;
 	}
-	return line.substr(pos, end_pos - pos);
+	trimmedLine = line.substr(pos, end_pos - pos);
+	return true;
 }
 
-void Config::getAddress(std::string line, ServerData &current, int lineNum)
+bool Config::getAddress(std::string line, ServerData &current, int lineNum)
 {
 	ServerData::Address _address;
-	std::string newLine = trimLine(line, "listen", lineNum);
-	if(isdigit(newLine[0]) != 1 /* && Address[0] != '['*/)
-	{
-		log << log.ERROR << "Invalid IP address on line: " << lineNum << std::endl;
-		exit(EXIT_FAILURE);
+	std::string newLine;
+	if (!trimLine(line, "listen", lineNum, newLine)) {
+		return false;
+	}
+	if (isdigit(newLine[0]) != 1 /* && Address[0] != '['*/) {
+		log << log.ERROR << ".conf error: Invalid IP address on line: " << lineNum << std::endl;
+		return false;
 	}
 	size_t pos = 0;
-		size_t end_pos = newLine.find(':', pos);
-		if (end_pos == std::string::npos)
-		{
-			_address.ip = "0.0.0.0";
-			_address.port = newLine;
-			verifyPort(_address.port, lineNum);
-			current.addresses.push_back(_address);
-			return;
-		}
-		_address.ip = newLine.substr(pos, end_pos - pos);
-		verifyIp(_address.ip, lineNum);
-		pos = end_pos + 1;
-		end_pos = std::string::npos;
-		_address.port = newLine.substr(pos, end_pos - pos);
-		verifyPort(_address.port, lineNum);
+	size_t end_pos = newLine.find(':', pos);
+	if (end_pos == std::string::npos) {
+		_address.ip = "0.0.0.0";
+		_address.port = newLine;
+		if (!verifyPort(_address.port, lineNum))
+			return false;
 		current.addresses.push_back(_address);
+		return true;
+	}
+	_address.ip = newLine.substr(pos, end_pos - pos);
+	if (!verifyIp(_address.ip, lineNum))
+		return false;
+	pos = end_pos + 1;
+	end_pos = std::string::npos;
+	_address.port = newLine.substr(pos, end_pos - pos);
+	if (!verifyPort(_address.port, lineNum))
+		return false;
+	current.addresses.push_back(_address);
+	return true;
 }
 
-void Config::getErrors(std::string line, ServerData &current, int lineNum)
+bool Config::getErrors(std::string line, ServerData &current, int lineNum)
 {
-	std::vector<std::string> splitError = split(trimLine(line, "error_page", lineNum), ' ');
-	for(std::vector<std::string>::const_iterator split_it = splitError.begin(); split_it != splitError.end(); ++split_it)
-		{
-			const std::string &split = *split_it;
-			if(isDigitString(split))
-			{
-				int temp = atoi(split);
-				validError(temp);
-				current.error_pages.push_back(std::make_pair(temp, split));
-			}
-			else
-				current.error_pages.push_back(std::make_pair(-1, split));
-		}
+	std::string trimmedLine;
+	if (!trimLine(line, "error_page", lineNum, trimmedLine)) {
+		return false;
+	}
+	std::vector<std::string> splitError = split(trimmedLine, ' ');
+	if(splitError.size() != 2 || !isDigitString(splitError[0]))
+	{
+		log << log.ERROR << "Wrong number of error_page elements on line: " << lineNum << " Example: 504 /50x.html" << std::endl;
+		return false;
+	}
+	int temp = atoi(splitError[0].c_str());
+	if (!validError(temp, lineNum))
+	{
+		return false;
+	}
+	current.error_pages.insert(std::pair<int, std::string>(temp, splitError[1]));
+	return true;
+}
+
+bool Config::getCGI(std::string line, ServerData &current, int lineNum) {
+	std::string trimmedLine;
+	if (!trimLine(line, "cgi", lineNum, trimmedLine)) {
+		return false;
+	}
+	std::vector<std::string> splitCgi = split(trimmedLine, ' ');
+	if (splitCgi.size() != 2) {
+		log << log.ERROR << ".conf error: Wrong number of CGI elements on line: " << lineNum << std::endl;
+		return false;
+	}
+	current.cgi[splitCgi[0]] = splitCgi[1];
+	return true;
 }
 
 int Config::configInit(const std::string &argv1)
@@ -126,13 +172,14 @@ int Config::configInit(const std::string &argv1)
 	int lineNum = 0;
 	std::ifstream config_file(argv1.c_str());
 	if (!config_file.is_open()) {
-		log << log.ERROR << "Couldn't open config file" << std::endl;
+		log << Log::ERROR << "Couldn't open config file" << std::endl;
 		return EXIT_FAILURE;
 	}
 	std::string line;
 	while (std::getline(config_file, line)) {
 		lineNum++;
 		line = c_trim(line);
+		line = trim(line, "\t");
 		if (line.empty() || line[0] == '#') {
 			continue;
 		}
@@ -143,89 +190,146 @@ int Config::configInit(const std::string &argv1)
 			{
 				lineNum++;
 				line = c_trim(line);
+				if (line.empty() || line[0] == '#') {
+					continue;
+				}
+				if(validIndentation(line, SERVER_TAB, lineNum))
+					return EXIT_FAILURE;
+				line = trim(line, "\t");
 				if (line.find("location") != std::string::npos)
 				{
 					ServerData::Location loc;
 					size_t pos = line.find("location") + 9;
-					while (pos < line.size() && (line[pos] == ' ' || line[pos] == '\t')) {pos++;}
+					while (pos < line.size() && (line[pos] == ' ' || line[pos] == '\t')) { pos++; }
 					size_t end_pos = line.find('{', pos);
 					loc.location_path = trim(line.substr(pos, end_pos - pos));
 					while (std::getline(config_file, line) && line.find('}') == std::string::npos)
 					{
 						lineNum++;
 						line = c_trim(line);
+						if (line.empty() || line[0] == '#') {
+							continue;
+						}
+						if(validIndentation(line, LOCATION_TAB, lineNum))
+							return EXIT_FAILURE;
+						line = trim(line, "\t");
+						std::string trimmed;
 						if (line.find("alias") != std::string::npos)
 						{
-							loc.alias = trimLine(line, "alias", lineNum);
+							if (!trimLine(line, "alias", lineNum, trimmed)) return EXIT_FAILURE;
+							loc.alias = trimmed;
 						}
-						if (line.find("autoindex") != std::string::npos)
+						else if (line.find("autoindex") != std::string::npos)
 						{
-							loc.is_redirection = false;
-							std::string trimmed = trimLine(line, "autoindex", lineNum);
+							loc.autoindex = false;
+							if (!trimLine(line, "autoindex", lineNum, trimmed)) return EXIT_FAILURE;
 							if (trimmed != "on" && trimmed != "off")
-					 			log << log.ERROR << "autoindex is invalid on line: " << lineNum << std::endl;
+							{
+								log << log.ERROR << ".conf error: autoindex is invalid on line: " << lineNum << std::endl;
+								return EXIT_FAILURE;
+							}
 							else if (trimmed == "on")
-        		    			loc.is_redirection = true;
+								loc.autoindex = true;
 						}
-						if (line.find("index") != std::string::npos)
+						else if (line.find("index") != std::string::npos)
 						{
-							loc.loc_index = split(trimLine(line, "index", lineNum), ' ');
+							if (!trimLine(line, "index", lineNum, trimmed)) return EXIT_FAILURE;
+							loc.loc_index = split(trimmed, ' ');
 						}
-						if (line.find("allowed_method") != std::string::npos)
-		        		{
-							// loc.allow_methods = split(trimLine(line, "allowed_method", lineNum), ' ');
-							loc.allow_methods = Request::parse_methods(trimLine(line, "allowed_method", lineNum));
+						else if (line.find("allow_methods") != std::string::npos)
+						{
+							if (!trimLine(line, "allow_methods", lineNum, trimmed)) return EXIT_FAILURE;
+							loc.allow_methods = Request::parse_methods(trimmed);
+						}
+						else if(line.find("return") != std::string::npos)
+						{
+							if (!trimLine(line, "return", lineNum, trimmed)) return EXIT_FAILURE;
+							loc.redirection = trimmed;
+						}
+						else
+						{
+							log << log.ERROR << ".conf error: Wrong syntax on line: " << lineNum << std::endl;
+							return EXIT_FAILURE;
 						}
 					}
 					lineNum++;
 					sd.locations.push_back(loc);
 				}
-				if (line.find("listen") != std::string::npos)
+				else if (line.find("listen") != std::string::npos)
 				{
-					getAddress(line, sd, lineNum);
+					if (!getAddress(line, sd, lineNum))
+						return EXIT_FAILURE;
 				}
-				if (line.find("server_name") != std::string::npos)
+				else if (line.find("server_name") != std::string::npos)
 				{
-					sd.hostnames = split(trimLine(line, "server_name", lineNum), ' ');
+					std::string trimmed;
+					if (!trimLine(line, "server_name", lineNum, trimmed)) return EXIT_FAILURE;
+					sd.hostnames = split(trimmed, ' ');
 				}
-				if (line.find("error_page") != std::string::npos)
+				else if (line.find("error_page") != std::string::npos)
 				{
-					getErrors(line, sd, lineNum);
+					if (!getErrors(line, sd, lineNum))
+						return EXIT_FAILURE;
 				}
-				if (line.find("autoindex") != std::string::npos)
+				else if (line.find("autoindex") != std::string::npos)
 				{
-					std::string trimmed = trimLine(line, "autoindex", lineNum);
+					std::string trimmed;
+					if (!trimLine(line, "autoindex", lineNum, trimmed)) return EXIT_FAILURE;
 					if (trimmed != "on" && trimmed != "off")
-        		    	log << log.ERROR << "autoindex is invalid on line: " << lineNum << std::endl;
+					{
+						log << log.ERROR << ".conf error: autoindex is invalid on line: " << lineNum << std::endl;
+						return EXIT_FAILURE;
+					}
 					else if (trimmed == "on")
-        		    	sd.autoindex = true;
+						sd.autoindex = true;
 				}
-				if (line.find("index") != std::string::npos)
+				else if (line.find("index") != std::string::npos)
 				{
-					sd.serv_index = split(trimLine(line, "index", lineNum), ' ');
+					std::string trimmed;
+					if (!trimLine(line, "index", lineNum, trimmed)) return EXIT_FAILURE;
+					sd.serv_index = split(trimmed, ' ');
 				}
-				if (line.find("root") != std::string::npos)
+				else if (line.find("root") != std::string::npos)
 				{
-					sd.root = trimLine(line, "root", lineNum);
+					std::string trimmed;
+					if (!trimLine(line, "root", lineNum, trimmed)) return EXIT_FAILURE;
+					sd.root = trimmed;
 				}
-				if (line.find("client_max_body_size") != std::string::npos)
+				else if (line.find("client_max_body_size") != std::string::npos)
 				{
-					sd.client_max_body_size = atoi(trimLine(line, "client_max_body_size", lineNum));
+					std::string trimmed;
+					if (!trimLine(line, "client_max_body_size", lineNum, trimmed)) return EXIT_FAILURE;
+					sd.client_max_body_size = atoi(trimmed.c_str());
 				}
-				if (line.find("allowed_method") != std::string::npos)
+				else if (line.find("allow_methods") != std::string::npos)
 				{
-					// sd.allow_methods = split(trimLine(line, "allowed_method", lineNum), ' ');
-					sd.allow_methods = Request::parse_methods(trimLine(line, "allowed_method", lineNum));
+					std::string trimmed;
+					if (!trimLine(line, "allow_methods", lineNum, trimmed)) return EXIT_FAILURE;
+					sd.allow_methods = Request::parse_methods(trimmed);
+				}
+				else if  (line.find("cgi") != std::string::npos)
+				{
+					if (!getCGI(line, sd, lineNum))
+						return EXIT_FAILURE;
+				}
+				else
+				{
+					log << log.ERROR << ".conf error: Wrong syntax on line: " << lineNum << std::endl;
+					return EXIT_FAILURE;
 				}
 			}
+			if(sd.root.empty() || sd.addresses.empty())
+			{
+				log << log.ERROR << "Server Block need: \"root\" and valid \"0.0.0.0:validPortNumber" << std::endl;
+				return EXIT_FAILURE;
+			}
 			lineNum++;
-			// std::cout << sd << std::endl;
 			servers.push_back(Server(sd, log));
 		}
 		else
 		{
-			log << log.ERROR << "Wrong syntax on line: " << lineNum << " of the .conf file" << std::endl;
-			exit(EXIT_FAILURE);
+			log << log.ERROR << ".conf error: Wrong syntax on line: " << lineNum << std::endl;
+			return EXIT_FAILURE;
 		}
 	}
 	config_file.close();
@@ -233,83 +337,84 @@ int Config::configInit(const std::string &argv1)
 }
 
 std::vector<Server> Config::getServers() const {
-    return servers;
+	return servers;
 }
+
 int s = 1;
 std::ostream& operator<<(std::ostream& os, const ServerData &data)
 {
 	os << "\n                ServerData BLOCK: " << s << "\n" << std::endl;
 	s++;
 	//print ip and port addresses
-    for (std::vector<ServerData::Address>::const_iterator addr_it = data.addresses.begin(); addr_it != data.addresses.end(); ++addr_it)
-    {
-        const ServerData::Address& address = *addr_it;
-        os << "Server ip: " << address.ip << "\n";
-        os << "Server port: " << address.port << "\n";
-    }
+	for (std::vector<ServerData::Address>::const_iterator addr_it = data.addresses.begin(); addr_it != data.addresses.end(); ++addr_it)
+	{
+		const ServerData::Address& address = *addr_it;
+		os << "Server ip: " << address.ip << "\n";
+		os << "Server port: " << address.port << "\n";
+	}
 
-    // Print hostnames
-    os << "\nHostnames:\n\n";
-    for (std::vector<std::string>::const_iterator host_it = data.hostnames.begin(); host_it != data.hostnames.end(); ++host_it)
-    {
-        os << "	" << *host_it << "\n";
-    }
+	// Print hostnames
+	os << "\nHostnames:\n\n";
+	for (std::vector<std::string>::const_iterator host_it = data.hostnames.begin(); host_it != data.hostnames.end(); ++host_it)
+	{
+		os << "	" << *host_it << "\n";
+	}
 
-    // Print error pages
-    os << "\nError pages:\n\n";
-    for (std::vector<std::pair<int, std::string> >::const_iterator err_it = data.error_pages.begin(); err_it != data.error_pages.end(); ++err_it)
-    {
-        os << "	Error code: " << err_it->first << " Page: " << err_it->second << "\n";
-    }
+	// Print error pages
+	os << "\nError pages:\n\n";
+	for (std::map<int, std::string>::const_iterator err_it = data.error_pages.begin(); err_it != data.error_pages.end(); ++err_it)
+	{
+		os << "Error code: " << err_it->first << " Page: " << err_it->second << "\n";
+	}
 
-    // Print server index
-    os << "Server index:\n";
-    for (std::vector<std::string>::const_iterator idx_it = data.serv_index.begin(); idx_it != data.serv_index.end(); ++idx_it)
-    {
-        os << *idx_it << "\n";
-    }
+	// Print server index
+	os << "Server index:\n";
+	for (std::vector<std::string>::const_iterator idx_it = data.serv_index.begin(); idx_it != data.serv_index.end(); ++idx_it)
+	{
+		os << *idx_it << "\n";
+	}
 
-    // Print root
-    os << "Root: " << data.root << "\n";
+	// Print root
+	os << "Root: " << data.root << "\n";
 
-    // Print client max body size
-    os << "Client max body size: " << data.client_max_body_size << "\n";
+	// Print client max body size
+	os << "Client max body size: " << data.client_max_body_size << "\n";
 
-    // Print autoindex
-    os << "Autoindex: " << (data.autoindex ? "on" : "off") << "\n";
+	// Print autoindex
+	os << "Autoindex: " << (data.autoindex ? "on" : "off") << "\n";
 
-    // Print allow methods
-    os << "Allowed methods:\n";
-    // for (std::vector<std::string>::const_iterator method_it = data.allow_methods.begin(); method_it != data.allow_methods.end(); ++method_it)
-    // {
-    //     os << "		"<< *method_it << "\n";
-    // }
+	// Print allow methods
+	os << "Allowed methods:\n";
+	// for (std::vector<std::string>::const_iterator method_it = data.allow_methods.begin(); method_it != data.allow_methods.end(); ++method_it)
+	// {
+	// os << "		"<< *method_it << "\n";
+	// }
 
-    // Print locations
-    os << "\nLocations:\n";
+	// Print locations
+	os << "\nLocations:\n";
 	int i = 1;
-    for (std::vector<ServerData::Location>::const_iterator loc_it = data.locations.begin(); loc_it != data.locations.end(); ++loc_it)
-    {
+	for (std::vector<ServerData::Location>::const_iterator loc_it = data.locations.begin(); loc_it != data.locations.end(); ++loc_it)
+	{
 		os << "	Location n: " << i << std::endl;
 		i++;
-        const ServerData::Location& location = *loc_it;
-        os << "		Location path: " << location.location_path << "\n";
-        os << "		Alias: " << location.alias << "\n";
+		const ServerData::Location& location = *loc_it;
+		os << "		Location path: " << location.location_path << "\n";
+		os << "		Alias: " << location.alias << "\n";
 
-        os << "		Location index: ";
-        for (std::vector<std::string>::const_iterator loc_idx_it = location.loc_index.begin(); loc_idx_it != location.loc_index.end(); ++loc_idx_it)
-        {
-            os << *loc_idx_it << " ";
-        }
+		os << "		Location index: ";
+		for (std::vector<std::string>::const_iterator loc_idx_it = location.loc_index.begin(); loc_idx_it != location.loc_index.end(); ++loc_idx_it)
+		{
+			os << *loc_idx_it << " ";
+		}
 
-        os << "\n		Allowed methods:\n";
-        // for (std::vector<std::string>::const_iterator loc_method_it = location.allow_methods.begin(); loc_method_it != location.allow_methods.end(); ++loc_method_it)
-        // {
-        //     os << "				"<< *loc_method_it << "\n";
-        // }
+		os << "\n		Allowed methods:\n";
+		// for (std::vector<std::string>::const_iterator loc_method_it = location.allow_methods.begin(); loc_method_it != location.allow_methods.end(); ++loc_method_it)
+		// {
+		// os << "				"<< *loc_method_it << "\n";
+		// }
 
-        os << "		Redirection: " << (location.is_redirection ? "yes" : "no") << "\n";
-    }
+		os << "		Redirection: " << (location.autoindex ? "yes" : "no") << "\n";
+	}
 
-    return os;
+	return os;
 }
