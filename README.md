@@ -58,3 +58,8 @@ MarvinX is a high-performance, lightweight server designed to handle concurrent 
 
 1. Clone the repository
 2. Run `make`
+
+### Usage
+
+1. add [.conf file](https://[link-url-here.org](https://github.com/lbaron42/Web_Server/wiki/Configuration.md))
+2. run ./webser path_to_conf_file/.conf
