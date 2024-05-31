@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/27 18:57:31 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/31 13:49:47 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -47,7 +47,8 @@ ServerData::ServerData()
 		client_max_body_size(1024),
 		autoindex(false),
 		allow_methods(),
-		cgi(),
+		cgi_path(),
+		cgi_ext(),
 		locations()
 {}
 

@@ -6,7 +6,7 @@
 /*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/27 19:04:28 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/05/31 13:43:52 by lbaron           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -95,7 +95,6 @@ private:
 	bool trimLine(const std::string& line, const std::string& message, int lineNum, std::string& trimmedLine);
 	bool getAddress(std::string line, ServerData &current, int lineNum);
 	bool getErrors(std::string line, ServerData &current, int lineNum);
-	bool getCGI(std::string line, ServerData &current, int lineNum);
 };
 
 std::ostream &operator<<(std::ostream &os, const ServerData &data);
