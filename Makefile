@@ -3,16 +3,16 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+         #
+#    By: plandolf <plandolf@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/05/14 11:22:55 by mcutura           #+#    #+#              #
-#    Updated: 2024/05/25 23:08:14 by mcutura          ###   ########.fr        #
+#    Updated: 2024/05/27 13:43:10 by plandolf         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 NAME := webserv
 MAIN := main
-SRCS := Log Config Cluster Headers Reply Request Server Utils
+SRCS := Log Config Cluster Headers Reply Request Server Utils CGIHandler
 
 SRCDIR := src
 INCDIR := include
