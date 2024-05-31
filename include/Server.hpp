@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/29 22:41:05 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/31 03:04:51 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -125,6 +125,7 @@ class Server
 				std::vector<char> *body);
 		void handle_put_request(Request *request, Headers &headers,
 				std::vector<char> *body);
+		void handle_delete_request(Request *request, Headers &headers);
 		Server &generate_response(Request *request, Headers &headers,
 				std::vector<char> const &body, std::vector<char> &repl);
 		void internal_error(int fd, int code);

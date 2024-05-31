@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/30 00:16:45 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/31 03:47:58 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -203,7 +203,8 @@ bool Server::recv_request(int epoll_fd, int fd,
 		default:
 			msg = std::string(buff, r);
 	}
-	log << Log::DEBUG << "Received " << r << "b: " << msg << std::endl;
+	log << Log::DEBUG << "Received " << r << "b: "
+		<< std::endl << msg << std::endl;
 
 	std::map<int, Request*>::iterator it = this->requests.find(fd);
 	if (it == this->requests.end()) {
@@ -301,7 +302,9 @@ bool Server::handle_request(int fd)
 			case Request::PUT:
 				this->handle_put_request(request, hdrs, &payload);
 				break;
-			// case Request::DELETE: break;
+			case Request::DELETE: 
+				this->handle_delete_request(request, hdrs);
+				break;
 			default:
 				request->set_status(501); break;
 		}
@@ -424,9 +427,9 @@ void Server::parse_request(int fd)
 	if (!request->parse_headers())
 		return ;
 	request->set_parsed(true);
-	log << Log::DEBUG << "Parsed headers: " << std::endl
-		<< request->get_headers()
-		<< std::endl;
+	// log << Log::DEBUG << "Parsed headers: " << std::endl
+	// 	<< request->get_headers()
+	// 	<< std::endl;
 	return ;
 }
 
@@ -506,12 +509,13 @@ std::string Server::resolve_address(Request *request, Headers &headers)
 					url.append("/");
 				for (idx = lo->loc_index.begin();
 				idx != lo->loc_index.end(); ++idx) {
-					if (try_file(path + url + *idx)) {
+					if (try_file(path + url + "/" + *idx))
+						return (path + url + "/" + *idx);
+					if (try_file(path + url + *idx))
 						return (path + url + *idx);
-					}
 				}
 			}
-			break;
+			return (path + url);
 		}
 	}
 	if (!(request->get_method() & this->info.allow_methods)) {
@@ -535,12 +539,13 @@ std::string Server::resolve_address(Request *request, Headers &headers)
 			url.append("/");
 		for (idx = this->info.serv_index.begin();
 		idx != this->info.serv_index.end(); ++idx) {
-			if (try_file(path + url + *idx)) {
+			if (try_file(path + url + "/" + *idx))
+				return (path + url + "/" + *idx);
+			if (try_file(path + url + *idx))
 				return (path + url + *idx);
-			}
 		}
 	}
-	return std::string();
+	return (path + url);
 }
 
 void Server::get_head(Request *request, Headers &headers)
@@ -637,12 +642,47 @@ void Server::load_request_body(Request *request)
 void Server::handle_post_request(Request *request, Headers &headers,
 		std::vector<char> *body)
 {
-	if (!request->is_body_loaded())
-		this->load_request_body(request);
-	if (!request->is_body_loaded())
-		return ;
+	std::string				content_type(request->get_header("content-type"));
+	std::string::size_type	div(content_type.find(";"));
+	std::string::size_type	pos;
+	std::string				type(content_type.substr(0, div));
 
-	// std::string	type(request->get_header("content-type"));
+	if (request->get_path().empty()) {
+		request->set_path(this->resolve_address(request, headers));
+		if (request->get_path().empty())
+			request->set_status(400);
+	}
+	if (request->get_status() >= 400) {
+		log << Log::DEBUG << "Status: " << request->get_status() << std::endl;
+		return ;
+	}
+	if (type == "application/x-www-form-urlencoded") {
+		log << Log::DEBUG << "URL encoded form body" << std::endl;
+		// if (!request->is_body_loaded())
+		// 	this->load_request_body(request);
+		// if (!request->is_body_loaded())
+		// 	return ;
+	} else if (type == "application/json") {
+		log << Log::DEBUG << "JSON encoded form body" << std::endl;
+		// if (!request->is_body_loaded())
+		// 	this->load_request_body(request);
+		// if (!request->is_body_loaded())
+		// 	return ;
+	} else if (type == "multipart/form-data" && div != std::string::npos
+	&& ((pos = content_type.find("boundary=", div + 1)) != std::string::npos)) {
+		std::string	boundary(trim(content_type.substr(pos + 9)));
+		log << Log::DEBUG << "Multipart encoded form body" << std::endl
+			<< "Boundary:	[" << boundary << "]" << std::endl;
+		if (!request->load_multipart("--" + boundary)
+		|| request->get_status() >= 400) {
+			log << Log::DEBUG << "Multipart body load failed" << std::endl;
+			return ;
+		}
+	} else {
+		request->set_status(400);
+		return ;
+	}
+
 	// TODO do something with this POST request
 	headers.set_header("Location", "/action.html");
 	request->set_status(303);
@@ -707,6 +747,24 @@ void Server::handle_put_request(Request *request, Headers &headers,
 	}
 }
 
+void Server::handle_delete_request(Request *request, Headers &headers)
+{
+	std::string	path(this->resolve_address(request, headers));
+	struct stat	sb;
+
+	if (request->get_status() >= 400)	return;
+	if (stat(path.c_str(), &sb) || !S_ISREG(sb.st_mode)) {
+		request->set_status(404);
+		return ;
+	}
+	if (std::remove(path.c_str())) {
+		request->set_status(403);
+		return ;
+	}
+	log << Log::DEBUG << "File to remove: [" << path << "]" << std::endl;
+	request->set_status(204);
+}
+
 Server &Server::generate_response(Request *request, Headers &headers,
 		std::vector<char> const &body, std::vector<char> &repl)
 {
@@ -752,6 +810,5 @@ void Server::internal_error(int fd, int code)
 	reply.push_back('\r');
 	reply.push_back('\n');
 	this->keep_alive.erase(fd);
-	log << Log::DEBUG << "505 response:" << std::endl << &reply[0] << std::endl;
 	(void)this->enqueue_reply(fd, reply);
 }

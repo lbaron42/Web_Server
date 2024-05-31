@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/30 00:15:56 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/31 03:48:20 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,6 +37,7 @@ Request::Request(std::string const &raw, Log &logger)
 		status(0),
 		headers(),
 		target(),
+		path(),
 		loaded_body_size(0),
 		is_body_loaded_(false),
 		payload(),
@@ -57,6 +58,7 @@ Request::Request(Request const &rhs)
 		status(rhs.status),
 		headers(rhs.headers),
 		target(rhs.target),
+		path(rhs.path),
 		loaded_body_size(rhs.loaded_body_size),
 		is_body_loaded_(rhs.is_body_loaded_),
 		payload(rhs.payload),
@@ -115,6 +117,11 @@ std::string Request::get_target() const
 	return this->target;
 }
 
+std::string Request::get_path() const
+{
+	return this->path;
+}
+
 std::vector<char> Request::get_payload() const
 {
 	return this->payload;
@@ -158,6 +165,11 @@ void Request::set_status(int status)
 void Request::set_target(std::string const &path)
 {
 	this->target = path;
+}
+
+void Request::set_path(std::string const &path)
+{
+	this->path = path;
 }
 
 void Request::set_dirlist(bool value)
@@ -204,6 +216,7 @@ Request::e_method Request::parse_methods(std::string const &str)
 
 void Request::append(std::string const &str)
 {
+	this->raw_.clear();
 	this->raw_ << str;
 }
 
@@ -299,14 +312,6 @@ bool Request::parse_headers()
 			return false;
 		}
 		if (header.empty() || header == "\r") {
-			std::string tmp;
-			std::stringstream remainder(std::string(),
-				std::ios_base::in | std::ios_base::out | std::ios_base::ate);
-			while (std::getline(this->raw_, tmp))
-				remainder << tmp;
-			this->raw_.clear();
-			this->raw_.str(std::string());
-			this->raw_ << remainder.rdbuf();
 			return true;
 		}
 		std::string::size_type div = header.find(':');
@@ -356,4 +361,114 @@ void Request::load_payload(size_t size)
 			<< "Body loaded:" << std::endl << &this->payload[0] << std::endl
 			<< "EOF: " << this->raw_.eof() << std::endl;
 	}
+}
+
+bool Request::load_multipart(std::string const &boundary)
+{
+	std::string				line;
+	std::string::size_type	div;
+
+	if (this->payload.empty()) {
+		this->headers.unset_header("content-disposition");
+		if (std::getline(this->raw_, line)) {
+			if (line == boundary + "--\r"
+			|| line == boundary + "--") {
+				this->is_body_loaded_ = true;
+				log << Log::DEBUG << "END multipart body" << std::endl;
+				return true;
+			}
+			if (line != boundary + "\r" && line != boundary) {
+				log << Log::DEBUG << "Reject - body not starting with boundary"
+					<< std::endl << "[" << line << "]" << std::endl;
+				this->status = 400;
+				return true;
+			}
+			log << Log::DEBUG << "Found start boundary" << std::endl;
+		} else {
+			log << Log::WARN << "Raw stream EOF" << std::endl;
+			// this->status = 400;
+			return true;
+		}
+		while (std::getline(this->raw_, line)) {
+			if (line.empty() || line == "\r")
+				break;
+			div = line.find(":");
+			if (div == std::string::npos) {
+				log << Log::WARN << "No header divider" << std::endl;
+				this->status = 400;
+				return true;
+			}
+			std::string	key(trim(line.substr(0, div)));
+			std::string	val(trim(line.substr(div + 1), " \t\r"));
+			if (key.empty() || val.empty()) {
+				log << Log::WARN << "Empty header key/value" << std::endl;
+				this->status = 400;
+				return true;
+			}
+			std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+			if (key == "content-type")	continue;
+			this->headers.set_header(key, val);
+		}
+		std::string	disp = this->headers.get_header("content-disposition");
+		// std::string	type = this->headers.get_header("content-type");
+		if (disp.empty()) {
+			log << Log::WARN << "No content disposition" << std::endl;
+			this->status = 400;
+			return true;
+		}
+		log << Log::DEBUG << "Disposition:	[" << disp << "]" << std::endl;
+			// << "\t\t\t\tType:		[" << type << "]" << std::endl;
+		div = disp.find("filename=");
+		if (div == std::string::npos) {
+			log << Log::WARN << "No disposition filename" << std::endl;
+			this->status = 400;
+			return true;
+		}
+		std::string::size_type end(disp.find("\"", div + 10));
+		if (end == std::string::npos) {
+			log << Log::WARN << "Unclosed quote around filename" << std::endl;
+			this->status = 400;
+			return true;
+		}
+		this->target = this->path + trim(
+				disp.substr(div + 10, end - div - 10), "\"");
+		log << Log::DEBUG << "Filename: [" << this->target << "]" << std::endl;
+		// if (type.rfind("text/", 0) != std::string::npos) {
+		// 	log << Log::DEBUG << "Receiving text file" << std::endl;
+		// } else {
+		// 	log << Log::DEBUG << "Receiving binary file" << std::endl;
+		// }
+	}
+	std::string	part = get_delimited(this->raw_, boundary);
+	if (part.empty()) {
+		log << Log::WARN << "EMPTY delimited. Tellg: " << this->raw_.tellg()
+			<< std::endl;
+		this->raw_.clear();
+	}
+	log << Log::DEBUG << "Delimited:" << std::endl << "["
+		<< part << "]" << std::endl << "[" << boundary << "]" << std::endl;
+	div = part.find(boundary);
+	if (div == std::string::npos) {
+		log << Log::DEBUG << "No end file boundary found" << std::endl;
+		this->payload.insert(this->payload.end(), part.begin(), part.end());
+		return false;
+	}
+	std::string	next(part.substr(div));
+	log << Log::DEBUG << "Next [" << next << "]" << std::endl;
+	part.erase(div - 1);
+	this->payload.insert(this->payload.end(), part.begin(), part.end());
+	if (!save_file(this->target, this->payload)) {
+		log << Log::ERROR << "Error saving file" << std::endl;
+		this->status = 500;
+		return true;
+	}
+	this->payload.clear();
+	std::string	tmp(this->raw_.str().substr(this->raw_.tellg()));
+	this->raw_.str(std::string());
+	this->raw_.clear();
+	this->raw_ << next << tmp;
+	log << Log::DEBUG << "\n=== FILE CONTENT ===" << std::endl
+		<< &this->payload[0] << "\n=== END ===" << std::endl
+		<< "+++ RAW +++" << std::endl << this->raw_.str() << std::endl;
+	return this->load_multipart(boundary);
 }

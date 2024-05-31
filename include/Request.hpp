@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:23:14 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/30 00:11:31 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/31 00:33:43 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -57,6 +57,7 @@ class Request
 		std::string get_req_line() const;
 		int get_status() const;
 		std::string get_target() const;
+		std::string get_path() const;
 		std::vector<char> get_payload() const;
 		bool is_dirlist() const;
 		bool is_parsed() const;
@@ -67,6 +68,7 @@ class Request
 
 		void set_status(int status);
 		void set_target(std::string const &path);
+		void set_path(std::string const &path);
 		void set_dirlist(bool value);
 		void set_parsed(bool value);
 		void set_bounced(bool value);
@@ -76,6 +78,7 @@ class Request
 		bool is_valid_method(std::string const &method);
 		bool parse_headers();
 		void load_payload(size_t size);
+		bool load_multipart(std::string const &boundary);
 
 	private:
 		Log					&log;
@@ -90,6 +93,7 @@ class Request
 		int					status;
 		Headers				headers;
 		std::string			target;
+		std::string			path;
 		size_t				loaded_body_size;
 		bool				is_body_loaded_;
 		std::vector<char>	payload;

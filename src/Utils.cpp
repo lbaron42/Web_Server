@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:59:51 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/29 23:57:00 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/31 03:48:51 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -133,4 +133,37 @@ bool icompare(std::string const &lhs, std::string const &rhs)
 	if (lhs.length() == rhs.length())
 		return std::equal(rhs.begin(), rhs.end(), lhs.begin(), icompare_pred);
 	return false;
+}
+
+std::string get_delimited(std::istream &in, std::string const &delimiter)
+{
+	std::string	result;
+	std::string	chunk;
+	size_t		d_size = delimiter.length();
+	size_t		r(0);
+	char		delim = *delimiter.rbegin();
+
+	while (std::getline(in, chunk, delim)) {
+		if (in.eof())
+			return (result + chunk);
+		result += chunk + delim;
+		r = result.length();
+		if (r >= d_size && result.substr(r - d_size, d_size) == delimiter)
+			return result;
+	}
+	return result;
+}
+
+bool save_file(std::string name, std::vector<char> content, bool bin)
+{
+	std::ofstream	ofs;
+	if (bin)
+		ofs.open(name.c_str(), std::ios_base::trunc | std::ios_base::binary);
+	else
+		ofs.open(name.c_str(), std::ios_base::trunc);
+	if (!ofs.is_open())
+		return false;
+	ofs.write(content.data(), content.size());
+	ofs.close();
+	return true;
 }
