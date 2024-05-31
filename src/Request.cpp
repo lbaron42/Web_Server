@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/31 03:48:20 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/31 13:57:33 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -363,7 +363,7 @@ void Request::load_payload(size_t size)
 	}
 }
 
-bool Request::load_multipart(std::string const &boundary)
+bool Request::load_multipart(std::string const &boundary, size_t body_size)
 {
 	std::string				line;
 	std::string::size_type	div;
@@ -406,18 +406,17 @@ bool Request::load_multipart(std::string const &boundary)
 				return true;
 			}
 			std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+			// TODO: Feature - Could check for forbidden mime types here
 			if (key == "content-type")	continue;
 			this->headers.set_header(key, val);
 		}
 		std::string	disp = this->headers.get_header("content-disposition");
-		// std::string	type = this->headers.get_header("content-type");
 		if (disp.empty()) {
 			log << Log::WARN << "No content disposition" << std::endl;
 			this->status = 400;
 			return true;
 		}
 		log << Log::DEBUG << "Disposition:	[" << disp << "]" << std::endl;
-			// << "\t\t\t\tType:		[" << type << "]" << std::endl;
 		div = disp.find("filename=");
 		if (div == std::string::npos) {
 			log << Log::WARN << "No disposition filename" << std::endl;
@@ -433,11 +432,6 @@ bool Request::load_multipart(std::string const &boundary)
 		this->target = this->path + trim(
 				disp.substr(div + 10, end - div - 10), "\"");
 		log << Log::DEBUG << "Filename: [" << this->target << "]" << std::endl;
-		// if (type.rfind("text/", 0) != std::string::npos) {
-		// 	log << Log::DEBUG << "Receiving text file" << std::endl;
-		// } else {
-		// 	log << Log::DEBUG << "Receiving binary file" << std::endl;
-		// }
 	}
 	std::string	part = get_delimited(this->raw_, boundary);
 	if (part.empty()) {
@@ -470,5 +464,5 @@ bool Request::load_multipart(std::string const &boundary)
 	log << Log::DEBUG << "\n=== FILE CONTENT ===" << std::endl
 		<< &this->payload[0] << "\n=== END ===" << std::endl
 		<< "+++ RAW +++" << std::endl << this->raw_.str() << std::endl;
-	return this->load_multipart(boundary);
+	return this->load_multipart(boundary, body_size);
 }

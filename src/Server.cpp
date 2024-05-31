@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/31 03:47:58 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/31 14:08:11 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -577,8 +577,12 @@ void Server::get_head(Request *request, Headers &headers)
 		}
 		return ;
 	}
+	if (access(path.c_str(), F_OK)) {
+		request->set_status(404);
+		return ;
+	}
 	if (access(path.c_str(), R_OK)) {
-		log << Log::ERROR << "Cannot open requested file: "
+		log << Log::DEBUG << "Cannot open requested file: "
 			<< request->get_url() << std::endl;
 		request->set_status(403);
 		return ;
@@ -618,23 +622,31 @@ void Server::get_payload(Request *request, Headers &headers,
 	}
 }
 
+static inline bool get_body_size(std::string const &content_len,
+		size_t *out_size)
+{
+	if (!is_uint(content_len))
+		return false;
+	*out_size = str_tonum<size_t>(content_len);
+	return true;
+}
+
 void Server::load_request_body(Request *request)
 {
 	size_t		body_size(0);
-	std::string	content_len = request->get_header("content-length");
-	if (!is_uint(content_len)) {
+
+	if (!get_body_size(request->get_header("content-length"), *body_size)) {
 		log << Log::DEBUG << "Content-Length value is not a valid number"
 			<< std::endl;
 		request->set_status(400);
 		return ;
 	}
-	body_size = str_tonum<size_t>(content_len);
 	if (!request->get_loaded_body_size()
 	&& body_size > this->info.client_max_body_size) {
-			log << Log::DEBUG << "Content-Length exceeds max body size"
-				<< std::endl;
-			request->set_status(413);
-			return ;
+		log << Log::DEBUG << "Content-Length exceeds max body size"
+			<< std::endl;
+		request->set_status(413);
+		return ;
 	}
 	request->load_payload(body_size - request->get_loaded_body_size());
 }
@@ -646,53 +658,65 @@ void Server::handle_post_request(Request *request, Headers &headers,
 	std::string::size_type	div(content_type.find(";"));
 	std::string::size_type	pos;
 	std::string				type(content_type.substr(0, div));
+	size_t					body_size(0);
 
 	if (request->get_path().empty()) {
 		request->set_path(this->resolve_address(request, headers));
 		if (request->get_path().empty())
 			request->set_status(400);
 	}
-	if (request->get_status() >= 400) {
-		log << Log::DEBUG << "Status: " << request->get_status() << std::endl;
+	if (request->get_status() >= 400)
 		return ;
-	}
 	if (type == "application/x-www-form-urlencoded") {
 		log << Log::DEBUG << "URL encoded form body" << std::endl;
-		// if (!request->is_body_loaded())
-		// 	this->load_request_body(request);
-		// if (!request->is_body_loaded())
-		// 	return ;
+		if (!request->is_body_loaded())
+			this->load_request_body(request);
+		if (!request->is_body_loaded())
+			return ;
 	} else if (type == "application/json") {
 		log << Log::DEBUG << "JSON encoded form body" << std::endl;
-		// if (!request->is_body_loaded())
-		// 	this->load_request_body(request);
-		// if (!request->is_body_loaded())
-		// 	return ;
+		if (!request->is_body_loaded())
+			this->load_request_body(request);
+		if (!request->is_body_loaded())
+			return ;
 	} else if (type == "multipart/form-data" && div != std::string::npos
 	&& ((pos = content_type.find("boundary=", div + 1)) != std::string::npos)) {
 		std::string	boundary(trim(content_type.substr(pos + 9)));
 		log << Log::DEBUG << "Multipart encoded form body" << std::endl
 			<< "Boundary:	[" << boundary << "]" << std::endl;
-		if (!request->load_multipart("--" + boundary)
+		if (get_body_size(request->get_header("content-length"), *body_size)) {
+			log << Log::DEBUG << "Content-Length value is not a valid number"
+				<< std::endl;
+			request->set_status(400);
+			return ;
+		}
+		if (!request->get_loaded_body_size()
+		&& body_size > this->info.client_max_body_size) {
+			log << Log::DEBUG << "Content-Length exceeds max body size"
+				<< std::endl;
+			request->set_status(413);
+			return ;
+		}
+		if (!request->load_multipart("--" + boundary, body_size)
 		|| request->get_status() >= 400) {
-			log << Log::DEBUG << "Multipart body load failed" << std::endl;
 			return ;
 		}
 	} else {
 		request->set_status(400);
 		return ;
 	}
-
-	// TODO do something with this POST request
-	headers.set_header("Location", "/action.html");
+	// request->set_status(201);
 	request->set_status(303);
 	(void)body;
-	// request->set_status(201);
 }
 
 void Server::handle_put_request(Request *request, Headers &headers,
 		std::vector<char> *body)
 {
+	if (request->get_target().empty())
+		request->set_target(this->resolve_address(request, headers));
+	if (request->get_status() >= 400)
+		return ;
 	if (!request->is_body_loaded())
 		this->load_request_body(request);
 	if (!request->is_body_loaded())
@@ -710,8 +734,8 @@ void Server::handle_put_request(Request *request, Headers &headers,
 		request->set_status(400);
 		return ;
 	}
-	std::string	target(this->info.root + relative_location);
-	bool		file_exists(access(target.c_str(), F_OK) == 0);
+	std::string const	target(request->get_target());
+	bool				file_exists(access(target.c_str(), F_OK) == 0);
 	if (!file_exists || !access(target.c_str(), W_OK)) {
 		std::ofstream	file;
 		if (is_text)
@@ -732,12 +756,12 @@ void Server::handle_put_request(Request *request, Headers &headers,
 		if (!request->get_loaded_body_size())
 			request->set_status(204); // success - no content
 		headers.set_header("Content-Type", type);
-		headers.set_header("Content-Location", relative_location);
+		headers.set_header("Content-Location", request->get_url());
 		if (file_exists) {
-			std::string const	msg("Updated file " + relative_location);
+			std::string const	msg("Updated file " + request->get_url());
 			body->insert(body->end(), msg.begin(), msg.end());
 		} else {
-			std::string const	msg("Created file " + relative_location);
+			std::string const	msg("Created file " + request->get_url());
 			body->insert(body->end(), msg.begin(), msg.end());
 		}
 	} else {
@@ -757,12 +781,28 @@ void Server::handle_delete_request(Request *request, Headers &headers)
 		request->set_status(404);
 		return ;
 	}
+	if (access(path.c_str(), F_OK)) {
+		request->set_status(404);
+		return ;
+	}
 	if (std::remove(path.c_str())) {
 		request->set_status(403);
 		return ;
 	}
 	log << Log::DEBUG << "File to remove: [" << path << "]" << std::endl;
 	request->set_status(204);
+}
+
+// TODO
+void Server::handle_cgi(Request *request, Headers &headers)
+{
+	request->set_target(this->resolve_address(request, headers));
+	if (request->get_status() >= 400)
+		return ;
+	// setup ENV
+	// setup pipes
+	// run CGI
+	
 }
 
 Server &Server::generate_response(Request *request, Headers &headers,
