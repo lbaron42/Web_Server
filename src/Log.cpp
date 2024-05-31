@@ -6,20 +6,21 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 23:58:03 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/18 10:08:39 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/28 23:31:37 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Log.hpp"
 
-#include <iostream>
-
 ////////////////////////////////////////////////////////////////////////////////
 //	CTOR/DTOR
 ////////////////////////////////////////////////////////////////////////////////
 
-Log::Log() : out_(&std::cout), is_file_(false), \
-	verbosity_(Log::INFO), verbosity_curr_(Log::INFO)
+Log::Log()
+	:	out_(&std::cout),
+		is_file_(false),
+		verbosity_(Log::INFO),
+		verbosity_curr_(Log::INFO)
 {}
 
 Log::~Log()
@@ -60,16 +61,25 @@ Log &Log::operator<<(e_loglevel const &severity)
 	this->verbosity_curr_ = severity;
 	if (!this->out_ || this->verbosity_curr_ < this->verbosity_)
 		return *this;
+
+	bool use_colors = !this->is_file_;
+
 	switch (severity) {
-		case DEBUG:	(*this->out_) << "[DEBUG]	"; break;
-		case INFO:	(*this->out_) << "[INFO]	"; break;
-		case WARN:	(*this->out_) << "[WARN]	"; break;
-		case ERROR:	(*this->out_) << "[ERROR]	"; break;
-		default:	(*this->out_) << "[MESSAGE]	"; break;
+		case DEBUG: (*this->out_) << (use_colors ? CYAN : "")
+			<< "[DEBUG]	" << (use_colors ? RESET : ""); break;
+		case INFO: (*this->out_) << (use_colors ? GREEN : "")
+			<< "[INFO]	" << (use_colors ? RESET : ""); break;
+		case WARN: (*this->out_) << (use_colors ? YELLOW : "")
+			<< "[WARN]	" << (use_colors ? RESET : ""); break;
+		case ERROR: (*this->out_) << (use_colors ? RED : "")
+			<< "[ERROR]	" << (use_colors ? RESET : ""); break;
+		default: (*this->out_) << (use_colors ? MAGENTA : "")
+			<< "[MESSAGE]	" << (use_colors ? RESET : ""); break;
 	}
 	this->timestamp();
 	return *this;
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////
 //	Private innards
@@ -77,8 +87,8 @@ Log &Log::operator<<(e_loglevel const &severity)
 
 void Log::timestamp()
 {
-	char		timestamp[20];
 	std::time_t	t;
+	char		timestamp[32];
 
 	t = std::time(NULL);
 	if (std::strftime(timestamp, sizeof(timestamp), \

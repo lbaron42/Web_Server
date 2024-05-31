@@ -6,18 +6,22 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:52:42 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/25 23:13:01 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/29 23:57:13 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef UTILS_HPP
 # define UTILS_HPP
 
+# include <algorithm>
+# include <cctype>
+# include <cstdlib>
 # include <map>
 # include <string>
 # include <sstream>
 # include <vector>
 
+# include <errno.h>
 # include <sys/stat.h>
 # include <sys/types.h>
 
@@ -29,6 +33,15 @@ std::string num_tostr(T num)
 	return oss.str();
 }
 
+template<typename T>
+T str_tonum(std::string const &str)
+{
+	T					num = T();
+	std::istringstream	oss(str);
+	oss >> num;
+	return num;
+}
+
 std::string itoa(int num);
 int atoi(const std::string &str);
 std::string trim(std::string const &str, std::string const &trimchars = " \t");
@@ -38,6 +51,9 @@ std::string const get_mime_type(std::string const &file);
 ssize_t get_file_size(std::string const &filename);
 std::stringstream::pos_type size_of_stream(const std::stringstream& ss);
 bool isDigitString(const std::string& str);
+bool is_uint(std::string const &str);
+bool try_file(std::string const &path);
+bool icompare(std::string const &lhs, std::string const &rhs);
 
 struct MimeType
 {
