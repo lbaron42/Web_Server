@@ -6,7 +6,7 @@
 /*   By: plandolf <plandolf@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/23 17:57:12 by plandolf          #+#    #+#             */
-/*   Updated: 2024/05/31 10:58:52 by plandolf         ###   ########.fr       */
+/*   Updated: 2024/05/31 11:43:35 by plandolf         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -99,7 +99,11 @@ bool CGIHandler::execute(std::string &output) {
 		close(inputPipe[0]);
 		close(outputPipe[1]);
 		if (!requestBody.empty()) {
-			write(inputPipe[1], requestBody.c_str(), requestBody.size());
+			ssize_t bytesWritten = write(inputPipe[1], requestBody.c_str(), requestBody.size());
+			if (bytesWritten == -1) {
+				close(inputPipe[1]);
+				throw std::runtime_error("Failed to write to pipe");
+			}
 		}
 		close(inputPipe[1]);
 		int epoll_fd = epoll_create1(0);
