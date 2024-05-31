@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/31 14:20:00 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/31 14:26:37 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -636,7 +636,7 @@ void Server::load_request_body(Request *request)
 {
 	size_t		body_size(0);
 
-	if (!get_body_size(request->get_header("content-length"), *body_size)) {
+	if (!get_body_size(request->get_header("content-length"), &body_size)) {
 		log << Log::DEBUG << "Content-Length value is not a valid number"
 			<< std::endl;
 		request->set_status(400);
@@ -685,7 +685,7 @@ void Server::handle_post_request(Request *request, Headers &headers,
 		std::string	boundary(trim(content_type.substr(pos + 9)));
 		log << Log::DEBUG << "Multipart encoded form body" << std::endl
 			<< "Boundary:	[" << boundary << "]" << std::endl;
-		if (get_body_size(request->get_header("content-length"), *body_size)) {
+		if (get_body_size(request->get_header("content-length"), &body_size)) {
 			log << Log::DEBUG << "Content-Length value is not a valid number"
 				<< std::endl;
 			request->set_status(400);
