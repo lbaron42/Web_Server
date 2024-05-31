@@ -1,4 +1,4 @@
-## NGINX grammar
+## MarvinX grammar
 ```
 server {
 	[TAB][KEY][SP][VALUE][;] // variables

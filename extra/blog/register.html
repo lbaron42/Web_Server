@@ -17,8 +17,9 @@
         <a class="navbar-brand" href="index.html">Home</a>
     </nav>
     <div class="container">
-        <h2 class="text-center">Register</h2>
-        <form action="/register" method="POST">
+        <h2>Register</h2>
+        <form action="../cgi/handle_db.py" method="POST">
+            <input type="hidden" name="action" value="register">
             <div class="form-group">
                 <label for="username">Username</label>
                 <input type="text" class="form-control" id="username" name="username" required>
@@ -27,8 +28,7 @@
                 <label for="password">Password</label>
                 <input type="password" class="form-control" id="password" name="password" required>
             </div>
-            <button type="submit" class="btn btn-primary btn-block">Register</button>
-            <p class="text-center mt-3"><a href="/login.html">Login here</a></p>
+            <button type="submit" class="btn btn-primary">Register</button>
         </form>
     </div>
 </body>

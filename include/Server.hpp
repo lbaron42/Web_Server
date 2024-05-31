@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/31 12:14:59 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/31 14:19:29 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -70,16 +70,17 @@ struct ServerData
 		std::string							redirection;
 	};
 
-	std::vector<Address>					addresses;
-	std::vector<std::string>				hostnames;
-	std::map<int, std::string>				error_pages;
-	std::vector<std::string>				serv_index;
-	std::string								root;
-	size_t									client_max_body_size;
-	bool									autoindex;
-	Request::e_method						allow_methods;
-	std::map<std::string, std::string>		cgi;
-	std::vector<Location>					locations;
+	std::vector<Address>						addresses;
+	std::vector<std::string>					hostnames;
+	std::map<int, std::string>					error_pages;
+	std::vector<std::string>					serv_index;
+	std::string									root;
+	size_t										client_max_body_size;
+	bool										autoindex;
+	Request::e_method							allow_methods;
+	std::string									cgi_path;
+	std::vector<std::string>					cgi_ext;
+	std::vector<Location>						locations;
 };
 
 class Server
