@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/31 13:57:33 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/01 01:18:04 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -180,8 +180,8 @@ void Request::set_dirlist(bool value)
 void Request::set_parsed(bool value)
 {
 	this->is_parsed_ = value;
-	log << Log::DEBUG << "Remaining raw buffer:" << std::endl
-		<< this->raw_.str() << std::endl;
+	// log << Log::DEBUG << "Remaining raw buffer:" << std::endl
+	// 	<< this->raw_.str() << std::endl;
 }
 
 void Request::set_bounced(bool value)
@@ -328,7 +328,7 @@ bool Request::parse_headers()
 	return false;
 }
 
-void Request::load_payload(size_t size)
+bool Request::load_payload(size_t size)
 {
 	if (!this->loaded_body_size)
 		this->payload.reserve(size);
@@ -361,6 +361,7 @@ void Request::load_payload(size_t size)
 			<< "Body loaded:" << std::endl << &this->payload[0] << std::endl
 			<< "EOF: " << this->raw_.eof() << std::endl;
 	}
+	return partial;
 }
 
 bool Request::load_multipart(std::string const &boundary, size_t body_size)
@@ -407,8 +408,8 @@ bool Request::load_multipart(std::string const &boundary, size_t body_size)
 			}
 			std::transform(key.begin(), key.end(), key.begin(), ::tolower);
 			// TODO: Feature - Could check for forbidden mime types here
-			if (key == "content-type")	continue;
-			this->headers.set_header(key, val);
+			if (key == "content-disposition")
+				this->headers.set_header(key, val);
 		}
 		std::string	disp = this->headers.get_header("content-disposition");
 		if (disp.empty()) {
@@ -429,9 +430,9 @@ bool Request::load_multipart(std::string const &boundary, size_t body_size)
 			this->status = 400;
 			return true;
 		}
-		this->target = this->path + trim(
+		this->path = this->target + trim(
 				disp.substr(div + 10, end - div - 10), "\"");
-		log << Log::DEBUG << "Filename: [" << this->target << "]" << std::endl;
+		log << Log::DEBUG << "Filename: [" << this->path << "]" << std::endl;
 	}
 	std::string	part = get_delimited(this->raw_, boundary);
 	if (part.empty()) {
@@ -451,7 +452,7 @@ bool Request::load_multipart(std::string const &boundary, size_t body_size)
 	log << Log::DEBUG << "Next [" << next << "]" << std::endl;
 	part.erase(div - 1);
 	this->payload.insert(this->payload.end(), part.begin(), part.end());
-	if (!save_file(this->target, this->payload)) {
+	if (!save_file(this->path, this->payload)) {
 		log << Log::ERROR << "Error saving file" << std::endl;
 		this->status = 500;
 		return true;

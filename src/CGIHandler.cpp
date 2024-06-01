@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   CGIHandler.cpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: plandolf <plandolf@student.42.fr>          +#+  +:+       +#+        */
+/*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/23 17:57:12 by plandolf          #+#    #+#             */
-/*   Updated: 2024/05/31 11:46:14 by plandolf         ###   ########.fr       */
+/*   Updated: 2024/06/01 19:33:00 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -145,3 +145,45 @@ bool CGIHandler::execute(std::string &output) {
 		}
 	}
 }
+/* INTERFACE DESIGN SKETCH PROPOSAL */
+// #include "Log.hpp"
+
+// Class CGIHandler
+
+// public:
+// CGIHandler(Log &log);
+// void setenv(std::map<std::string, std::string> envmap);
+// bool execute(std::string const &command, int &pipes[2]); // status of exit
+
+// void kill(int signal); // maybe will be done outside the class
+
+// ssize_t write_to_pipe(std::vector<char> &buff);
+// bool read_from_pipe(std::vector<char> &buff);
+
+// /*
+// 	When is child process done? how we get notified?
+// */
+
+// private:
+// 	Log &log;
+// 	int status;
+// 	int input;
+// 	int output;
+// 	map <> env;
+	
+	
+	
+// CGIHandler(Log &log) : log(log), status(0) {}
+
+// pipes.input
+// pipes.output
+
+// int pfd[2][2];
+// pipe(pfd[0]);
+// pipe(pfd[1]);
+// fork()
+
+// pipes[0] = pfd[1][0];
+// pipes[1] = pfd[0][1];
+
+// close(pipes[0][0]), close [1][1]

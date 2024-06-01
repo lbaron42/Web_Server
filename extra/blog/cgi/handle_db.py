@@ -9,7 +9,7 @@ import html
 
 cgitb.enable()
 
-database_path = "/home/lbaron/core/Web_Server/extra/blog/database"
+database_path = "/home/mcutura/42cursus/Web_Server/extra/blog/database"
 data_file = os.path.join(database_path, "data.txt")
 users_file = os.path.join(database_path, "users.txt")
 

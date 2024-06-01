@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/31 14:26:37 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/01 19:38:15 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -43,10 +43,33 @@ ServerData::ServerData()
 		root(),
 		client_max_body_size(1024 * 1024),
 		autoindex(false),
-		allow_methods(),
+		allow_methods(Request::NONE),
 		cgi_path(),
 		cgi_ext(),
 		locations()
+{}
+
+ServerData::Address::Address()
+	:	ip(),
+		port()
+{}
+
+ServerData::Address::~Address()
+{}
+
+ServerData::Location::Location()
+	:	location_path(),
+		alias(),
+		loc_index(),
+		allow_methods(Request::NONE),
+		autoindex(false),
+		redirection()
+{}
+
+ServerData::Location::~Location()
+{}
+
+ServerData::~ServerData()
 {}
 
 Server::Server(ServerData const &server_data, Log &log)
@@ -58,11 +81,6 @@ Server::Server(ServerData const &server_data, Log &log)
 		keep_alive()
 {}
 
-Server::~Server()
-{
-	std::for_each(this->requests.begin(), this->requests.end(), DelValue());
-}
-
 Server::Server(Server const &rhs)
 	:	info(rhs.info),
 		log(rhs.log),
@@ -72,16 +90,21 @@ Server::Server(Server const &rhs)
 		keep_alive(rhs.keep_alive)
 {}
 
+Server::~Server()
+{
+	std::for_each(this->requests.begin(), this->requests.end(), DelValue());
+}
+
 ////////////////////////////////////////////////////////////////////////////////
-//	Getters/setters
+//	Getters
 ////////////////////////////////////////////////////////////////////////////////
 
-std::vector<ServerData::Address> Server::get_addresses() const
+const std::vector<ServerData::Address> Server::get_addresses() const
 {
 	return this->info.addresses;
 }
 
-std::vector<std::string> Server::get_hostnames() const
+const std::vector<std::string> Server::get_hostnames() const
 {
 	return this->info.hostnames;
 }
@@ -90,7 +113,7 @@ std::vector<std::string> Server::get_hostnames() const
 //	Public methods
 ////////////////////////////////////////////////////////////////////////////////
 
-void Server::init(void)
+void Server::sort_locations(void)
 {
 	CompareLocLen comp;
 	std::sort(this->info.locations.begin(), this->info.locations.end(), comp);
@@ -122,10 +145,8 @@ int Server::setup_socket(char const *service, char const *node)
 			log << Log::ERROR << "Failed to set socket as reusable"
 				<< std::endl;
 		}
-		if (bind(sfd, ptr->ai_addr, ptr->ai_addrlen) == -1) {
+		if (bind(sfd, ptr->ai_addr, ptr->ai_addrlen) == -1)
 			(void)close(sfd);
-			continue;
-		}
 		break;
 	}
 	freeaddrinfo(servinfo);
@@ -289,7 +310,10 @@ bool Server::handle_request(int fd)
 		if (host.empty() && request->is_version_11())
 			request->set_status(400);
 	}
-	if (request->get_status() < 400) {
+	if (this->is_cgi_request(request, hdrs)) {
+		log << Log::DEBUG << "CGI request recognized" << std::endl;
+		this->handle_cgi(request, hdrs);
+	} else if (request->get_status() < 400) {
 		switch (request->get_method()) {
 			case Request::GET:
 				this->get_payload(request, hdrs, &payload);
@@ -304,7 +328,7 @@ bool Server::handle_request(int fd)
 				this->handle_put_request(request, hdrs, &payload);
 				break;
 			case Request::DELETE: 
-				this->handle_delete_request(request, hdrs);
+				this->handle_delete_request(request);
 				break;
 			default:
 				request->set_status(501); break;
@@ -417,8 +441,7 @@ int Server::send_reply(int epoll_fd, int fd)
 void Server::parse_request(int fd)
 {
 	Request	*request = this->requests[fd];
-	if (!request->get_status())
-		request->set_status(request->validate_request_line());
+	request->set_status(request->validate_request_line());
 	if (!request->get_status())
 		return ;
 	if (request->get_status() != 200) {
@@ -551,7 +574,7 @@ std::string Server::resolve_address(Request *request, Headers &headers)
 
 void Server::get_head(Request *request, Headers &headers)
 {
-	std::string	path = this->resolve_address(request, headers);
+	std::string const	path = request->get_target();
 	struct stat	statbuf;
 
 	log << Log::DEBUG << "Resolved URL: [" << path << "]" << std::endl;
@@ -562,7 +585,7 @@ void Server::get_head(Request *request, Headers &headers)
 		log << Log::DEBUG << "File not found" << std::endl;
 		return ;
 	}
-	if (request->get_status() >= 300) {
+	if (request->get_status() >= 400) {
 		return ;
 	}
 	if (!stat(path.c_str(), &statbuf) && S_ISDIR(statbuf.st_mode)) {
@@ -570,7 +593,6 @@ void Server::get_head(Request *request, Headers &headers)
 			headers.set_header("Content-Type", "text/html");
 			headers.set_header("Content-Length",
 					num_tostr(Reply::get_html_size(path, request->get_url())));
-			request->set_target(path);
 			request->set_status(200);
 		} else {
 			log << Log::DEBUG << "Requested file is a directory" << std::endl;
@@ -591,7 +613,6 @@ void Server::get_head(Request *request, Headers &headers)
 	headers.set_header("Content-Type", get_mime_type(path));
 	headers.set_header("Content-Length",
 			num_tostr(get_file_size(path)));
-	request->set_target(path);
 	request->set_status(200);
 }
 
@@ -632,7 +653,7 @@ static inline bool get_body_size(std::string const &content_len,
 	return true;
 }
 
-void Server::load_request_body(Request *request)
+bool Server::load_request_body(Request *request)
 {
 	size_t		body_size(0);
 
@@ -640,16 +661,16 @@ void Server::load_request_body(Request *request)
 		log << Log::DEBUG << "Content-Length value is not a valid number"
 			<< std::endl;
 		request->set_status(400);
-		return ;
+		return false;
 	}
 	if (!request->get_loaded_body_size()
 	&& body_size > this->info.client_max_body_size) {
 		log << Log::DEBUG << "Content-Length exceeds max body size"
 			<< std::endl;
 		request->set_status(413);
-		return ;
+		return false;
 	}
-	request->load_payload(body_size - request->get_loaded_body_size());
+	return request->load_payload(body_size - request->get_loaded_body_size());
 }
 
 void Server::handle_post_request(Request *request, Headers &headers,
@@ -714,10 +735,6 @@ void Server::handle_post_request(Request *request, Headers &headers,
 void Server::handle_put_request(Request *request, Headers &headers,
 		std::vector<char> *body)
 {
-	if (request->get_target().empty())
-		request->set_target(this->resolve_address(request, headers));
-	if (request->get_status() >= 400)
-		return ;
 	if (!request->is_body_loaded())
 		this->load_request_body(request);
 	if (!request->is_body_loaded())
@@ -772,9 +789,9 @@ void Server::handle_put_request(Request *request, Headers &headers,
 	}
 }
 
-void Server::handle_delete_request(Request *request, Headers &headers)
+void Server::handle_delete_request(Request *request)
 {
-	std::string	path(this->resolve_address(request, headers));
+	std::string	path(request->get_target());
 	struct stat	sb;
 
 	if (request->get_status() >= 400)	return;
@@ -794,17 +811,114 @@ void Server::handle_delete_request(Request *request, Headers &headers)
 	request->set_status(204);
 }
 
+bool Server::is_cgi_request(Request *request, Headers &headers)
+{
+	bool is_cgi(request->get_url().rfind(this->info.cgi_path, 0) != std::string::npos);
+	request->set_target(this->resolve_address(request, headers));
+
+	if (request->get_status() >= 400
+	|| this->info.cgi_path.empty() || this->info.cgi_ext.empty()
+	|| !is_cgi) {
+		log << Log::DEBUG << "CGI path:" << this->info.cgi_path << std::endl
+			<< "Target: " << request->get_target() << std::endl;
+		return false;
+	}
+	std::vector<std::string>::const_iterator it(this->info.cgi_ext.begin());
+	for ( ; it != this->info.cgi_ext.end(); ++it) {
+		if (ends_with(request->get_target(), *it))
+			return true;
+	}
+	return false;
+}
+
 // TODO
 void Server::handle_cgi(Request *request, Headers &headers)
 {
-	request->set_target(this->resolve_address(request, headers));
-	if (request->get_status() >= 400)
-		return ;
-	// setup ENV
-	// setup pipes
-	// run CGI
-	
+	(void)request;
+	(void)headers;
+	// if (request->get_status() >= 400)
+	// 	return ;
+	// log << Log::DEBUG << "Running CGI: " << request->get_target() << std::endl;
+	// CGIHandler	cgi(log);
+	// // setup ENV
+	// // TODO: simplify - write Headers to char ** transform predicate
+	// std::map<std::string, std::string> env;
+	// env["REQUEST_METHOD"] = request->get_method();
+	// env["QUERY_STRING"] = request->get_query();
+	// env["CONTENT_LENGTH"] = request->get_header("content-length");
+	// env["CONTENT_TYPE"] = request->get_header("content-type");
+
+	// (void)headers;
+	// // setup pipes
+
+	// int	pfd[2][2];
+	// if (pipe(pfd[0]) || pipe(pfd[1])) {
+	// 	log << Log::ERROR << "Failed creating pipes for cgi"
+	// 		<< std::endl;
+	// 	return ;
+	// }
+	// pid_t pid = fork();
+
+	// if (pid == -1) {
+	// 	log << Log::ERROR << "Failed fork for cgi" << std::endl;
+	// 	return ;
+	// }
+	// if (pid == 0) {
+	// 	close(pfd[0][1]);
+	// 	close(pfd[1][0]);
+	// 	dup2(pfd[0][0], STDIN_FILENO);
+	// 	dup2(pfd[1][1], STDOUT_FILENO);
+	// 	// execl(scriptPath.c_str(), scriptPath.c_str(), (char*)NULL, envp);
+	// 	std::string target = request->get_target();
+	// 	char **argv = new char*[2];
+	// 	argv[0] = const_cast<char*>(target.c_str());
+	// 	argv[1] = NULL;
+	// 	execve(target.c_str(), argv, NULL);
+	// 	delete[] argv;
+	// 	log << Log::ERROR << "Failed execve " << errno << std::endl;
+	// 	request->set_status(500);
+	// 	std::exit(127);
+	// }
+	// close(pfd[0][0]);
+	// close(pfd[1][1]);
+	// waitpid(pid, &this->status, WNOHANG);
+	// return true;
+
+	// CGIHandler cgi(log);
+	// std::map<std::string, std::string> env;
+	// // TODO: simplify - write Headers to char ** transform predicate
+	// env["REQUEST_METHOD"] = request->get_method();
+	// env["QUERY_STRING"] = request->get_query();
+	// cgi.setenv(env);
+	// int	pipes[2];
+	// if (!cgi.execute(request->get_target(), pipes)) {
+	// 	request->set_status(500) // Check status for failed cgi exec
+	// 	return ;
+	// }
+	// epoll_event event = {};
+	// event.events = EPOLLIN;
+	// event.data.fd = pipes[0];
+	// if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, pipes[0], &event))
+	// 	;// error
+	// epoll_event event2 = {};
+	// event2.events = EPOLLOUT;
+	// event2.data.fd = pipes[1];
+	// if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, pipes[1], &event2))
+	// 	;//error
+	// std::map<int, CGIHandler> cgi_pipes;
+
 }
+
+// bool Server::send_to_cgi(int fd)
+// {
+
+// }
+
+// void Server::read_pipe(int fd)
+// {}
+
+// void Server::write_pipe(int fd)
+// {}
 
 Server &Server::generate_response(Request *request, Headers &headers,
 		std::vector<char> const &body, std::vector<char> &repl)
