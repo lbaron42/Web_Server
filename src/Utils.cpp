@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:59:51 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/31 03:48:51 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/01 01:34:14 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -133,6 +133,13 @@ bool icompare(std::string const &lhs, std::string const &rhs)
 	if (lhs.length() == rhs.length())
 		return std::equal(rhs.begin(), rhs.end(), lhs.begin(), icompare_pred);
 	return false;
+}
+
+bool ends_with(std::string const &str, std::string const &end)
+{
+	if (str.length() < end.length())
+		return false;
+	return std::equal(end.rbegin(), end.rend(), str.rbegin());
 }
 
 std::string get_delimited(std::istream &in, std::string const &delimiter)

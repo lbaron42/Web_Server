@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:52:42 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/31 03:49:14 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/05/31 20:43:22 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -55,6 +55,7 @@ bool isDigitString(const std::string& str);
 bool is_uint(std::string const &str);
 bool try_file(std::string const &path);
 bool icompare(std::string const &lhs, std::string const &rhs);
+bool ends_with(std::string const &str, std::string const &end);
 std::string get_delimited(std::istream &in, std::string const &delimiter);
 bool save_file(std::string name, std::vector<char> content, bool bin = true);
 
