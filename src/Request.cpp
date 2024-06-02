@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/01 01:18:04 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/02 03:36:33 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -75,6 +75,16 @@ Request::~Request()
 Request::e_method Request::get_method() const
 {
 	return this->method;
+}
+
+std::string Request::get_method_as_str() const
+{
+	unsigned int m = static_cast<unsigned int>(this->method);
+	unsigned int c = 0;
+	if (m)
+		while (!(m & 1) && ++c < n_methods)
+			m >>= 1;
+	return std::string(methodnames[c]);
 }
 
 std::string Request::get_url() const
@@ -195,9 +205,9 @@ void Request::set_bounced(bool value)
 
 Request::e_method Request::parse_methods(std::string const &str)
 {
-	int					allowed_methods = 0;
-	std::string			method;
 	std::stringstream	ss(str);
+	std::string			method;
+	unsigned int		allowed_methods(0);
 
 	while (ss >> method) {
 		for (size_t i = 1; i < n_methods; ++i) {

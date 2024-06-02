@@ -6,11 +6,13 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/19 16:21:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/30 09:54:56 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/01 20:25:37 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Headers.hpp"
+#include <algorithm>
+#include <vector>
 
 ////////////////////////////////////////////////////////////////////////////////
 //	CTOR/DTOR
@@ -63,6 +65,19 @@ std::set<std::string> Headers::get_keys() const
 	std::transform(this->headers.begin(), this->headers.end(),
 		std::inserter(keys, keys.end()), getKey);
 	return keys;
+}
+
+std::vector<char const *> Headers::get_as_env(void) const
+{
+	std::vector<char const *>	result;
+	std::map<std::string, std::string>::const_iterator it;
+	for (it = this->headers.begin(); it != this->headers.end(); ++it) {
+		std::string tmp(it->first);
+		std::transform(tmp.begin(), tmp.end(), tmp.begin(), ::toupper);
+		tmp.append("=" + it->second);
+		result.push_back(tmp.c_str());
+	}
+	return result;
 }
 
 void Headers::set_header(std::string const &key, std::string const &value)

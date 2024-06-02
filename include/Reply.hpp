@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 07:56:07 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/25 03:45:00 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/02 09:39:27 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,6 +27,8 @@
 # include <sys/stat.h>
 # include <sys/types.h>
 
+# include "Request.hpp"
+# include "Headers.hpp"
 # include "Utils.hpp"
 
 class Reply
@@ -43,6 +45,8 @@ class Reply
 		static size_t get_html_size(int status);
 		static size_t get_html_size(std::string const &listed_directory,
 				std::string const &url);
+		static void generate_response(Request *request, Headers &headers,
+		std::vector<char> const &body, std::vector<char> &repl);
 
 	private:
 		Reply();

@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/01 17:26:03 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/02 10:02:27 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -97,29 +97,35 @@ class Server
 
 		const std::vector<ServerData::Address> get_addresses() const;
 		const std::vector<std::string> get_hostnames() const;
+		std::vector<std::pair<int, CGIHandler*> > get_cgi_pipes();
+		void set_epoll(int epoll_fd);
 
 		void sort_locations(void);
 		int setup_socket(char const *service, char const *node);
-		int add_client(int epoll_fd, int listen_fd);
-		void close_connection(int epoll_fd, int fd);
-		bool recv_request(int epoll_fd, int fd,
+		int add_client(int listen_fd);
+		void close_connection(int fd);
+		bool recv_request(int fd,
 				std::queue<std::pair<Request*, int> > &que);
 		void register_request(int client_fd, Request *request);
 		bool handle_request(int fd);
 		Server &check_queue(int fd);
 		bool matches_hostname(Request *request);
-		bool switch_epoll_mode(int epoll_fd, int fd, uint32_t events);
-		int send_reply(int epoll_fd, int fd);
+		bool switch_epoll_mode(int fd, uint32_t events);
+		bool send_reply(int fd);
 		~Server();
 
 	private:
-		ServerData							info;
-		Log									&log;
-		std::set<int>						clients;
-		std::map<int, Request*>				requests;
-		std::map<int, std::vector<char> >	replies;
-		std::set<int>						keep_alive;
+		ServerData									info;
+		Log											&log;
+		int											epoll_fd;
+		std::set<int>								clients;
+		std::map<int, Request*>						requests;
+		std::map<int, std::vector<char> >			replies;
+		std::set<int>								keep_alive;
+		std::map<int, CGIHandler*>					cgis;
+		std::queue<std::pair<int, CGIHandler*> >	upstream_q;
 
+		bool add_epoll_mode(int fd, uint32_t events);
 		void parse_request(int fd);
 		Server &drop_request(int fd);
 		Server &enqueue_reply(int fd, std::vector<char> const &reply);
@@ -134,9 +140,11 @@ class Server
 				std::vector<char> *body);
 		void handle_delete_request(Request *request);
 		bool is_cgi_request(Request *request, Headers &headers);
-		void handle_cgi(Request *request, Headers &headers);
-		Server &generate_response(Request *request, Headers &headers,
-				std::vector<char> const &body, std::vector<char> &repl);
+		bool handle_cgi(int fd, Request *request);
+		// Server &generate_response(Request *request, Headers &headers,
+		// 		std::vector<char> const &body, std::vector<char> &repl);
+		void prepare_error_page(Request *request, Headers &hdrs,
+				std::vector<char> &payload);
 		void internal_error(int fd, int code);
 
 		/* no assign to object with reference member (here: Log) */

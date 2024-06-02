@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 07:54:45 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/27 20:42:56 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/02 09:36:43 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -125,6 +125,28 @@ size_t Reply::get_html_size(std::string const &listed_directory,
 		std::string const &url)
 {
 	return (Reply::get_listing(listed_directory, url)).length();
+}
+
+void Reply::generate_response(Request *request, Headers &headers,
+		std::vector<char> const &body, std::vector<char> &repl)
+{
+	std::string tmp = Reply::get_status_line(request->is_version_11(),
+			request->get_status());
+	repl.insert(repl.end(), tmp.begin(), tmp.end());
+
+	std::stringstream ss;
+	ss >> std::noskipws;
+	ss << headers << "\r\n";
+	char c;
+	while (ss >> c)
+		repl.push_back(c);
+	if (!body.empty()) {
+		repl.insert(repl.end(), body.begin(), body.end());
+		repl.push_back('\r');
+		repl.push_back('\n');
+	}
+	repl.push_back('\r');
+	repl.push_back('\n');
 }
 
 std::string const Reply::get_status_message(int status)

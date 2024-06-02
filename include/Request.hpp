@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:23:14 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/01 01:15:48 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/02 03:28:34 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -49,6 +49,7 @@ class Request
 		static e_method parse_methods(std::string const &str);
 
 		e_method get_method() const;
+		std::string get_method_as_str() const;
 		std::string get_url() const;
 		std::string get_query() const;
 		bool is_version_11() const;

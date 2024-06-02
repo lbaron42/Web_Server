@@ -6,13 +6,14 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/18 19:51:30 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/29 07:32:46 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/02 02:23:42 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef CLUSTER_HPP
 # define CLUSTER_HPP
 
+#include "CGIHandler.hpp"
 # ifndef STRICT_EVALUATOR
 #  define STRICT_EVALUATOR 0
 # endif
@@ -56,6 +57,10 @@ class Cluster
 		std::map<int, std::vector<Server const*> >	listen_fds;
 		std::map<int, Server const*>				client_fds;
 		std::queue<std::pair<Request*, int> >		bounce_que;
+		std::map<int, CGIHandler*>					cgis;
+
+		void manage_bounce_que(void);
+		void update_cgi_pipes(void);
 
 		Cluster(Cluster const &rhs);
 		Cluster &operator=(Cluster const &rhs);

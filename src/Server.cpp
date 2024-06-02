@@ -6,11 +6,12 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/01 19:38:15 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/02 11:52:19 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Server.hpp"
+#include <ostream>
 
 ////////////////////////////////////////////////////////////////////////////////
 //	Functors
@@ -75,19 +76,23 @@ ServerData::~ServerData()
 Server::Server(ServerData const &server_data, Log &log)
 	:	info(server_data),
 		log(log),
+		epoll_fd(-1),
 		clients(),
 		requests(),
 		replies(),
-		keep_alive()
+		keep_alive(),
+		cgis()
 {}
 
 Server::Server(Server const &rhs)
 	:	info(rhs.info),
 		log(rhs.log),
+		epoll_fd(rhs.epoll_fd),
 		clients(rhs.clients),
 		requests(rhs.requests),
 		replies(rhs.replies),
-		keep_alive(rhs.keep_alive)
+		keep_alive(rhs.keep_alive),
+		cgis(rhs.cgis)
 {}
 
 Server::~Server()
@@ -96,7 +101,7 @@ Server::~Server()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//	Getters
+//	Getters/Setters
 ////////////////////////////////////////////////////////////////////////////////
 
 const std::vector<ServerData::Address> Server::get_addresses() const
@@ -107,6 +112,28 @@ const std::vector<ServerData::Address> Server::get_addresses() const
 const std::vector<std::string> Server::get_hostnames() const
 {
 	return this->info.hostnames;
+}
+
+std::vector<std::pair<int, CGIHandler*> > Server::get_cgi_pipes()
+{
+	std::vector<std::pair<int, CGIHandler*> >	result;
+
+	while (!this->upstream_q.empty()) {
+		std::pair<int, CGIHandler*> in = this->upstream_q.front();
+		this->upstream_q.pop();
+		if (this->upstream_q.empty())
+			return result;
+		std::pair<int, CGIHandler*> out = this->upstream_q.front();
+		this->upstream_q.pop();
+		result.push_back(in);
+		result.push_back(out);
+	}
+	return result;
+}
+
+void Server::set_epoll(int epoll_fd)
+{
+	this->epoll_fd = epoll_fd;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -162,7 +189,7 @@ int Server::setup_socket(char const *service, char const *node)
 	return sfd;
 }
 
-int Server::add_client(int epoll_fd, int listen_fd)
+int Server::add_client(int listen_fd)
 {
 	// We default to be anonymous accepting (non-tracking) server
 	int client_fd = STRICT_EVALUATOR ?
@@ -176,7 +203,7 @@ int Server::add_client(int epoll_fd, int listen_fd)
 	epoll_event event = {};
 	event.events = EPOLLIN;
 	event.data.fd = client_fd;
-	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &event)) {
+	if (epoll_ctl(this->epoll_fd, EPOLL_CTL_ADD, client_fd, &event)) {
 		log << Log::ERROR << "Failed to add client_fd " << client_fd
 			<< " to epoll_ctl" << std::endl;
 		(void)close(client_fd);
@@ -190,9 +217,9 @@ int Server::add_client(int epoll_fd, int listen_fd)
 	return client_fd;
 }
 
-void Server::close_connection(int epoll_fd, int fd)
+void Server::close_connection(int fd)
 {
-	if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL) == -1) {
+	if (epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, fd, NULL) == -1) {
 		log << Log::ERROR << "Failed to remove fd from epoll" << std::endl;
 	}
 	(void)close(fd);
@@ -206,7 +233,7 @@ void Server::close_connection(int epoll_fd, int fd)
 	log << Log::INFO << "Closed connection with client: " << fd << std::endl;
 }
 
-bool Server::recv_request(int epoll_fd, int fd,
+bool Server::recv_request(int fd,
 		std::queue<std::pair<Request*, int> > &que)
 {
 	char				buff[4096];
@@ -220,7 +247,7 @@ bool Server::recv_request(int epoll_fd, int fd,
 			return false;
 		case 0:
 			log << Log::INFO << "Client closed connection" << std::endl;
-			this->close_connection(epoll_fd, fd);
+			this->close_connection(fd);
 			return true;
 		default:
 			msg = std::string(buff, r);
@@ -234,7 +261,7 @@ bool Server::recv_request(int epoll_fd, int fd,
 		if (!request) {
 			log << Log::ERROR << "Memory allocation failed!" << std::endl;
 			this->internal_error(fd, 500);
-			return !this->switch_epoll_mode(epoll_fd, fd, EPOLLOUT);
+			return !this->switch_epoll_mode(fd, EPOLLOUT);
 		}
 		this->requests.insert(std::make_pair(fd, request));
 	} else {
@@ -255,7 +282,7 @@ bool Server::recv_request(int epoll_fd, int fd,
 			return false;
 		}
 		if (this->handle_request(fd))
-			return !this->switch_epoll_mode(epoll_fd, fd, EPOLLOUT);
+			return !this->switch_epoll_mode(fd, EPOLLOUT);
 	}
 	return false;
 }
@@ -303,16 +330,23 @@ bool Server::handle_request(int fd)
 	Request				*request = this->requests[fd];
 	Headers				hdrs;
 	std::vector<char>	payload;
-	std::vector<char>	repl;
 
 	if (request->is_bounced()) {
 		std::string const host = request->get_header("host");
-		if (host.empty() && request->is_version_11())
+		if (host.empty() && request->is_version_11()) {
 			request->set_status(400);
+			this->prepare_error_page(request, hdrs, payload);
+		}
 	}
 	if (this->is_cgi_request(request, hdrs)) {
 		log << Log::DEBUG << "CGI request recognized" << std::endl;
-		this->handle_cgi(request, hdrs);
+		if (!this->handle_cgi(fd, request)) {
+			if (this->requests.count(fd))
+				this->prepare_error_page(request, hdrs, payload);
+			else
+				return true;
+		} else
+			return false;
 	} else if (request->get_status() < 400) {
 		switch (request->get_method()) {
 			case Request::GET:
@@ -338,31 +372,16 @@ bool Server::handle_request(int fd)
 			hdrs.set_header("Connection", "close");
 		else
 			hdrs.set_header("Connection", "keep-alive");
-	}
-	if (request->get_status() >= 400) {
-		std::map<int, std::string>::const_iterator it = this
-				->info.error_pages.find(request->get_status());
-		if (it != this->info.error_pages.end()) {
-			std::string path(this->info.root + "/" + it->second);
-			payload = Reply::get_payload(path);
-			hdrs.set_header("Content-Length", num_tostr(payload.size()));
+
+		if (request->get_status() < 400
+		&& (request->get_method() & (Request::POST | Request::PUT))
+		&& !request->is_body_loaded()) {
+			log << Log::DEBUG << "Incomplete request body, returning to epoll"
+				<< std::endl;
+			return false;
 		}
-		if (payload.empty()) {
-			std::string tmp = Reply::generate_error_page(request->get_status());
-			payload.insert(payload.end(), tmp.begin(), tmp.end());
-			hdrs.set_header("Content-Length", num_tostr(tmp.length()));
-		}
-		if (request->get_method() == Request::HEAD) {
-			payload.clear();
-		}
-		hdrs.set_header("Content-Type", "text/html");
-		hdrs.set_header("Connection", "close");
-	} else if ((request->get_method() == Request::POST
-	|| request->get_method() == Request::PUT)
-	&& !request->is_body_loaded()) {
-		log << Log::DEBUG << "Incomplete request body, returning to epoll"
-			<< std::endl;
-		return false;
+		if (request->get_status() >= 400)
+			this->prepare_error_page(request, hdrs, payload);
 	}
 
 	log << Log::INFO << "Request from client: " << fd
@@ -374,8 +393,10 @@ bool Server::handle_request(int fd)
 		this->keep_alive.insert(fd);
 	else
 		this->keep_alive.erase(fd);
-	this->generate_response(request, hdrs, payload, repl)
-		.enqueue_reply(fd, repl)
+
+	std::vector<char>	repl;
+	Reply::generate_response(request, hdrs, payload, repl);
+	this->enqueue_reply(fd, repl)
 		.drop_request(fd)
 		.check_queue(fd);
 	return true;
@@ -391,52 +412,67 @@ Server &Server::check_queue(int fd)
 	return *this;
 }
 
-bool Server::switch_epoll_mode(int epoll_fd, int fd, uint32_t events)
+bool Server::switch_epoll_mode(int fd, uint32_t events)
 {
 	epoll_event event = {};
 	event.events = events;
 	event.data.fd = fd;
-	if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &event)) {
-		log << Log::ERROR << "Failed to modify polling for fd "
+	if (epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, fd, &event)) {
+		log << Log::ERROR << "Failed to modify polling for fd: "
 			<< fd << std::endl;
-		this->close_connection(epoll_fd, fd);
+		this->close_connection(fd);
 		return false;
 	}
 	return true;
 }
 
-int Server::send_reply(int epoll_fd, int fd)
+bool Server::send_reply(int fd)
 {
 	ssize_t	s;
 
+	std::map<int, CGIHandler*>::iterator cg = this->cgis.find(fd);
+	if (cg != this->cgis.end()) {
+		return cg->second->send_reply();
+	}
 	std::map<int, std::vector<char> >::iterator it = this->replies.find(fd);
 	if (it == this->replies.end()) {
 		log << Log::WARN << "Un numero sbagliato" << std::endl;
-		return -1;
+		return false;
 	}
 	s = send(fd, it->second.data(), it->second.size(), MSG_DONTWAIT);
 	log << Log::DEBUG << "Reply sent " << s << " bytes" << std::endl;
 	if (s < 0) {
 		log << Log::ERROR << "Failed to send message" << std::endl;
-		this->close_connection(epoll_fd, fd);
-		return -1;
+		this->close_connection(fd);
+		return false;
 	}
 	if (static_cast<size_t>(s) < it->second.size()) {
 		it->second.erase(it->second.begin(), it->second.begin() + s);
-		return 0;
+		return true;
 	}
 	this->replies.erase(fd);
 	if (!this->keep_alive.count(fd)
-	|| !this->switch_epoll_mode(epoll_fd, fd, EPOLLIN)) {
-		this->close_connection(epoll_fd, fd);
-		return -1;
-	}
-	return 0;
+	|| !this->switch_epoll_mode(fd, EPOLLIN))
+		return false;
+	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 //	Private innards
 ////////////////////////////////////////////////////////////////////////////////
+
+bool Server::add_epoll_mode(int fd, uint32_t events)
+{
+	epoll_event event = {};
+	event.events = events;
+	event.data.fd = fd;
+	if (epoll_ctl(this->epoll_fd, EPOLL_CTL_ADD, fd, &event)) {
+		log << Log::ERROR << "Failed to adding fd to polling"
+			<< std::endl;
+		return false;
+	}
+	return true;
+}
 
 void Server::parse_request(int fd)
 {
@@ -813,14 +849,13 @@ void Server::handle_delete_request(Request *request)
 
 bool Server::is_cgi_request(Request *request, Headers &headers)
 {
-	bool is_cgi(request->get_url().rfind(this->info.cgi_path, 0) != std::string::npos);
 	request->set_target(this->resolve_address(request, headers));
 
 	if (request->get_status() >= 400
-	|| this->info.cgi_path.empty() || this->info.cgi_ext.empty()
-	|| !is_cgi) {
-		log << Log::DEBUG << "CGI path:" << this->info.cgi_path << std::endl
-			<< "Target: " << request->get_target() << std::endl;
+	|| request->get_url().rfind(this->info.cgi_path, 0) == std::string::npos
+	|| this->info.cgi_path.empty() || this->info.cgi_ext.empty()) {
+		log << Log::DEBUG << "CGI path: " << this->info.cgi_path << std::endl
+			<< "URL: " << request->get_url() << std::endl;
 		return false;
 	}
 	std::vector<std::string>::const_iterator it(this->info.cgi_ext.begin());
@@ -832,138 +867,75 @@ bool Server::is_cgi_request(Request *request, Headers &headers)
 }
 
 // TODO
-void Server::handle_cgi(Request *request, Headers &headers)
+bool Server::handle_cgi(int fd, Request *request)
 {
-	(void)request;
-	(void)headers;
-	// if (request->get_status() >= 400)
-	// 	return ;
-	// log << Log::DEBUG << "Running CGI: " << request->get_target() << std::endl;
-	// CGIHandler	cgi(log);
-	// // setup ENV
-	// // TODO: simplify - write Headers to char ** transform predicate
-	// std::map<std::string, std::string> env;
-	// env["REQUEST_METHOD"] = request->get_method();
-	// env["QUERY_STRING"] = request->get_query();
-	// env["CONTENT_LENGTH"] = request->get_header("content-length");
-	// env["CONTENT_TYPE"] = request->get_header("content-type");
+	if (request->get_status() >= 400)
+		return false;
+	log << Log::DEBUG << "Running CGI: " << request->get_target() << std::endl;
 
-	// (void)headers;
-	// // setup pipes
+	int			pipes[2];
+	CGIHandler	*cgi = new (std::nothrow)
+				CGIHandler(this->log, fd, this->info.client_max_body_size);
+	if (!cgi) {
+		log << Log::ERROR << "Memory allocation failed!" << std::endl;
+		request->set_status(500);
+		return false;
+	}
 
-	// int	pfd[2][2];
-	// if (pipe(pfd[0]) || pipe(pfd[1])) {
-	// 	log << Log::ERROR << "Failed creating pipes for cgi"
-	// 		<< std::endl;
-	// 	return ;
-	// }
-	// pid_t pid = fork();
-
-	// if (pid == -1) {
-	// 	log << Log::ERROR << "Failed fork for cgi" << std::endl;
-	// 	return ;
-	// }
-	// if (pid == 0) {
-	// 	close(pfd[0][1]);
-	// 	close(pfd[1][0]);
-	// 	dup2(pfd[0][0], STDIN_FILENO);
-	// 	dup2(pfd[1][1], STDOUT_FILENO);
-	// 	// execl(scriptPath.c_str(), scriptPath.c_str(), (char*)NULL, envp);
-	// 	std::string target = request->get_target();
-	// 	char **argv = new char*[2];
-	// 	argv[0] = const_cast<char*>(target.c_str());
-	// 	argv[1] = NULL;
-	// 	execve(target.c_str(), argv, NULL);
-	// 	delete[] argv;
-	// 	log << Log::ERROR << "Failed execve " << errno << std::endl;
-	// 	request->set_status(500);
-	// 	std::exit(127);
-	// }
-	// close(pfd[0][0]);
-	// close(pfd[1][1]);
-	// waitpid(pid, &this->status, WNOHANG);
-	// return true;
-
-	// CGIHandler cgi(log);
-	// std::map<std::string, std::string> env;
-	// // TODO: simplify - write Headers to char ** transform predicate
-	// env["REQUEST_METHOD"] = request->get_method();
-	// env["QUERY_STRING"] = request->get_query();
-	// cgi.setenv(env);
-	// int	pipes[2];
-	// if (!cgi.execute(request->get_target(), pipes)) {
-	// 	request->set_status(500) // Check status for failed cgi exec
-	// 	return ;
-	// }
-	// epoll_event event = {};
-	// event.events = EPOLLIN;
-	// event.data.fd = pipes[0];
-	// if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, pipes[0], &event))
-	// 	;// error
-	// epoll_event event2 = {};
-	// event2.events = EPOLLOUT;
-	// event2.data.fd = pipes[1];
-	// if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, pipes[1], &event2))
-	// 	;//error
-	// std::map<int, CGIHandler> cgi_pipes;
-
+	if (!cgi->execute(pipes, request)) {
+		delete cgi;
+		request->set_status(502);
+		return false;
+	}
+	this->requests.erase(fd);
+	if (this->add_epoll_mode(pipes[0], EPOLLIN)
+	||	this->add_epoll_mode(pipes[1], EPOLLOUT)) {
+		delete cgi;
+		this->internal_error(fd, 500);
+		return false;
+	}
+	this->cgis[fd] = cgi;
+	this->upstream_q.push(std::make_pair(pipes[0], cgi));
+	this->upstream_q.push(std::make_pair(pipes[1], cgi));
+	return true;
 }
 
-// bool Server::send_to_cgi(int fd)
-// {
-
-// }
-
-// void Server::read_pipe(int fd)
-// {}
-
-// void Server::write_pipe(int fd)
-// {}
-
-Server &Server::generate_response(Request *request, Headers &headers,
-		std::vector<char> const &body, std::vector<char> &repl)
+void Server::prepare_error_page(Request *request, Headers &hdrs,
+		std::vector<char> &payload)
 {
-	std::string tmp = Reply::get_status_line(request->is_version_11(),
-			request->get_status());
-	repl.insert(repl.end(), tmp.begin(), tmp.end());
-
-	std::stringstream ss;
-	ss >> std::noskipws;
-	ss << headers << "\r\n";
-	char c;
-	while (ss >> c)
-		repl.push_back(c);
-	if (!body.empty()) {
-		repl.insert(repl.end(), body.begin(), body.end());
-		repl.push_back('\r');
-		repl.push_back('\n');
+	std::map<int, std::string>::const_iterator it = this
+			->info.error_pages.find(request->get_status());
+	if (it != this->info.error_pages.end()) {
+		std::string path(this->info.root + "/" + it->second);
+		payload = Reply::get_payload(path);
+		hdrs.set_header("Content-Length", num_tostr(payload.size()));
 	}
-	repl.push_back('\r');
-	repl.push_back('\n');
-	return *this;
+	if (payload.empty()) {
+		std::string tmp = Reply::generate_error_page(request->get_status());
+		payload.insert(payload.end(), tmp.begin(), tmp.end());
+		hdrs.set_header("Content-Length", num_tostr(tmp.length()));
+	}
+	if (request->get_method() == Request::HEAD) {
+		payload.clear();
+	}
+	hdrs.set_header("Content-Type", "text/html");
+	hdrs.set_header("Connection", "close");
 }
 
 void Server::internal_error(int fd, int code)
 {
-	std::string const	stat_line = Reply::get_status_line(true, code);
-	std::vector<char>	reply(stat_line.begin(), stat_line.end());
+	std::vector<char>	reply;
 	std::string const	body = Reply::generate_error_page(code);
-	Headers				hdrs;
 
-	hdrs.set_header("Connection", "close");
-	hdrs.set_header("Content-Type", "text/html");
-	hdrs.set_header("Content-Length", num_tostr(body.size()));
-	std::stringstream ss;
-	ss >> std::noskipws;
-	ss << hdrs << "\r\n";
-	char c;
-	while (ss >> c)
-		reply.push_back(c);
+	std::ostringstream	oss;
+	oss << "HTTP/1.1 500 Internal Server Error\r\n"
+		<< "Connection: close\r\n"
+		<< "Content-Type: text/html\r\n"
+		<< "\r\n";
+	// char c;
+	// while (oss >> c)
+	// 	reply.push_back(c);
 	std::copy(body.begin(), body.end(), std::back_inserter(reply));
-	reply.push_back('\r');
-	reply.push_back('\n');
-	reply.push_back('\r');
-	reply.push_back('\n');
 	this->keep_alive.erase(fd);
 	(void)this->enqueue_reply(fd, reply);
 }

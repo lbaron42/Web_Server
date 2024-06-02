@@ -6,184 +6,138 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/23 17:57:12 by plandolf          #+#    #+#             */
-/*   Updated: 2024/06/01 19:33:00 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/02 11:52:29 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "CGIHandler.hpp"
 
-CGIHandler::CGIHandler(){}
+////////////////////////////////////////////////////////////////////////////////
+//	CTORs/DTOR
+////////////////////////////////////////////////////////////////////////////////
 
-CGIHandler::CGIHandler(const CGIHandler &src){
-	*this = src;
+CGIHandler::CGIHandler(Log &log, int client, size_t max_body_size)
+	:	log(log),
+		request(NULL),
+		client_fd(client),
+		input(-1),
+		output(-1),
+		pid(-1),
+		status(0),
+		buff(),
+		headers(),
+		reply(),
+		max_body_size(max_body_size)
+{}
+
+CGIHandler::CGIHandler(const CGIHandler &src)
+	:	log(src.log),
+		request(src.request),
+		client_fd(src.client_fd),
+		input(src.input),
+		output(src.output),
+		pid(src.pid),
+		status(src.status),
+		buff(src.buff),
+		headers(src.headers),
+		reply(src.reply),
+		max_body_size(src.max_body_size)
+{}
+
+/* TODO
+ * close pipes, terminate child process, delete request
+ */
+CGIHandler::~CGIHandler()
+{
+	if (this->request)
+		delete request;
 }
 
-CGIHandler &CGIHandler::operator=(const CGIHandler &src){
-	if (this == &src)
-		return *this;
-	this->scriptPath = src.scriptPath;
-	this->environment = src.environment;
-	this->requestBody = src.requestBody;
-	return *this;
-}
+////////////////////////////////////////////////////////////////////////////////
+//	Public methods
+////////////////////////////////////////////////////////////////////////////////
 
-CGIHandler::~CGIHandler(){}
+/* TODO:
+ * Write fork and exec part
+ * No read, write or other blocking calls allowed
+ * If succesful, CGIHandler assumes ownership of the Request*
+ * and should delete it when done with it
+ * @return: true if exec successful
+ */
+bool CGIHandler::execute(int pipes[2], Request *request)
+{
+	std::vector<char const *> argv;
+	argv.push_back(this->request->get_target().c_str());
+	argv.push_back(NULL);
 
-void CGIHandler::setScriptPath(const std::string& path) {
-	scriptPath = path;
-}
+	std::vector<char const *> env(this->request->get_headers().get_as_env());
+	std::string path("PATH_INFO=");
+	// path.append(); // TODO: which path to pass?
+	env.push_back(path.c_str());
+	std::string method("REQUEST_METHOD=");
+	method.append(this->request->get_method_as_str());
+	env.push_back(method.c_str());
+	std::string query("QUERY_STRING=");
+	query.append(this->request->get_query());
+	env.push_back(query.c_str());
+	env.push_back(NULL);
 
-void CGIHandler::setEnvironment(const std::map<std::string, std::string>& env) {
-	environment = env;
-}
-
-void CGIHandler::setRequestBody(const std::string& body) {
-	requestBody = body;
-}
-
-char** CGIHandler::createEnvironmentArray() {
-	char** envp = new char*[environment.size() + 1];
-	int i = 0;
-	std::map<std::string, std::string>::const_iterator it;
-	for (it = environment.begin(); it != environment.end(); ++it) {
-		std::string envVar = it->first + "=" + it->second;
-		envp[i] = new char[envVar.size() + 1];
-		std::strcpy(envp[i], envVar.c_str());
-		++i;
+	int pin[2], pout[2];
+	if (pipe(pin) || pipe(pout))
+		return false;
+	int input = dup2(pin[0], pipes[0]);
+	int output = dup2(pout[1], pipes[1]);
+	if (input < 0 || output < 0) {
+		close(pin[0]);
+		close(pin[1]);
+		close(pout[0]);
+		close(pout[1]);
+		return false;
 	}
-	envp[i] = 0;
-	return envp;
+
+	// TODO: fork -> setup pipeline -> execve
+	// execve(argv[0],
+	// 	const_cast<char* const*>(argv.data()),
+	// 	const_cast<char* const*>(env.data()));
+	return false;
+
+	waitpid(this->pid, &this->status, WNOHANG);
+	this->request = request;
+	return !this->status;
 }
 
-void CGIHandler::destroyEnvironmentArray(char** envp) {
-	for (int i = 0; envp[i] != 0; ++i) {
-		delete[] envp[i];
-	}
-	delete[] envp;
+/* TODO:
+ * NON_BLOCKING write to pipe
+ * writing request body (un-chunked)
+ * @return: true to keep alive, false to close
+ */
+bool CGIHandler::send_output()
+{
+	return false;
 }
 
-std::string CGIHandler::determineScriptType() const {
-	if (scriptPath.size() > 3 && scriptPath.substr(scriptPath.size() - 3) == ".py") {
-		return "python";
-	} else if (scriptPath.size() > 4 && scriptPath.substr(scriptPath.size() - 4) == ".cgi") {
-		return "cgi";
-	} else {
-		return "unknown";
-	}
+/* TODO:
+ * NON_BLOCKING read from pipe
+ * Use internal buffer
+ * apply headers as needed,
+ * after empty line begins message body for Content-Length bytes
+ * prepend with status line before sending to client
+ * @return: true to keep alive, false to close
+ */
+bool CGIHandler::read_input()
+{
+	return false;
 }
 
-
-bool CGIHandler::execute(std::string &output) {
-	
-	int inputPipe[2];
-	int outputPipe[2];
-
-	if (pipe(inputPipe) == -1 || pipe(outputPipe) == -1)
-		throw std::runtime_error("Failed to create pipes");
-	pid_t pid = fork();
-	if (pid == -1)
-		throw std::runtime_error("Failed to fork");
-	if (pid == 0) {
-		close(inputPipe[1]);
-		close(outputPipe[0]);
-		dup2(inputPipe[0], STDIN_FILENO);
-		dup2(outputPipe[1], STDOUT_FILENO);
-		char** envp = createEnvironmentArray();
-		
-		execl(scriptPath.c_str(), scriptPath.c_str(), (char*)NULL, envp);
-		destroyEnvironmentArray(envp);
-		close(inputPipe[0]);
-		close(outputPipe[1]);
-		_exit(127);
-	} else {
-		close(inputPipe[0]);
-		close(outputPipe[1]);
-		if (!requestBody.empty()) {
-			ssize_t bytesWritten = write(inputPipe[1], requestBody.c_str(), requestBody.size());
-			if (bytesWritten == -1) {
-				close(inputPipe[1]);
-				throw std::runtime_error("Failed to write to pipe");
-			}
-		}
-		close(inputPipe[1]);
-		int epoll_fd = epoll_create1(0);
-		if (epoll_fd == -1)
-			throw std::runtime_error("Failed to create epoll file descriptor");
-		struct epoll_event event;
-		event.events = EPOLLIN;
-		event.data.fd = outputPipe[0];
-		if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, outputPipe[0], &event) == -1)
-			throw std::runtime_error("Failed to add file descriptor to epoll");
-		std::vector<char> buffer(4096);
-		std::ostringstream oss;
-		bool done = false;
-		while (!done) {
-			struct epoll_event events[10];
-			int n = epoll_wait(epoll_fd, events, 10, -1);
-			for (int i = 0; i < n; ++i) {
-				if (events[i].data.fd == outputPipe[0]) {
-					ssize_t count = read(outputPipe[0], buffer.data(), buffer.size());
-					if (count == -1) {
-						throw std::runtime_error("Failed to read from pipe");
-					} else if (count == 0) {
-						done = true;
-					} else {
-						oss.write(buffer.data(), count);
-					}
-				}
-			}
-		}
-		close(outputPipe[0]);
-		close(epoll_fd);
-		int status;
-		waitpid(pid, &status, 0);
-		if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-			output = oss.str();
-			return true;
-		} else {
-			return false;
-		}
-	}
+/* TODO:
+ * NON_BLOCKING send queued reply to client
+ * @return: true to keep alive, false to close
+ */
+bool CGIHandler::send_reply()
+{
+	return false;
 }
-/* INTERFACE DESIGN SKETCH PROPOSAL */
-// #include "Log.hpp"
 
-// Class CGIHandler
-
-// public:
-// CGIHandler(Log &log);
-// void setenv(std::map<std::string, std::string> envmap);
-// bool execute(std::string const &command, int &pipes[2]); // status of exit
-
-// void kill(int signal); // maybe will be done outside the class
-
-// ssize_t write_to_pipe(std::vector<char> &buff);
-// bool read_from_pipe(std::vector<char> &buff);
-
-// /*
-// 	When is child process done? how we get notified?
-// */
-
-// private:
-// 	Log &log;
-// 	int status;
-// 	int input;
-// 	int output;
-// 	map <> env;
-	
-	
-	
-// CGIHandler(Log &log) : log(log), status(0) {}
-
-// pipes.input
-// pipes.output
-
-// int pfd[2][2];
-// pipe(pfd[0]);
-// pipe(pfd[1]);
-// fork()
-
-// pipes[0] = pfd[1][0];
-// pipes[1] = pfd[0][1];
-
-// close(pipes[0][0]), close [1][1]
+////////////////////////////////////////////////////////////////////////////////
+//	Private innards
+////////////////////////////////////////////////////////////////////////////////

@@ -6,11 +6,12 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/18 19:51:33 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/01 01:39:00 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/02 10:35:28 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Cluster.hpp"
+#include <csignal>
 
 ////////////////////////////////////////////////////////////////////////////////
 //	Signal handling
@@ -63,6 +64,7 @@ bool Cluster::init_all()
 	for (std::vector<Server>::iterator it = this->servers.begin();
 	it != this->servers.end(); ++it) {
 		it->sort_locations();
+		it->set_epoll(this->epoll_fd);
 		std::vector<ServerData::Address>	addresses(it->get_addresses());
 		std::vector<ServerData::Address>::const_iterator ad = addresses.begin();
 		for ( ; ad != addresses.end(); ++ad) {
@@ -130,10 +132,28 @@ void Cluster::start()
 			listenfd = this->listen_fds.find(fd);
 			if (listenfd != this->listen_fds.end()) {
 				int client = const_cast<Server*>(listenfd->second.front())
-								->add_client(this->epoll_fd, listenfd->first);
+								->add_client(listenfd->first);
 				if (client != -1) {
 					this->client_fds.insert(std::make_pair(
 						client, listenfd->second.front()));
+				}
+				continue;
+			}
+			// TODO
+			std::map<int, CGIHandler*>::iterator cg(this->cgis.find(fd));
+			if (cg != this->cgis.end()) {
+				if (events[i].events & EPOLLERR
+				|| events[i].events & EPOLLHUP) {
+					close(fd);
+					this->cgis.erase(fd);
+					log << Log::DEBUG << "CGI pipe closed" << std::endl;
+					continue;
+				}
+				if (events[i].events & EPOLLIN) {
+					cg->second->read_input();
+				}
+				if (events[i].events & EPOLLOUT) {
+					cg->second->send_output();
 				}
 				continue;
 			}
@@ -145,57 +165,75 @@ void Cluster::start()
 				continue;
 			}
 			if (events[i].events & EPOLLERR || events[i].events & EPOLLHUP) {
-				const_cast<Server*>(it->second)
-					->close_connection(this->epoll_fd, it->first);
+				const_cast<Server*>(it->second)->close_connection(it->first);
 				this->client_fds.erase(it->first);
 				continue;
 			}
 			if (events[i].events & EPOLLIN) {
-				if (const_cast<Server*>(it->second)->recv_request(
-						this->epoll_fd, it->first, this->bounce_que)) {
+				if (const_cast<Server*>(it->second)
+				->recv_request(it->first, this->bounce_que)) {
 					this->client_fds.erase(it->first);
 				}
 			}
 			if (events[i].events & EPOLLOUT) {
-				if (const_cast<Server*>(it->second)
-				->send_reply(this->epoll_fd, it->first) == -1) {
+				if (!const_cast<Server*>(it->second)
+				->send_reply(it->first)) {
 					this->client_fds.erase(it->first);
 				}
 			}
-			while (!bounce_que.empty()) {
-				std::pair<Request *, int> bounced = bounce_que.front();
-				bounce_que.pop();
-				Request	*request = bounced.first;
-				int		cfd = bounced.second;
-				std::vector<Server>::iterator sr = this->servers.begin();
-				for ( ; sr != this->servers.end(); ++sr) {
-					if (sr->matches_hostname(request)) {
-						log << Log::DEBUG << "Found matching host" << std::endl;
-						this->client_fds[cfd] = &(*sr);
-						sr->register_request(cfd, request);
-						if (sr->handle_request(cfd)
-						&& !sr->switch_epoll_mode(
-								this->epoll_fd, cfd, EPOLLOUT)) {
-							this->client_fds.erase(cfd);
-						}
-						break;
-					}
-				}
-				if (sr == this->servers.end()) {
-					log << Log::DEBUG << "No server matching hostname found"
-						<< std::endl;
-					const_cast<Server*>(this->client_fds[cfd])
-						->register_request(cfd, request);
-					if (const_cast<Server*>(this->client_fds[cfd])
-							->handle_request(cfd)
-					&& !(const_cast<Server*>(this->client_fds[cfd])
-							->switch_epoll_mode(this->epoll_fd, cfd, EPOLLOUT)))
-						this->client_fds.erase(cfd);
-				}
-			}
 		}
+		this->manage_bounce_que();
+		this->update_cgi_pipes();
 	}
 	if (marvinX::g_stopme)
 		log << Log::INFO << "SIGINT received - shutting down"
 			<< std::endl;
+}
+
+void Cluster::manage_bounce_que(void)
+{
+	while (!this->bounce_que.empty()) {
+		std::pair<Request *, int> bounced = this->bounce_que.front();
+		this->bounce_que.pop();
+		Request	*request = bounced.first;
+		int		cfd = bounced.second;
+		std::vector<Server>::iterator sr = this->servers.begin();
+		for ( ; sr != this->servers.end(); ++sr) {
+			if (sr->matches_hostname(request)) {
+				log << Log::DEBUG << "Found matching host" << std::endl;
+				this->client_fds[cfd] = &(*sr);
+				sr->register_request(cfd, request);
+				if (sr->handle_request(cfd)
+				&& !sr->switch_epoll_mode(cfd, EPOLLOUT)) {
+					this->client_fds.erase(cfd);
+				}
+				break;
+			}
+		}
+		if (sr == this->servers.end()) {
+			log << Log::DEBUG << "No server matching hostname found"
+				<< std::endl;
+			const_cast<Server*>(this->client_fds[cfd])
+				->register_request(cfd, request);
+			if (const_cast<Server*>(this->client_fds[cfd])
+			->handle_request(cfd)
+			&& !(const_cast<Server*>(this->client_fds[cfd])
+			->switch_epoll_mode(cfd, EPOLLOUT)))
+				this->client_fds.erase(cfd);
+		}
+	}
+}
+
+void Cluster::update_cgi_pipes(void)
+{
+	for (std::vector<Server>::iterator it = this->servers.begin();
+	it != this->servers.end(); ++it) {
+		std::vector<std::pair<int, CGIHandler*> >	tmp(it->get_cgi_pipes());
+		if (tmp.empty())	continue;
+		std::vector<std::pair<int, CGIHandler*> >::iterator cg;
+		for (cg = tmp.begin(); cg != tmp.end(); ++cg) {
+			this->cgis[cg->first] = cg->second;
+		}
+	}
+	return ;
 }
