@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/02 10:02:27 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/02 18:51:42 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -89,6 +89,12 @@ struct ServerData
 	~ServerData();
 };
 
+template <typename T>
+struct DelValue
+{
+	void operator()(std::pair<int, T*> pair)	{ delete pair.second; }
+};
+
 class Server
 {
 	public:
@@ -112,6 +118,7 @@ class Server
 		bool matches_hostname(Request *request);
 		bool switch_epoll_mode(int fd, uint32_t events);
 		bool send_reply(int fd);
+		void shutdown_cgi(CGIHandler *cgi);
 		~Server();
 
 	private:

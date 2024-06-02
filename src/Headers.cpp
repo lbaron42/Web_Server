@@ -6,13 +6,11 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/19 16:21:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/01 20:25:37 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/02 18:03:15 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Headers.hpp"
-#include <algorithm>
-#include <vector>
 
 ////////////////////////////////////////////////////////////////////////////////
 //	CTOR/DTOR
@@ -94,6 +92,17 @@ void Headers::unset_header(std::string const &key)
 {
 	if (this->headers.count(key))
 		this->headers.erase(key);
+}
+
+void Headers::set_date(void)
+{
+	std::time_t	t;
+	char		timestamp[32];
+
+	t = std::time(NULL);
+	if (std::strftime(timestamp, sizeof(timestamp),
+	"%a, %d %b %Y %H:%M:%S %Z", std::gmtime(&t)))
+		this->headers["Date"] = std::string(timestamp);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

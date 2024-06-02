@@ -6,21 +6,15 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/02 12:31:43 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/02 18:52:44 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Server.hpp"
-#include <ostream>
 
 ////////////////////////////////////////////////////////////////////////////////
 //	Functors
 ////////////////////////////////////////////////////////////////////////////////
-
-struct DelValue
-{
-	void operator()(std::pair<int, Request*> pair)	{ delete pair.second; }
-};
 
 struct CompareLocLen
 {
@@ -81,7 +75,8 @@ Server::Server(ServerData const &server_data, Log &log)
 		requests(),
 		replies(),
 		keep_alive(),
-		cgis()
+		cgis(),
+		upstream_q()
 {}
 
 Server::Server(Server const &rhs)
@@ -92,12 +87,20 @@ Server::Server(Server const &rhs)
 		requests(rhs.requests),
 		replies(rhs.replies),
 		keep_alive(rhs.keep_alive),
-		cgis(rhs.cgis)
+		cgis(rhs.cgis),
+		upstream_q(rhs.upstream_q)
 {}
 
 Server::~Server()
 {
-	std::for_each(this->requests.begin(), this->requests.end(), DelValue());
+	std::for_each(
+		this->requests.begin(),
+		this->requests.end(),
+		DelValue<Request>());
+	std::for_each(
+		this->cgis.begin(),
+		this->cgis.end(),
+		DelValue<CGIHandler>());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -228,8 +231,14 @@ void Server::close_connection(int fd)
 		delete it->second;
 		this->requests.erase(it);
 	}
+	std::map<int, CGIHandler*>::iterator cg = this->cgis.find(fd);
+	if (cg != this->cgis.end()) {
+		delete cg->second;
+		this->cgis.erase(cg);
+	}
 	this->replies.erase(fd);
 	this->clients.erase(fd);
+	this->keep_alive.erase(fd);
 	log << Log::INFO << "Closed connection with client: " << fd << std::endl;
 }
 
@@ -244,11 +253,12 @@ bool Server::recv_request(int fd,
 		case -1:
 			log << Log::WARN << "recv client " << fd << " returned error"
 				<< std::endl;
+			this->close_connection(fd);
 			return false;
 		case 0:
 			log << Log::INFO << "Client closed connection" << std::endl;
 			this->close_connection(fd);
-			return true;
+			return false;
 		default:
 			msg = std::string(buff, r);
 	}
@@ -265,7 +275,7 @@ bool Server::recv_request(int fd,
 		if (!request) {
 			log << Log::ERROR << "Memory allocation failed!" << std::endl;
 			this->internal_error(fd, 500);
-			return !this->switch_epoll_mode(fd, EPOLLOUT);
+			return this->switch_epoll_mode(fd, EPOLLOUT);
 		}
 		this->requests.insert(std::make_pair(fd, request));
 	} else {
@@ -283,12 +293,12 @@ bool Server::recv_request(int fd,
 			this->requests[fd]->set_bounced(true);
 			que.push(std::make_pair(this->requests[fd], fd));
 			this->requests.erase(fd);
-			return false;
+			return true;
 		}
 		if (this->handle_request(fd))
-			return !this->switch_epoll_mode(fd, EPOLLOUT);
+			return this->switch_epoll_mode(fd, EPOLLOUT);
 	}
-	return false;
+	return true;
 }
 
 bool Server::matches_hostname(Request *request)
@@ -345,10 +355,9 @@ bool Server::handle_request(int fd)
 	if (this->is_cgi_request(request, hdrs)) {
 		log << Log::DEBUG << "CGI request recognized" << std::endl;
 		if (!this->handle_cgi(fd, request)) {
-			if (this->requests.count(fd))
-				this->prepare_error_page(request, hdrs, payload);
-			else
+			if (!this->requests.count(fd))
 				return true;
+			this->prepare_error_page(request, hdrs, payload);
 		} else
 			return false;
 	} else if (request->get_status() < 400) {
@@ -372,10 +381,12 @@ bool Server::handle_request(int fd)
 				request->set_status(501); break;
 		}
 		if (!request->is_version_11()
-		|| icompare(request->get_header("connection"), "close"))
+		|| !icompare(request->get_header("connection"), "keep-alive"))
 			hdrs.set_header("Connection", "close");
-		else
+		else {
 			hdrs.set_header("Connection", "keep-alive");
+			hdrs.set_header("Keep-Alive", "timeout=60");
+		}
 
 		if (request->get_status() < 400
 		&& (request->get_method() & (Request::POST | Request::PUT))
@@ -393,7 +404,7 @@ bool Server::handle_request(int fd)
 		<< Reply::get_status_message(request->get_status()) << std::endl
 		<< "\t\t\t\t" << request->get_req_line() << std::endl;
 
-	if (hdrs.get_header("Connection") != "close")
+	if (icompare(hdrs.get_header("Connection"), "keep-alive"))
 		this->keep_alive.insert(fd);
 	else
 		this->keep_alive.erase(fd);
@@ -455,10 +466,23 @@ bool Server::send_reply(int fd)
 		return true;
 	}
 	this->replies.erase(fd);
-	if (!this->keep_alive.count(fd)
-	|| !this->switch_epoll_mode(fd, EPOLLIN))
+	if (!this->keep_alive.count(fd)) {
+		this->close_connection(fd);
 		return false;
-	return true;
+	}
+	return this->switch_epoll_mode(fd, EPOLLIN);
+}
+
+void Server::shutdown_cgi(CGIHandler *cgi)
+{
+	for (std::map<int, CGIHandler*>::iterator it = this->cgis.begin();
+	it != this->cgis.end(); ++it) {
+		if (it->second == cgi) {
+			delete cgi;
+			this->cgis.erase(it);
+			break;
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -746,7 +770,7 @@ void Server::handle_post_request(Request *request, Headers &headers,
 		std::string	boundary(trim(content_type.substr(pos + 9)));
 		log << Log::DEBUG << "Multipart encoded form body" << std::endl
 			<< "Boundary:	[" << boundary << "]" << std::endl;
-		if (get_body_size(request->get_header("content-length"), &body_size)) {
+		if (!get_body_size(request->get_header("content-length"), &body_size)) {
 			log << Log::DEBUG << "Content-Length value is not a valid number"
 				<< std::endl;
 			request->set_status(400);

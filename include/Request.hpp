@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:23:14 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/02 03:28:34 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/02 14:01:12 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -79,7 +79,7 @@ class Request
 		bool is_valid_method(std::string const &method);
 		bool parse_headers();
 		bool load_payload(size_t size);
-		bool load_multipart(std::string const &boundary, size_t body_size);
+		bool load_multipart(std::string const &boundary, size_t max_body_size);
 
 	private:
 		Log					&log;

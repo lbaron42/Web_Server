@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 07:54:45 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/02 09:36:43 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/02 14:27:36 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -134,6 +134,7 @@ void Reply::generate_response(Request *request, Headers &headers,
 			request->get_status());
 	repl.insert(repl.end(), tmp.begin(), tmp.end());
 
+	headers.set_date();
 	std::stringstream ss;
 	ss >> std::noskipws;
 	ss << headers << "\r\n";

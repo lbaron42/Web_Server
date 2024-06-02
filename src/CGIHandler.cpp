@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/23 17:57:12 by plandolf          #+#    #+#             */
-/*   Updated: 2024/06/02 12:35:07 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/02 13:26:12 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -66,19 +66,20 @@ CGIHandler::~CGIHandler()
  */
 bool CGIHandler::execute(int pipes[2], Request *request)
 {
-	std::vector<char const *> argv;
-	argv.push_back(this->request->get_target().c_str());
+	std::vector<char const *>	argv;
+	std::string					cmd(request->get_target());
+	argv.push_back(cmd.c_str());
 	argv.push_back(NULL);
 
-	std::vector<char const *> env(this->request->get_headers().get_as_env());
+	std::vector<char const *> env(request->get_headers().get_as_env());
 	std::string path("PATH_INFO=");
 	// path.append(); // TODO: which path to pass?
 	env.push_back(path.c_str());
 	std::string method("REQUEST_METHOD=");
-	method.append(this->request->get_method_as_str());
+	method.append(request->get_method_as_str());
 	env.push_back(method.c_str());
 	std::string query("QUERY_STRING=");
-	query.append(this->request->get_query());
+	query.append(request->get_query());
 	env.push_back(query.c_str());
 	env.push_back(NULL);
 

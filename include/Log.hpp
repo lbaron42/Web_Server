@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 23:51:31 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/28 18:07:10 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/02 14:25:56 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,8 +16,9 @@
 # include <ctime>
 # include <fstream>
 # include <iostream>
-#include <unistd.h>
-#include <typeinfo>
+# include <typeinfo>
+
+# include <unistd.h>
 
 class Log
 {

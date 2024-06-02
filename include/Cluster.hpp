@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/18 19:51:30 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/02 02:23:42 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/02 18:38:15 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,8 +22,12 @@
 #  define DEBUG_MODE 0
 # endif
 
+# define CONNECTION_TIMEOUT	60
+# define CGI_IDLE_TIMEOUT	20
+
 # include <algorithm>
 # include <csignal>
+# include <ctime>
 # include <map>
 # include <queue>
 # include <vector>
@@ -56,11 +60,16 @@ class Cluster
 		std::map<ServerData::Address, int>			bound_addresses;
 		std::map<int, std::vector<Server const*> >	listen_fds;
 		std::map<int, Server const*>				client_fds;
+		std::map<int, time_t>						client_timeouts;
 		std::queue<std::pair<Request*, int> >		bounce_que;
 		std::map<int, CGIHandler*>					cgis;
+		std::map<CGIHandler*, Server*>				cgi_hosts;
+		std::map<CGIHandler*, time_t>				cgi_timeouts;
 
+		void check_timeouts();
 		void manage_bounce_que(void);
 		void update_cgi_pipes(void);
+		bool manage_cgi(epoll_event const &e);
 
 		Cluster(Cluster const &rhs);
 		Cluster &operator=(Cluster const &rhs);

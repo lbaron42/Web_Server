@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/02 03:36:33 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/02 19:11:00 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -374,7 +374,7 @@ bool Request::load_payload(size_t size)
 	return partial;
 }
 
-bool Request::load_multipart(std::string const &boundary, size_t body_size)
+bool Request::load_multipart(std::string const &boundary, size_t max_body_size)
 {
 	std::string				line;
 	std::string::size_type	div;
@@ -382,6 +382,7 @@ bool Request::load_multipart(std::string const &boundary, size_t body_size)
 	if (this->payload.empty()) {
 		this->headers.unset_header("content-disposition");
 		if (std::getline(this->raw_, line)) {
+			this->loaded_body_size += line.length() + 1;
 			if (line == boundary + "--\r"
 			|| line == boundary + "--") {
 				this->is_body_loaded_ = true;
@@ -401,6 +402,7 @@ bool Request::load_multipart(std::string const &boundary, size_t body_size)
 			return true;
 		}
 		while (std::getline(this->raw_, line)) {
+			this->loaded_body_size += line.length() + 1;
 			if (line.empty() || line == "\r")
 				break;
 			div = line.find(":");
@@ -443,6 +445,12 @@ bool Request::load_multipart(std::string const &boundary, size_t body_size)
 		this->path = this->target + trim(
 				disp.substr(div + 10, end - div - 10), "\"");
 		log << Log::DEBUG << "Filename: [" << this->path << "]" << std::endl;
+		if (this->path == this->target) {
+			log << Log::DEBUG << "Empty file upload / no filename"
+				<< std::endl;
+			this->status = 400;
+			return true;
+		}
 	}
 	std::string	part = get_delimited(this->raw_, boundary);
 	if (part.empty()) {
@@ -450,6 +458,8 @@ bool Request::load_multipart(std::string const &boundary, size_t body_size)
 			<< std::endl;
 		this->raw_.clear();
 	}
+	this->loaded_body_size += part.length();
+	if (this->loaded_body_size > max_body_size)
 	log << Log::DEBUG << "Delimited:" << std::endl << "["
 		<< part << "]" << std::endl << "[" << boundary << "]" << std::endl;
 	div = part.find(boundary);
@@ -459,6 +469,7 @@ bool Request::load_multipart(std::string const &boundary, size_t body_size)
 		return false;
 	}
 	std::string	next(part.substr(div));
+	this->loaded_body_size -= next.length();
 	log << Log::DEBUG << "Next [" << next << "]" << std::endl;
 	part.erase(div - 1);
 	this->payload.insert(this->payload.end(), part.begin(), part.end());
@@ -472,8 +483,5 @@ bool Request::load_multipart(std::string const &boundary, size_t body_size)
 	this->raw_.str(std::string());
 	this->raw_.clear();
 	this->raw_ << next << tmp;
-	log << Log::DEBUG << "\n=== FILE CONTENT ===" << std::endl
-		<< &this->payload[0] << "\n=== END ===" << std::endl
-		<< "+++ RAW +++" << std::endl << this->raw_.str() << std::endl;
-	return this->load_multipart(boundary, body_size);
+	return this->load_multipart(boundary, max_body_size);
 }
