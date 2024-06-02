@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/23 11:58:31 by plandolf          #+#    #+#             */
-/*   Updated: 2024/06/02 11:50:15 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/02 12:31:54 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -43,6 +43,7 @@ class CGIHandler{
 		bool read_input();
 		bool send_output();
 		bool send_reply();
+		bool receive();
 
 		~CGIHandler();
 

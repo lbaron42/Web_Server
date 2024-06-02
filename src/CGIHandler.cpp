@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/23 17:57:12 by plandolf          #+#    #+#             */
-/*   Updated: 2024/06/02 11:52:29 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/02 12:35:07 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -134,6 +134,15 @@ bool CGIHandler::read_input()
  * @return: true to keep alive, false to close
  */
 bool CGIHandler::send_reply()
+{
+	return false;
+}
+
+/* TODO:
+ * NON_BLOCKING recv from client, keep doing while !request->is_body_loaded()
+ * @return: true to keep alive, false to close
+ */
+bool CGIHandler::receive()
 {
 	return false;
 }

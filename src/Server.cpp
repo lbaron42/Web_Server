@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/02 11:52:19 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/02 12:31:43 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -255,6 +255,10 @@ bool Server::recv_request(int fd,
 	log << Log::DEBUG << "Received " << r << "b: "
 		<< std::endl << msg << std::endl;
 
+	std::map<int, CGIHandler*>::iterator cg = this->cgis.find(fd);
+	if (cg != this->cgis.end()) {
+		return cg->second->receive();
+	}
 	std::map<int, Request*>::iterator it = this->requests.find(fd);
 	if (it == this->requests.end()) {
 		Request *request = new (std::nothrow) Request(msg, this->log);
@@ -881,7 +885,6 @@ bool Server::handle_cgi(int fd, Request *request)
 		request->set_status(500);
 		return false;
 	}
-
 	if (!cgi->execute(pipes, request)) {
 		delete cgi;
 		request->set_status(502);
@@ -927,14 +930,14 @@ void Server::internal_error(int fd, int code)
 	std::vector<char>	reply;
 	std::string const	body = Reply::generate_error_page(code);
 
-	std::ostringstream	oss;
-	oss << "HTTP/1.1 500 Internal Server Error\r\n"
+	std::stringstream	ss;
+	ss << "HTTP/1.1 500 Internal Server Error\r\n"
 		<< "Connection: close\r\n"
 		<< "Content-Type: text/html\r\n"
 		<< "\r\n";
-	// char c;
-	// while (oss >> c)
-	// 	reply.push_back(c);
+	char c;
+	while (ss >> c)
+		reply.push_back(c);
 	std::copy(body.begin(), body.end(), std::back_inserter(reply));
 	this->keep_alive.erase(fd);
 	(void)this->enqueue_reply(fd, reply);
