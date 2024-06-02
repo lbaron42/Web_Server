@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/18 19:51:33 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/02 19:09:46 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/02 20:56:34 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -147,7 +147,8 @@ void Cluster::start()
 				if (client != -1) {
 					this->client_fds.insert(std::make_pair(
 						client, listenfd->second.front()));
-					this->client_timeouts[client] = std::time(NULL);
+					this->client_timeouts.insert(
+						std::make_pair(client, std::time(NULL)));
 				}
 				continue;
 			}
@@ -158,29 +159,28 @@ void Cluster::start()
 					log << Log::WARN << "Untracked file descriptor in epoll: "
 						<< fd << std::endl;
 				if (epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, fd, NULL))
-					log << Log::ERROR << "Failed epoll_del"<< std::endl;
+					log << Log::ERROR << "Failed epoll_del" << std::endl;
 				continue;
 			}
 			if (events[i].events & EPOLLERR || events[i].events & EPOLLHUP) {
 				const_cast<Server*>(it->second)->close_connection(it->first);
-				this->client_fds.erase(it->first);
 				this->client_timeouts.erase(it->first);
+				this->client_fds.erase(it->first);
 				continue;
 			}
 			if (events[i].events & EPOLLIN) {
 				if (!const_cast<Server*>(it->second)
 				->recv_request(it->first, this->bounce_que)) {
-					this->client_fds.erase(it->first);
 					this->client_timeouts.erase(it->first);
+					this->client_fds.erase(it->first);
 				} else {
 					this->client_timeouts[it->first] = std::time(NULL);
 				}
-			}
-			if (events[i].events & EPOLLOUT) {
+			} else if (events[i].events & EPOLLOUT) {
 				if (!const_cast<Server*>(it->second)
 				->send_reply(it->first)) {
-					this->client_fds.erase(it->first);
 					this->client_timeouts.erase(it->first);
+					this->client_fds.erase(it->first);
 				} else {
 					this->client_timeouts[it->first] = std::time(NULL);
 				}
@@ -207,7 +207,8 @@ void Cluster::check_timeouts()
 			const_cast<Server*>(client_fds[it->first])
 			->close_connection(it->first);
 			this->client_fds.erase(it->first);
-			this->client_timeouts.erase(it++);
+			std::map<int, time_t>::iterator dead(it++);
+			this->client_timeouts.erase(dead);
 		} else
 			++it;
 	}
@@ -222,7 +223,8 @@ void Cluster::check_timeouts()
 				it->second->shutdown_cgi(cg->first);
 				this->cgi_hosts.erase(it);
 			}
-			this->cgi_timeouts.erase(cg++);
+			std::map<CGIHandler*, time_t>::iterator dead(cg++);
+			this->cgi_timeouts.erase(dead);
 		} else
 			++cg;
 	}
