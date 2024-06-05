@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:59:51 by lbaron            #+#    #+#             */
-/*   Updated: 2024/06/01 01:34:14 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/05 15:13:50 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -173,4 +173,28 @@ bool save_file(std::string name, std::vector<char> content, bool bin)
 	ofs.write(content.data(), content.size());
 	ofs.close();
 	return true;
+}
+
+std::string time_tostr(std::time_t &time)
+{
+	char	timestr[32];
+
+	if (std::strftime(
+		timestr,
+		sizeof timestr,
+		"%a, %d %b %Y %H:%M:%S %Z",
+		std::gmtime(&time)))
+		return std::string(timestr);
+	return std::string();
+}
+
+bool str_tohex(std::string const &str, size_t *out_hex)
+{
+	std::stringstream	ss;
+	if (str.empty())
+		return false;
+	ss << std::hex << str;
+	if (ss.eof() && !ss.fail())
+		ss >> *out_hex;
+	return ss.eof() && !ss.fail();
 }

@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/18 19:51:33 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/02 20:56:34 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/04 00:28:52 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -74,6 +74,13 @@ bool Cluster::init_all()
 
 	for (std::vector<Server>::iterator it = this->servers.begin();
 	it != this->servers.end(); ++it) {
+		if (!it->validate_root()) {
+			log << Log::ERROR << "Misconfigured root for server: "
+				<< (it->get_hostnames().empty()	? "unnamed"
+												: it->get_hostnames()[0])
+				<< "	SKIPPING" << std::endl;
+			continue;
+		}
 		it->sort_locations();
 		it->set_epoll(this->epoll_fd);
 		std::vector<ServerData::Address>	addresses(it->get_addresses());
@@ -86,7 +93,8 @@ bool Cluster::init_all()
 						ad->ip.empty() ? NULL : ad->ip.c_str());
 				if (sfd == -1) {
 					log << Log::ERROR << "Failed to setup listening socket for "
-						<< it->get_hostnames()[0] << " at "
+						<< (it->get_hostnames().empty()	?
+								"unnamed" : it->get_hostnames()[0]) << " at "
 						<< ad->ip << ":" << ad->port << std::endl;
 					return false;
 				}
@@ -118,7 +126,9 @@ bool Cluster::init_all()
 			}
 		}
 		log << Log::INFO << "Initialized server: "
-			<< it->get_hostnames()[0] << std::endl;
+			<< (it->get_hostnames().empty()	? "unnamed"
+											: it->get_hostnames()[0])
+			<< std::endl;
 	}
 	return true;
 }

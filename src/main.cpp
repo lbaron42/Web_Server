@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:22:31 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/27 01:00:13 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/04 21:23:26 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,7 +21,7 @@ int	main(int ac, char **av)
 	Cluster			Heart_of_Gold(log);
 
 	log.set_output(&std::cerr, false);
-	if (ac != 2)
+	if (ac > 2)
 	{
 		log << "Usage: webserv [CONFIGURATION FILE]" << std::endl;
 		return EXIT_FAILURE;
@@ -31,7 +31,8 @@ int	main(int ac, char **av)
 		log << Log::DEBUG << "Running in debug mode" << std::endl;
 	}
 
-	if (conf.configInit(av[1]))
+	char const	*config_path = (ac == 2 ? av[1] : "config/default.conf");
+	if (conf.configInit(config_path))
 		return EXIT_FAILURE;
 
 	std::vector<Server>	servers = conf.getServers();

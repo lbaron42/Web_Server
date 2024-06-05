@@ -6,11 +6,13 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/02 18:52:44 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/05 15:13:09 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Server.hpp"
+#include "ChunkNorris.hpp"
+#include "Utils.hpp"
 
 ////////////////////////////////////////////////////////////////////////////////
 //	Functors
@@ -76,6 +78,7 @@ Server::Server(ServerData const &server_data, Log &log)
 		replies(),
 		keep_alive(),
 		cgis(),
+		chunksters(),
 		upstream_q()
 {}
 
@@ -88,6 +91,7 @@ Server::Server(Server const &rhs)
 		replies(rhs.replies),
 		keep_alive(rhs.keep_alive),
 		cgis(rhs.cgis),
+		chunksters(rhs.chunksters),
 		upstream_q(rhs.upstream_q)
 {}
 
@@ -101,6 +105,10 @@ Server::~Server()
 		this->cgis.begin(),
 		this->cgis.end(),
 		DelValue<CGIHandler>());
+	std::for_each(
+		this->chunksters.begin(),
+		this->chunksters.end(),
+		DelValue<ChunkNorris>());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -142,6 +150,13 @@ void Server::set_epoll(int epoll_fd)
 ////////////////////////////////////////////////////////////////////////////////
 //	Public methods
 ////////////////////////////////////////////////////////////////////////////////
+
+bool Server::validate_root() const
+{
+	struct stat	sb;
+	return (!stat(this->info.root.c_str(), &sb)
+		&& S_ISDIR(sb.st_mode));
+}
 
 void Server::sort_locations(void)
 {
@@ -248,6 +263,11 @@ bool Server::recv_request(int fd,
 	char				buff[4096];
 	std::string			msg;
 
+	std::map<int, CGIHandler*>::iterator cg = this->cgis.find(fd);
+	if (cg != this->cgis.end()) {
+		return cg->second->receive();
+	}
+
 	ssize_t r = recv(fd, buff, sizeof(buff), MSG_DONTWAIT);
 	switch (r) {
 		case -1:
@@ -265,10 +285,6 @@ bool Server::recv_request(int fd,
 	log << Log::DEBUG << "Received " << r << "b: "
 		<< std::endl << msg << std::endl;
 
-	std::map<int, CGIHandler*>::iterator cg = this->cgis.find(fd);
-	if (cg != this->cgis.end()) {
-		return cg->second->receive();
-	}
 	std::map<int, Request*>::iterator it = this->requests.find(fd);
 	if (it == this->requests.end()) {
 		Request *request = new (std::nothrow) Request(msg, this->log);
@@ -352,51 +368,77 @@ bool Server::handle_request(int fd)
 			this->prepare_error_page(request, hdrs, payload);
 		}
 	}
-	if (this->is_cgi_request(request, hdrs)) {
-		log << Log::DEBUG << "CGI request recognized" << std::endl;
-		if (!this->handle_cgi(fd, request)) {
-			if (!this->requests.count(fd))
-				return true;
+	if (request->is_chunked()) {
+		log << Log::DEBUG << "Receiving chunked request" << std::endl;
+		std::map<int, ChunkNorris*>::iterator cn = this->chunksters.find(fd);
+		if (cn == this->chunksters.end()) {
+			this->chunksters[fd] = new (std::nothrow) ChunkNorris();
+			if (!this->chunksters[fd]) {
+				request->set_status(500);
+				this->internal_error(fd, 500);
+				return false;
+			}
+		}
+		if (!this->chunksters[fd]->nunchunkMe(request)) {
+			if (request->get_status() != 400) {
+				request->set_status(500);
+				this->internal_error(fd, 500);
+				return false;
+			}
 			this->prepare_error_page(request, hdrs, payload);
-		} else
+		} else if (!this->chunksters[fd]->is_done()) {
 			return false;
-	} else if (request->get_status() < 400) {
-		switch (request->get_method()) {
-			case Request::GET:
-				this->get_payload(request, hdrs, &payload);
-				break;
-			case Request::HEAD:
-				this->get_head(request, hdrs);
-				break;
-			case Request::POST:
-				this->handle_post_request(request, hdrs, &payload);
-				break;
-			case Request::PUT:
-				this->handle_put_request(request, hdrs, &payload);
-				break;
-			case Request::DELETE: 
-				this->handle_delete_request(request);
-				break;
-			default:
-				request->set_status(501); break;
 		}
-		if (!request->is_version_11()
-		|| !icompare(request->get_header("connection"), "keep-alive"))
-			hdrs.set_header("Connection", "close");
-		else {
-			hdrs.set_header("Connection", "keep-alive");
-			hdrs.set_header("Keep-Alive", "timeout=60");
-		}
+	}
+	if (request->get_status() < 400) {
+		if (this->is_cgi_request(request, hdrs)) {
+			log << Log::DEBUG << "CGI request recognized" << std::endl;
+			if (!this->handle_cgi(fd, request)) {
+				if (!this->requests.count(fd))
+					return true;
+				this->prepare_error_page(request, hdrs, payload);
+			} else
+				return false;
+		} else {
+			switch (request->get_method()) {
+				case Request::GET:
+					this->get_payload(request, hdrs, &payload);
+					break;
+				case Request::HEAD:
+					this->get_head(request, hdrs);
+					break;
+				case Request::POST:
+					this->handle_post_request(request, hdrs, &payload);
+					break;
+				case Request::PUT:
+					this->handle_put_request(request, hdrs, &payload);
+					break;
+				case Request::DELETE: 
+					this->handle_delete_request(request);
+					break;
+				default:
+					request->set_status(501); break;
+			}
+			if (icompare(request->get_header("connection"), "keep-alive")
+			|| (request->is_version_11()
+			&& request->get_header("connection").empty())) {
+				hdrs.set_header("Connection", "keep-alive");
+				hdrs.set_header("Keep-Alive", "timeout=60");
+			} else {
+				hdrs.set_header("Connection", "close");
+			}
 
-		if (request->get_status() < 400
-		&& (request->get_method() & (Request::POST | Request::PUT))
-		&& !request->is_body_loaded()) {
-			log << Log::DEBUG << "Incomplete request body, returning to epoll"
-				<< std::endl;
-			return false;
+			if (request->get_status() < 400
+			&& (request->get_method() & (Request::POST | Request::PUT))
+			&& !request->is_body_loaded()) {
+				log << Log::DEBUG
+					<< "Incomplete request body, returning to epoll"
+					<< std::endl;
+				return false;
+			}
+			if (request->get_status() >= 400)
+				this->prepare_error_page(request, hdrs, payload);
 		}
-		if (request->get_status() >= 400)
-			this->prepare_error_page(request, hdrs, payload);
 	}
 
 	log << Log::INFO << "Request from client: " << fd
@@ -412,8 +454,8 @@ bool Server::handle_request(int fd)
 	std::vector<char>	repl;
 	Reply::generate_response(request, hdrs, payload, repl);
 	this->enqueue_reply(fd, repl)
-		.drop_request(fd)
-		.check_queue(fd);
+		.drop_request(fd);
+		// .check_queue(fd);
 	return true;
 }
 
@@ -505,7 +547,8 @@ bool Server::add_epoll_mode(int fd, uint32_t events)
 void Server::parse_request(int fd)
 {
 	Request	*request = this->requests[fd];
-	request->set_status(request->validate_request_line());
+	if (!request->get_status())
+		request->set_status(request->validate_request_line());
 	if (!request->get_status())
 		return ;
 	if (request->get_status() != 200) {
@@ -649,7 +692,8 @@ void Server::get_head(Request *request, Headers &headers)
 		log << Log::DEBUG << "File not found" << std::endl;
 		return ;
 	}
-	if (request->get_status() >= 400) {
+	if (request->get_status() >= 400
+	|| !headers.get_header("Location").empty()) {
 		return ;
 	}
 	if (!stat(path.c_str(), &statbuf) && S_ISDIR(statbuf.st_mode)) {
@@ -880,10 +924,11 @@ bool Server::is_cgi_request(Request *request, Headers &headers)
 	request->set_target(this->resolve_address(request, headers));
 
 	if (request->get_status() >= 400
-	|| request->get_url().rfind(this->info.cgi_path, 0) == std::string::npos
-	|| this->info.cgi_path.empty() || this->info.cgi_ext.empty()) {
-		log << Log::DEBUG << "CGI path: " << this->info.cgi_path << std::endl
-			<< "URL: " << request->get_url() << std::endl;
+	|| this->info.cgi_path.empty() || this->info.cgi_ext.empty()
+	|| (request->get_url().rfind(this->info.cgi_path, 0) == std::string::npos
+	&& request->get_target().rfind(
+			this->info.cgi_path,
+			this->info.root.size()) == std::string::npos)) {
 		return false;
 	}
 	std::vector<std::string>::const_iterator it(this->info.cgi_ext.begin());
@@ -907,17 +952,20 @@ bool Server::handle_cgi(int fd, Request *request)
 	if (!cgi) {
 		log << Log::ERROR << "Memory allocation failed!" << std::endl;
 		request->set_status(500);
+		this->internal_error(fd, 500);
 		return false;
 	}
 	if (!cgi->execute(pipes, request)) {
 		delete cgi;
 		request->set_status(502);
+		this->internal_error(fd, 502);
 		return false;
 	}
 	this->requests.erase(fd);
 	if (this->add_epoll_mode(pipes[0], EPOLLIN)
 	||	this->add_epoll_mode(pipes[1], EPOLLOUT)) {
 		delete cgi;
+		request->set_status(500);
 		this->internal_error(fd, 500);
 		return false;
 	}

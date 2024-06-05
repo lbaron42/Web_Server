@@ -6,11 +6,12 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/02 19:11:00 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/05 15:12:31 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Request.hpp"
+#include "Utils.hpp"
 
 namespace {
 	static char const *const	methodnames[] = {
@@ -41,7 +42,8 @@ Request::Request(std::string const &raw, Log &logger)
 		loaded_body_size(0),
 		is_body_loaded_(false),
 		payload(),
-		bounced(false)
+		bounced(false),
+		is_chunked_(false)
 {}
 
 Request::Request(Request const &rhs)
@@ -62,7 +64,8 @@ Request::Request(Request const &rhs)
 		loaded_body_size(rhs.loaded_body_size),
 		is_body_loaded_(rhs.is_body_loaded_),
 		payload(rhs.payload),
-		bounced(rhs.bounced)
+		bounced(rhs.bounced),
+		is_chunked_(rhs.is_chunked_)
 {}
 
 Request::~Request()
@@ -155,6 +158,11 @@ bool Request::is_done() const
 bool Request::is_bounced() const
 {
 	return this->bounced;
+}
+
+bool Request::is_chunked() const
+{
+	return this->is_chunked_;;
 }
 
 size_t Request::get_loaded_body_size() const
@@ -334,8 +342,30 @@ bool Request::parse_headers()
 		std::transform(key.begin(), key.end(), key.begin(), ::tolower);
 		std::string val = trim(header.substr(div + 1), " \t\r");
 		this->headers.set_header(key, val);
+		if (icompare(key, "Transfer-Encoding")
+		&& icompare(val, "chunked"))
+			this->is_chunked_ = true;
 	}
 	return false;
+}
+
+bool Request::load_chunk()
+{
+	std::string	line;
+	size_t		size(0);
+
+	if (std::getline(this->raw_, line)) {
+		line = trim(line, "\r");
+		if (!str_tohex(line, &size)) {
+			this->status = 400;
+			return false;
+		}
+	}
+	if (size)
+		this->load_payload(size);
+	std::string throwaway;
+	std::getline(this->raw_, throwaway);
+	return true;
 }
 
 bool Request::load_payload(size_t size)
@@ -372,6 +402,11 @@ bool Request::load_payload(size_t size)
 			<< "EOF: " << this->raw_.eof() << std::endl;
 	}
 	return partial;
+}
+
+void Request::drop_payload()
+{
+	this->payload.clear();
 }
 
 bool Request::load_multipart(std::string const &boundary, size_t max_body_size)

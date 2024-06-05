@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/02 18:51:42 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/05 14:34:01 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -45,6 +45,7 @@
 # include "Request.hpp"
 # include "Headers.hpp"
 # include "CGIHandler.hpp"
+# include "ChunkNorris.hpp"
 # include "Utils.hpp"
 
 struct ServerData
@@ -106,6 +107,7 @@ class Server
 		std::vector<std::pair<int, CGIHandler*> > get_cgi_pipes();
 		void set_epoll(int epoll_fd);
 
+		bool validate_root() const;
 		void sort_locations(void);
 		int setup_socket(char const *service, char const *node);
 		int add_client(int listen_fd);
@@ -130,6 +132,7 @@ class Server
 		std::map<int, std::vector<char> >			replies;
 		std::set<int>								keep_alive;
 		std::map<int, CGIHandler*>					cgis;
+		std::map<int, ChunkNorris*>					chunksters;
 		std::queue<std::pair<int, CGIHandler*> >	upstream_q;
 
 		bool add_epoll_mode(int fd, uint32_t events);

@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:52:42 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/31 20:43:22 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/05 15:14:14 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,13 +15,15 @@
 
 # include <algorithm>
 # include <cctype>
+# include <cstddef>
 # include <cstdlib>
+# include <ctime>
 # include <fstream>
+# include <ios>
 # include <map>
 # include <string>
 # include <sstream>
 # include <vector>
-
 # include <errno.h>
 # include <sys/stat.h>
 # include <sys/types.h>
@@ -58,6 +60,8 @@ bool icompare(std::string const &lhs, std::string const &rhs);
 bool ends_with(std::string const &str, std::string const &end);
 std::string get_delimited(std::istream &in, std::string const &delimiter);
 bool save_file(std::string name, std::vector<char> content, bool bin = true);
+std::string time_tostr(std::time_t &time);
+bool str_tohex(std::string const &str, size_t *out_hex);
 
 struct MimeType
 {
