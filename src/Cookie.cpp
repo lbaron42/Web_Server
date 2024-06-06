@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/06/05 04:37:44 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/05 10:29:12 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/06 15:43:28 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -51,23 +51,22 @@ Cookie::Cookie(Cookie const &yum)
 		http_only(yum.http_only)
 {}
 
-Cookie &Cookie::operator=(Cookie const &yum)
-{
-	if (this == &yum)	return *this;
-	name = yum.name;
-	value = yum.value;
-	expires = yum.expires;
-	max_age = yum.max_age;
-	secure = yum.secure;
-	http_only = yum.http_only;
-	domain = yum.domain;
-	path = yum.path;
-	same_site = yum.same_site;
-	return *this;
-}
-
 Cookie::~Cookie()
 {}
+
+////////////////////////////////////////////////////////////////////////////////
+//	Operator overloads
+////////////////////////////////////////////////////////////////////////////////
+
+inline bool Cookie::operator==(Cookie const &yum) const
+{
+	return (
+		this->name == yum.name
+		&& this->domain == yum.domain
+		&& this->path == yum.path
+		&& this->secure == yum.secure
+	);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //	Static methods
@@ -94,10 +93,25 @@ bool Cookie::is_valid(std::string const &attr_name,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//	Public methods
+//	Getters/Setters
 ////////////////////////////////////////////////////////////////////////////////
 
-std::string Cookie::set_cookie(void) const
+std::string Cookie::get_name(void) const
+{
+	return this->name;
+}
+
+std::string Cookie::get_value(void) const
+{
+	return this->value;
+}
+
+void Cookie::set_value(std::string const &new_value)
+{
+	this->value = new_value;
+}
+
+std::string Cookie::to_header(void) const
 {
 	std::ostringstream	oss;
 
@@ -120,6 +134,25 @@ std::string Cookie::set_cookie(void) const
 		oss << "; " << "HttpOnly";
 	return oss.str();
 }
+
+// TODO
+// Cookie CookieJar::get_cookie(
+// 			std::string const &name,
+// 			std::string const &domain,
+// 			std::string const &path,
+// 			bool secure) const
+// {
+// }
+
+bool CookieJar::set_cookie(Cookie const &biscuit)
+{
+	if (!Cookie::is_valid(biscuit.get_name(), biscuit.get_value()))
+		return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//	Public methods
+////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
 //	Private innards
