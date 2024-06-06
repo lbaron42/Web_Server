@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/05 15:13:09 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/06 12:52:00 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -38,6 +38,7 @@ ServerData::ServerData()
 		error_pages(),
 		serv_index(),
 		root(),
+		logfile(),
 		client_max_body_size(1024 * 1024),
 		autoindex(false),
 		allow_methods(Request::NONE),
@@ -144,7 +145,15 @@ std::vector<std::pair<int, CGIHandler*> > Server::get_cgi_pipes()
 
 void Server::set_epoll(int epoll_fd)
 {
-	this->epoll_fd = epoll_fd;
+	if (this->epoll_fd < 0)
+		this->epoll_fd = epoll_fd;
+}
+
+// TODO: implement setting log
+void Server::set_log()
+{
+	if (!this->info.logfile.empty())
+		return;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -209,7 +218,10 @@ int Server::setup_socket(char const *service, char const *node)
 
 int Server::add_client(int listen_fd)
 {
-	// We default to be anonymous accepting (non-tracking) server
+	/* We default to be anonymous accepting (non-tracking) server
+	 * Respect privacy
+	 * Don't leak file descriptors to random CGIs
+	 */
 	int client_fd = STRICT_EVALUATOR ?
 			accept(listen_fd, NULL, NULL) :
 			accept4(listen_fd, NULL, NULL, SOCK_CLOEXEC | SOCK_NONBLOCK);
@@ -251,6 +263,12 @@ void Server::close_connection(int fd)
 		delete cg->second;
 		this->cgis.erase(cg);
 	}
+	std::map<int, ChunkNorris*>::iterator cn = this->chunksters.find(fd);
+	if (cn != this->chunksters.end()) {
+		delete cn->second;
+		this->chunksters.erase(cn);
+	}
+	this->requests.erase(fd);
 	this->replies.erase(fd);
 	this->clients.erase(fd);
 	this->keep_alive.erase(fd);
@@ -525,6 +543,7 @@ void Server::shutdown_cgi(CGIHandler *cgi)
 			break;
 		}
 	}
+	this->internal_error(-1, 504);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

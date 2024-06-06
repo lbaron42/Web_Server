@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/06/05 11:28:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/05 14:26:47 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/06 11:11:48 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,12 +30,6 @@ void ChunkNorris::chunkMe(std::vector<char> &body, Headers &headers)
 	(void)headers;
 }
 
-/*
- * Return false:
- *		- if allocation failed -> reply 500 Internal Server Error
- *		- if bad chunk size -> request->status is already 400
- * Check is_done() to verify unchunking completed
- */
 bool ChunkNorris::nunchunkMe(Request *request)
 {
 	if (!this->nunchunks

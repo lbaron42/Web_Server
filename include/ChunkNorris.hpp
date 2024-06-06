@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/06/05 11:28:27 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/05 14:02:09 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/06 11:10:58 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,6 +26,12 @@ class ChunkNorris
 		ChunkNorris();
 		bool is_done() const;
 		static void chunkMe(std::vector<char> &body, Headers &headers);
+		/**
+		 * Unchunk chunked request message body
+		 *
+		 * @param request Request* to unchunk
+		 * @return false for error, if request->status not 4XX then drop 500
+		 */
 		bool nunchunkMe(Request *request);
 		~ChunkNorris();
 

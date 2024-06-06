@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/18 19:51:33 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/04 00:28:52 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/06 12:52:18 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,6 +33,7 @@ Cluster::Cluster(Log &log)
 		epoll_fd(-1),
 		servers(),
 		bound_addresses(),
+		reserved_ports(),
 		listen_fds(),
 		client_fds(),
 		client_timeouts(),
@@ -44,12 +45,17 @@ Cluster::Cluster(Log &log)
 
 Cluster::~Cluster()
 {
+	while (!this->bounce_que.empty()) {
+		delete bounce_que.front().first;
+		bounce_que.pop();
+	}
 	std::map<int, std::vector<Server const*> >::iterator it;
 	for (it = this->listen_fds.begin(); it != this->listen_fds.end(); ++it)
 		close(it->first);
 	std::map<int, Server const*>::iterator cl;
 	for (cl = this->client_fds.begin(); cl != this->client_fds.end(); ++cl)
 		close(cl->first);
+	this->servers.clear();
 	close(this->epoll_fd);
 }
 
@@ -82,6 +88,7 @@ bool Cluster::init_all()
 			continue;
 		}
 		it->sort_locations();
+		it->set_log();
 		it->set_epoll(this->epoll_fd);
 		std::vector<ServerData::Address>	addresses(it->get_addresses());
 		std::vector<ServerData::Address>::const_iterator ad = addresses.begin();
@@ -89,6 +96,28 @@ bool Cluster::init_all()
 			std::map<ServerData::Address, int>::const_iterator bound;
 			bound = this->bound_addresses.find(*ad);
 			if (bound == this->bound_addresses.end()) {
+				if (this->reserved_ports.count(ad->port)) {
+					log << Log::ERROR << "Unable to start server: "
+						<< (it->get_hostnames().empty()	?
+							"unnamed"	:	it->get_hostnames()[0])
+						<< " at: " << ad->ip << ":" << ad->port
+						<< "	=> Port reserved" << std::endl;
+					return false;
+				}
+				if (!ad->ip.compare("0.0.0.0")) {
+					std::map<ServerData::Address, int>::const_iterator	bound;
+					for (bound = this->bound_addresses.begin();
+					bound != this->bound_addresses.end(); ++bound) {
+						if (*ad == bound->first) {
+							log << Log::ERROR << "Server: "
+								<< (it->get_hostnames().empty()	?
+									"unnamed"	:	it->get_hostnames()[0])
+								<< " => Unable to reserve port "
+								<< ad->port << std::endl;
+							return false;
+						}
+					}
+				}
 				int sfd = it->setup_socket(ad->port.c_str(), \
 						ad->ip.empty() ? NULL : ad->ip.c_str());
 				if (sfd == -1) {
@@ -108,10 +137,12 @@ bool Cluster::init_all()
 				if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sfd, &event)) {
 					log << Log::ERROR << "Failed to add fd " << sfd
 						<< " to epoll_ctl" << std::endl;
-					continue;
+					return false;
 				}
 				log << Log::DEBUG << "Added fd " << sfd
 					<< " to epoll_ctl" << std::endl;
+				if (!ad->ip.compare("0.0.0.0"))
+					this->reserved_ports.insert(ad->port);
 			} else {
 				std::map<int, std::vector<Server const*> >::iterator lfd;
 				lfd = this->listen_fds.find(bound->second);
@@ -133,7 +164,6 @@ bool Cluster::init_all()
 	return true;
 }
 
-// TODO: implement connection timeouts
 void Cluster::start()
 {
 	int const	timeout = 420;
@@ -209,8 +239,10 @@ void Cluster::check_timeouts()
 {
 	time_t	now;
 	std::time(&now);
-	for (std::map<int, time_t>::iterator it = this->client_timeouts.begin();
-	it != this->client_timeouts.end(); ) {
+	for (
+		std::map<int, time_t>::iterator it = this->client_timeouts.begin();
+		it != this->client_timeouts.end();
+		) {
 		if (std::difftime(now, it->second) > CONNECTION_TIMEOUT) {
 			log << Log::DEBUG << "Client " << it->first
 				<< " connection timed out" << std::endl;
@@ -223,20 +255,23 @@ void Cluster::check_timeouts()
 			++it;
 	}
 	std::time(&now);
-	std::map<CGIHandler*, time_t>::iterator cg;
-	for (cg = this->cgi_timeouts.begin(); cg != this->cgi_timeouts.end(); ) {
-		if (std::difftime(now, cg->second) > CGI_IDLE_TIMEOUT) {
+	std::map<CGIHandler*, time_t>::iterator cgih;
+	for (
+		cgih = this->cgi_timeouts.begin();
+		cgih != this->cgi_timeouts.end();
+		) {
+		if (std::difftime(now, cgih->second) > CGI_IDLE_TIMEOUT) {
 			log << Log::DEBUG << "CGI timed out" << std::endl;
 			std::map<CGIHandler*, Server*>::iterator it;
-			it = this->cgi_hosts.find(cg->first);
+			it = this->cgi_hosts.find(cgih->first);
 			if (it != this->cgi_hosts.end()) {
-				it->second->shutdown_cgi(cg->first);
+				it->second->shutdown_cgi(cgih->first);
 				this->cgi_hosts.erase(it);
 			}
-			std::map<CGIHandler*, time_t>::iterator dead(cg++);
+			std::map<CGIHandler*, time_t>::iterator dead(cgih++);
 			this->cgi_timeouts.erase(dead);
 		} else
-			++cg;
+			++cgih;
 	}
 }
 

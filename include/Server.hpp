@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/05 14:34:01 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/06 12:51:04 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -57,36 +57,45 @@ struct ServerData
 		std::string							ip;
 		std::string							port;
 		inline bool operator<(Address const &rhs) const {
-			return (this->port < rhs.port || this->ip < rhs.ip);
+			return (
+				this->port < rhs.port
+				|| (!(rhs.port < this->port) && this->ip < rhs.ip)
+				);
 		}
 		inline bool operator==(Address const &rhs) const {
-			return (this->ip == rhs.ip && this->port == rhs.port);
+			return (
+				(this->ip == rhs.ip && this->port == rhs.port)
+				|| (this->port == rhs.port
+					&& (this-ip.compare("0.0.0.0")
+					|| rhs.ip.compare("0.0.0.0")))
+				);
 		}
 		~Address();
 	};
 	struct Location
 	{
 		Location();
-		std::string							location_path;
-		std::string							alias;
-		std::vector<std::string>			loc_index;
-		Request::e_method					allow_methods;
-		bool 								autoindex;
-		std::string							redirection;
+		std::string					location_path;
+		std::string					alias;
+		std::vector<std::string>	loc_index;
+		Request::e_method			allow_methods;
+		bool 						autoindex;
+		std::string					redirection;
 		~Location();
 	};
 
-	std::vector<Address>						addresses;
-	std::vector<std::string>					hostnames;
-	std::map<int, std::string>					error_pages;
-	std::vector<std::string>					serv_index;
-	std::string									root;
-	size_t										client_max_body_size;
-	bool										autoindex;
-	Request::e_method							allow_methods;
-	std::string									cgi_path;
-	std::vector<std::string>					cgi_ext;
-	std::vector<Location>						locations;
+	std::vector<Address>			addresses;
+	std::vector<std::string>		hostnames;
+	std::map<int, std::string>		error_pages;
+	std::vector<std::string>		serv_index;
+	std::string						root;
+	std::string						logfile;
+	size_t							client_max_body_size;
+	bool							autoindex;
+	Request::e_method				allow_methods;
+	std::string						cgi_path;
+	std::vector<std::string>		cgi_ext;
+	std::vector<Location>			locations;
 	~ServerData();
 };
 
@@ -106,6 +115,7 @@ class Server
 		const std::vector<std::string> get_hostnames() const;
 		std::vector<std::pair<int, CGIHandler*> > get_cgi_pipes();
 		void set_epoll(int epoll_fd);
+		void set_log();
 
 		bool validate_root() const;
 		void sort_locations(void);

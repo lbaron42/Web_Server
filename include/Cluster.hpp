@@ -6,14 +6,13 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/18 19:51:30 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/02 18:38:15 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/06 12:54:57 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef CLUSTER_HPP
 # define CLUSTER_HPP
 
-#include "CGIHandler.hpp"
 # ifndef STRICT_EVALUATOR
 #  define STRICT_EVALUATOR 0
 # endif
@@ -30,11 +29,13 @@
 # include <ctime>
 # include <map>
 # include <queue>
+# include <set>
 # include <vector>
 
 # include "Log.hpp"
 # include "Server.hpp"
 # include "Request.hpp"
+# include "CGIHandler.hpp"
 
 namespace marvinX
 {
@@ -58,6 +59,7 @@ class Cluster
 		int											epoll_fd;
 		std::vector<Server>							servers;
 		std::map<ServerData::Address, int>			bound_addresses;
+		std::set<std::string>						reserved_ports;
 		std::map<int, std::vector<Server const*> >	listen_fds;
 		std::map<int, Server const*>				client_fds;
 		std::map<int, time_t>						client_timeouts;
