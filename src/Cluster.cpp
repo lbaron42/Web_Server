@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/18 19:51:33 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/06 12:52:18 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/08 04:56:58 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,8 +19,8 @@
 namespace marvinX {
 	extern "C" void stop_servers(int sig)
 	{
-		g_stopme = 1;
-		(void)sig;
+		if (sig == SIGSTOP || sig == SIGTERM || sig == SIGKILL)
+			g_stopme = 1;
 	}
 }
 
@@ -167,14 +167,14 @@ bool Cluster::init_all()
 void Cluster::start()
 {
 	int const	timeout = 420;
-	int const	max_events = 42;
+	int const	max_events = 420;
 	epoll_event	events[max_events];
 
 	while (!marvinX::g_stopme) {
 		int n_events = epoll_wait(this->epoll_fd, events, max_events, timeout);
 		if (n_events == -1) {
 			if (!marvinX::g_stopme)
-				log << Log::ERROR << "Failed epoll_wait" << std::endl;
+				log << Log::ERROR << "Failed epoll_wait " << errno << std::endl;
 			break;
 		}
 		for (int i = 0; i < n_events; ++i) {
@@ -333,32 +333,38 @@ bool Cluster::manage_cgi(epoll_event const &e)
 	if (e.events & EPOLLERR
 	|| e.events & EPOLLHUP) {
 		if (epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, e.data.fd, NULL))
-			log << Log::ERROR << "Failed epoll_del"<< std::endl;
-		std::map<CGIHandler*, Server*>::iterator it;
-		it = this->cgi_hosts.find(cg->second);
-		if (it != this->cgi_hosts.end()) {
-			this->cgi_timeouts.erase(it->first);
-			it->second->shutdown_cgi(cg->second);
-			this->cgi_hosts.erase(it);
-		}
+			log << Log::ERROR << "Fail epoll_del HUP " << e.data.fd << std::endl;
+		// std::map<CGIHandler*, Server*>::iterator it;
+		// it = this->cgi_hosts.find(cg->second);
+		// if (it != this->cgi_hosts.end()) {
+		// 	this->cgi_timeouts.erase(it->first);
+		// 	it->second->shutdown_cgi(cg->second);
+		// 	this->cgi_hosts.erase(it);
+		// }
 		this->cgis.erase(e.data.fd);
 		log << Log::DEBUG << "CGI pipe closed" << std::endl;
 	} else if (e.events & EPOLLOUT) {
 		log << Log::DEBUG << "CGI Write pipe ready" << std::endl;
+		this->cgi_timeouts[cg->second] = std::time(NULL);
 		if (!cg->second->send_output()) {
-			if (epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, e.data.fd, NULL))
-				log << Log::ERROR << "Failed epoll_del"<< std::endl;
+			if (epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, e.data.fd, NULL)) {
+				log << Log::ERROR << "Failed epoll_del fd: "
+					<< e.data.fd << std::endl;
+			}
+			close(e.data.fd);
 			this->cgis.erase(e.data.fd);
-		} else
-			this->cgi_timeouts[cg->second] = std::time(NULL);
+		}
 	} else if (e.events & EPOLLIN) {
 		log << Log::DEBUG << "CGI Read pipe ready" << std::endl;
+		this->cgi_timeouts[cg->second] = std::time(NULL);
 		if (!cg->second->read_input()) {
-			if (epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, e.data.fd, NULL))
-				log << Log::ERROR << "Failed epoll_del"<< std::endl;
+			if (epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, e.data.fd, NULL)) {
+				log << Log::ERROR << "Failed epoll_del fd: "
+					<< e.data.fd << std::endl;
+			}
+			close(e.data.fd);
 			this->cgis.erase(e.data.fd);
-		} else
-			this->cgi_timeouts[cg->second] = std::time(NULL);
+		}
 	}
 	return true;
 }

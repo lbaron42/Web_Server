@@ -6,22 +6,23 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/23 11:58:31 by plandolf          #+#    #+#             */
-/*   Updated: 2024/06/02 12:31:54 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/08 02:51:29 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef CGIHANDLER_HPP
 # define CGIHANDLER_HPP
 
+# include <csignal>
 # include <cstddef>
 # include <cstring>
-# include <map>
 # include <sstream>
 # include <string>
 # include <vector>
 
 # include <fcntl.h>
 # include <sys/epoll.h>
+# include <sys/socket.h>
 # include <sys/types.h>
 # include <sys/wait.h>
 # include <unistd.h>
@@ -30,11 +31,14 @@
 # include "Headers.hpp"
 # include "Request.hpp"
 # include "Reply.hpp"
+# include "Utils.hpp"
+
+class Server;
 
 class CGIHandler{
 	
 	public:
-		CGIHandler(Log &log, int client, size_t max_body_size);
+		CGIHandler(Log &log, int client, size_t max_body_size, Server *owner);
 		CGIHandler(const CGIHandler &src);
 
 		// how to pass status of exit?
@@ -49,23 +53,27 @@ class CGIHandler{
 
 	/*
 		When is child process done? how we get notified?
+		=> SIGCHLD signal
+		=> pipe closed
 	*/
 
 	private:
-		Log									&log;
-		Request								*request;
-		int									client_fd;
-		int									input;
-		int									output;
-		pid_t								pid;
-		int									status;
-		std::vector<char>					buff;
-		Headers								headers;
-		std::vector<char>					reply;
-		size_t								max_body_size;
+		Log					&log;
+		Request				*request;
+		int					client_fd;
+		int					input;
+		int					output;
+		pid_t				pid;
+		int					status;
+		std::vector<char>	wbuf;
+		std::vector<char>	rbuf;
+		Headers				headers;
+		std::vector<char>	reply;
+		size_t				max_body_size;
+		Server				*owner;
 
-		ssize_t read_from_pipe(std::vector<char> &buff);
-		ssize_t write_to_pipe(std::vector<char> &buff);
+		void prepare_reply();
+		void reply_error(int status);
 
 		CGIHandler &operator=(const CGIHandler &src);
 };

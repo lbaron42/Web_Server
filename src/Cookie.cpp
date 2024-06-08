@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/06/05 04:37:44 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/06 15:43:28 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/07 22:01:55 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -148,6 +148,7 @@ bool CookieJar::set_cookie(Cookie const &biscuit)
 {
 	if (!Cookie::is_valid(biscuit.get_name(), biscuit.get_value()))
 		return false;
+	return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

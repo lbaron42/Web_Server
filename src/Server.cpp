@@ -6,13 +6,11 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/06 12:52:00 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/08 04:54:51 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Server.hpp"
-#include "ChunkNorris.hpp"
-#include "Utils.hpp"
 
 ////////////////////////////////////////////////////////////////////////////////
 //	Functors
@@ -392,6 +390,7 @@ bool Server::handle_request(int fd)
 		if (cn == this->chunksters.end()) {
 			this->chunksters[fd] = new (std::nothrow) ChunkNorris();
 			if (!this->chunksters[fd]) {
+				this->chunksters.erase(fd);
 				request->set_status(500);
 				this->internal_error(fd, 500);
 				return false;
@@ -498,6 +497,7 @@ bool Server::switch_epoll_mode(int fd, uint32_t events)
 		this->close_connection(fd);
 		return false;
 	}
+	log << Log::DEBUG << "Switch epoll mode for fd " << fd << std::endl;
 	return true;
 }
 
@@ -556,7 +556,7 @@ bool Server::add_epoll_mode(int fd, uint32_t events)
 	event.events = events;
 	event.data.fd = fd;
 	if (epoll_ctl(this->epoll_fd, EPOLL_CTL_ADD, fd, &event)) {
-		log << Log::ERROR << "Failed to adding fd to polling"
+		log << Log::ERROR << "Failed to add fd " << fd << " to polling"
 			<< std::endl;
 		return false;
 	}
@@ -965,9 +965,9 @@ bool Server::handle_cgi(int fd, Request *request)
 		return false;
 	log << Log::DEBUG << "Running CGI: " << request->get_target() << std::endl;
 
-	int			pipes[2];
+	int			pipes[2] = {-1, -1};
 	CGIHandler	*cgi = new (std::nothrow)
-				CGIHandler(this->log, fd, this->info.client_max_body_size);
+			CGIHandler(this->log, fd, this->info.client_max_body_size, &*this);
 	if (!cgi) {
 		log << Log::ERROR << "Memory allocation failed!" << std::endl;
 		request->set_status(500);
@@ -981,14 +981,16 @@ bool Server::handle_cgi(int fd, Request *request)
 		return false;
 	}
 	this->requests.erase(fd);
-	if (this->add_epoll_mode(pipes[0], EPOLLIN)
-	||	this->add_epoll_mode(pipes[1], EPOLLOUT)) {
+	if (!this->add_epoll_mode(pipes[0], EPOLLIN)
+	||	!this->add_epoll_mode(pipes[1], EPOLLOUT)) {
 		delete cgi;
 		request->set_status(500);
 		this->internal_error(fd, 500);
 		return false;
 	}
 	this->cgis[fd] = cgi;
+	log << Log::DEBUG << "CGI pipes input: " << pipes[0]
+		<< " output: " << pipes[1] << std::endl;
 	this->upstream_q.push(std::make_pair(pipes[0], cgi));
 	this->upstream_q.push(std::make_pair(pipes[1], cgi));
 	return true;
