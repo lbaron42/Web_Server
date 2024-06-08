@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/23 17:57:12 by plandolf          #+#    #+#             */
-/*   Updated: 2024/06/08 04:54:16 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/08 21:28:05 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -88,6 +88,8 @@ bool CGIHandler::execute(int pipes[2], Request *request)
 {
 	std::vector<char const *>	argv;
 	std::string					cmd(request->get_target());
+	if (cmd.empty())
+		return false;
 	argv.push_back(cmd.c_str());
 	argv.push_back(NULL);
 
@@ -159,7 +161,7 @@ bool CGIHandler::send_output()
 		this->output = -1;
 		return false;
 	}
-	size_t	body_size(str_tonum<size_t>(
+	size_t	body_size(utils::str_tonum<size_t>(
 			this->request->get_header("content-length")));
 	if (!this->request->is_body_loaded()) {
 		log << Log::DEBUG << "Loading request body" << std::endl;
@@ -277,7 +279,7 @@ void CGIHandler::prepare_reply()
 		while (c != this->rbuf.end() && *c++ != '\n')
 			;
 		std::string	tmp(begin, c);
-		tmp = trim(tmp, " \t\v\r\n");
+		tmp = utils::trim(tmp, " \t\v\r\n");
 		if (tmp.empty())
 			break;
 		std::string::size_type	div(tmp.find(":"));
@@ -288,8 +290,8 @@ void CGIHandler::prepare_reply()
 		}
 		std::string	key(tmp.substr(0, div));
 		std::string	val(tmp.substr(div + 1));
-		if (icompare(key, "status")) {
-			int	status(str_tonum<int>(val));
+		if (utils::icompare(key, "status")) {
+			int	status(utils::str_tonum<int>(val));
 			if (status < 100 || status > 599) {
 				log << Log::DEBUG << "Bad status code received from CGI"
 					<< std::endl;
@@ -306,7 +308,7 @@ void CGIHandler::prepare_reply()
 	std::string	len(this->headers.get_header("Content-Length"));
 	size_t		body_size(0);
 	if (!len.empty())
-		body_size = str_tonum<size_t>(len);
+		body_size = utils::str_tonum<size_t>(len);
 	if (body_size) {
 		this->rbuf.erase(this->rbuf.begin(), c);
 		if (this->rbuf.size() > body_size)
@@ -329,7 +331,7 @@ void CGIHandler::reply_error(int status)
 	std::vector<char>	body;
 	body.reserve(tmp.size());
 	body.insert(body.end(), tmp.begin(), tmp.end());
-	this->headers.set_header("Content-Length", num_tostr(body.size()));
+	this->headers.set_header("Content-Length", utils::num_tostr(body.size()));
 	this->headers.set_header("Content-Type", "text/html");
 	this->headers.set_header("Connection", "close");
 	Reply::generate_response(

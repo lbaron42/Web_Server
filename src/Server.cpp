@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/08 04:54:51 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/08 21:33:34 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -436,7 +436,7 @@ bool Server::handle_request(int fd)
 				default:
 					request->set_status(501); break;
 			}
-			if (icompare(request->get_header("connection"), "keep-alive")
+			if (utils::icompare(request->get_header("connection"), "keep-alive")
 			|| (request->is_version_11()
 			&& request->get_header("connection").empty())) {
 				hdrs.set_header("Connection", "keep-alive");
@@ -463,7 +463,7 @@ bool Server::handle_request(int fd)
 		<< Reply::get_status_message(request->get_status()) << std::endl
 		<< "\t\t\t\t" << request->get_req_line() << std::endl;
 
-	if (icompare(hdrs.get_header("Connection"), "keep-alive"))
+	if (utils::icompare(hdrs.get_header("Connection"), "keep-alive"))
 		this->keep_alive.insert(fd);
 	else
 		this->keep_alive.erase(fd);
@@ -651,7 +651,7 @@ std::string Server::resolve_address(Request *request, Headers &headers)
 				request->set_dirlist(true);
 				return (path + url);
 			}
-			if (try_file(path + url))
+			if (utils::try_file(path + url))
 				return (path + url);
 			if (!lo->loc_index.empty()) {
 				std::vector<std::string>::const_iterator idx;
@@ -659,9 +659,9 @@ std::string Server::resolve_address(Request *request, Headers &headers)
 					url.append("/");
 				for (idx = lo->loc_index.begin();
 				idx != lo->loc_index.end(); ++idx) {
-					if (try_file(path + url + "/" + *idx))
+					if (utils::try_file(path + url + "/" + *idx))
 						return (path + url + "/" + *idx);
-					if (try_file(path + url + *idx))
+					if (utils::try_file(path + url + *idx))
 						return (path + url + *idx);
 				}
 			}
@@ -681,7 +681,7 @@ std::string Server::resolve_address(Request *request, Headers &headers)
 		request->set_dirlist(true);
 		return (path + url);
 	}
-	if (try_file(path + url))
+	if (utils::try_file(path + url))
 		return (path + url);
 	if (!this->info.serv_index.empty()) {
 		std::vector<std::string>::const_iterator idx;
@@ -689,9 +689,9 @@ std::string Server::resolve_address(Request *request, Headers &headers)
 			url.append("/");
 		for (idx = this->info.serv_index.begin();
 		idx != this->info.serv_index.end(); ++idx) {
-			if (try_file(path + url + "/" + *idx))
+			if (utils::try_file(path + url + "/" + *idx))
 				return (path + url + "/" + *idx);
-			if (try_file(path + url + *idx))
+			if (utils::try_file(path + url + *idx))
 				return (path + url + *idx);
 		}
 	}
@@ -719,7 +719,7 @@ void Server::get_head(Request *request, Headers &headers)
 		if (request->is_dirlist()) {
 			headers.set_header("Content-Type", "text/html");
 			headers.set_header("Content-Length",
-					num_tostr(Reply::get_html_size(path, request->get_url())));
+					utils::num_tostr(Reply::get_html_size(path, request->get_url())));
 			request->set_status(200);
 		} else {
 			log << Log::DEBUG << "Requested file is a directory" << std::endl;
@@ -737,9 +737,9 @@ void Server::get_head(Request *request, Headers &headers)
 		request->set_status(403);
 		return ;
 	}
-	headers.set_header("Content-Type", get_mime_type(path));
+	headers.set_header("Content-Type", utils::get_mime_type(path));
 	headers.set_header("Content-Length",
-			num_tostr(get_file_size(path)));
+			utils::num_tostr(utils::get_file_size(path)));
 	request->set_status(200);
 }
 
@@ -774,9 +774,9 @@ void Server::get_payload(Request *request, Headers &headers,
 static inline bool get_body_size(std::string const &content_len,
 		size_t *out_size)
 {
-	if (!is_uint(content_len))
+	if (!utils::is_uint(content_len))
 		return false;
-	*out_size = str_tonum<size_t>(content_len);
+	*out_size = utils::str_tonum<size_t>(content_len);
 	return true;
 }
 
@@ -830,7 +830,7 @@ void Server::handle_post_request(Request *request, Headers &headers,
 			return ;
 	} else if (type == "multipart/form-data" && div != std::string::npos
 	&& ((pos = content_type.find("boundary=", div + 1)) != std::string::npos)) {
-		std::string	boundary(trim(content_type.substr(pos + 9)));
+		std::string	boundary(utils::trim(content_type.substr(pos + 9)));
 		log << Log::DEBUG << "Multipart encoded form body" << std::endl
 			<< "Boundary:	[" << boundary << "]" << std::endl;
 		if (!get_body_size(request->get_header("content-length"), &body_size)) {
@@ -952,7 +952,7 @@ bool Server::is_cgi_request(Request *request, Headers &headers)
 	}
 	std::vector<std::string>::const_iterator it(this->info.cgi_ext.begin());
 	for ( ; it != this->info.cgi_ext.end(); ++it) {
-		if (ends_with(request->get_target(), *it))
+		if (utils::ends_with(request->get_target(), *it))
 			return true;
 	}
 	return false;
@@ -1004,12 +1004,12 @@ void Server::prepare_error_page(Request *request, Headers &hdrs,
 	if (it != this->info.error_pages.end()) {
 		std::string path(this->info.root + "/" + it->second);
 		payload = Reply::get_payload(path);
-		hdrs.set_header("Content-Length", num_tostr(payload.size()));
+		hdrs.set_header("Content-Length", utils::num_tostr(payload.size()));
 	}
 	if (payload.empty()) {
 		std::string tmp = Reply::generate_error_page(request->get_status());
 		payload.insert(payload.end(), tmp.begin(), tmp.end());
-		hdrs.set_header("Content-Length", num_tostr(tmp.length()));
+		hdrs.set_header("Content-Length", utils::num_tostr(tmp.length()));
 	}
 	if (request->get_method() == Request::HEAD) {
 		payload.clear();

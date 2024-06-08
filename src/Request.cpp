@@ -6,12 +6,11 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/05 15:12:31 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/08 21:36:21 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Request.hpp"
-#include "Utils.hpp"
 
 namespace {
 	static char const *const	methodnames[] = {
@@ -240,7 +239,7 @@ void Request::append(std::string const &str)
 
 int Request::validate_request_line()
 {
-	if (size_of_stream(this->raw_) < 15)
+	if (utils::size_of_stream(this->raw_) < 15)
 		return 0;
 	while (std::getline(this->raw_, this->req_line)) {
 		if (this->req_line.empty()
@@ -284,7 +283,7 @@ int Request::validate_request_line()
 				<< std::endl;
 		} else if (end != second + 9 || end != this->req_line.length() - 1)
 			return 400;
-		this->req_line = trim(this->req_line, "\r");
+		this->req_line = utils::trim(this->req_line, "\r");
 		log << Log::DEBUG << "Version:	["
 			<< this->req_line.substr(second + 1, end - second - 1)
 			<< "]" << std::endl;
@@ -338,12 +337,12 @@ bool Request::parse_headers()
 				<< header << std::endl;
 			continue;
 		}
-		std::string key = trim(header.substr(0, div));
+		std::string key = utils::trim(header.substr(0, div));
 		std::transform(key.begin(), key.end(), key.begin(), ::tolower);
-		std::string val = trim(header.substr(div + 1), " \t\r");
+		std::string val = utils::trim(header.substr(div + 1), " \t\r");
 		this->headers.set_header(key, val);
-		if (icompare(key, "Transfer-Encoding")
-		&& icompare(val, "chunked"))
+		if (utils::icompare(key, "Transfer-Encoding")
+		&& utils::icompare(val, "chunked"))
 			this->is_chunked_ = true;
 	}
 	return false;
@@ -355,8 +354,8 @@ bool Request::load_chunk()
 	size_t		size(0);
 
 	if (std::getline(this->raw_, line)) {
-		line = trim(line, "\r");
-		if (!str_tohex(line, &size)) {
+		line = utils::trim(line, "\r");
+		if (!utils::str_tohex(line, &size)) {
 			this->status = 400;
 			return false;
 		}
@@ -446,8 +445,8 @@ bool Request::load_multipart(std::string const &boundary, size_t max_body_size)
 				this->status = 400;
 				return true;
 			}
-			std::string	key(trim(line.substr(0, div)));
-			std::string	val(trim(line.substr(div + 1), " \t\r"));
+			std::string	key(utils::trim(line.substr(0, div)));
+			std::string	val(utils::trim(line.substr(div + 1), " \t\r"));
 			if (key.empty() || val.empty()) {
 				log << Log::WARN << "Empty header key/value" << std::endl;
 				this->status = 400;
@@ -477,7 +476,7 @@ bool Request::load_multipart(std::string const &boundary, size_t max_body_size)
 			this->status = 400;
 			return true;
 		}
-		this->path = this->target + trim(
+		this->path = this->target + utils::trim(
 				disp.substr(div + 10, end - div - 10), "\"");
 		log << Log::DEBUG << "Filename: [" << this->path << "]" << std::endl;
 		if (this->path == this->target) {
@@ -487,14 +486,17 @@ bool Request::load_multipart(std::string const &boundary, size_t max_body_size)
 			return true;
 		}
 	}
-	std::string	part = get_delimited(this->raw_, boundary);
+	std::string	part = utils::get_delimited(this->raw_, boundary);
 	if (part.empty()) {
-		log << Log::WARN << "EMPTY delimited. Tellg: " << this->raw_.tellg()
+		log << Log::DEBUG << "EMPTY delimited. Tellg: " << this->raw_.tellg()
 			<< std::endl;
 		this->raw_.clear();
 	}
 	this->loaded_body_size += part.length();
-	if (this->loaded_body_size > max_body_size)
+	if (this->loaded_body_size > max_body_size) {
+		this->status = 413;
+		return true;
+	}
 	log << Log::DEBUG << "Delimited:" << std::endl << "["
 		<< part << "]" << std::endl << "[" << boundary << "]" << std::endl;
 	div = part.find(boundary);
@@ -508,7 +510,7 @@ bool Request::load_multipart(std::string const &boundary, size_t max_body_size)
 	log << Log::DEBUG << "Next [" << next << "]" << std::endl;
 	part.erase(div - 1);
 	this->payload.insert(this->payload.end(), part.begin(), part.end());
-	if (!save_file(this->path, this->payload)) {
+	if (!utils::save_file(this->path, this->payload)) {
 		log << Log::ERROR << "Error saving file" << std::endl;
 		this->status = 500;
 		return true;

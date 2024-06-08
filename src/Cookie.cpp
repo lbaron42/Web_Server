@@ -6,12 +6,11 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/06/05 04:37:44 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/07 22:01:55 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/08 21:36:42 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Cookie.hpp"
-#include "Utils.hpp"
 
 ////////////////////////////////////////////////////////////////////////////////
 //	CTOR/DTOR
@@ -86,7 +85,7 @@ bool Cookie::is_valid(std::string const &attr_name,
 	ch != attr_value.end(); ++ch)
 		if (*ch < 33 || *ch == 127)
 			return false;
-	std::string tmp(trim(attr_value, "\""));
+	std::string tmp(utils::trim(attr_value, "\""));
 	if (tmp.find_first_of(",;\\\"") != std::string::npos)
 		return false;
 	return true;

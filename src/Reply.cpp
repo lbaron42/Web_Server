@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 07:54:45 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/02 14:27:36 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/08 21:29:32 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,7 +33,7 @@ std::vector<char> const Reply::get_payload(std::string const &filename)
 	std::ifstream		file(filename.c_str(), std::ios::binary);
 	std::vector<char>	bytes;
 
-	ssize_t file_size = get_file_size(filename);
+	ssize_t file_size = utils::get_file_size(filename);
 	if (file_size < 0)
 		return bytes;
 	bytes.reserve(file_size);
@@ -74,7 +74,7 @@ std::string const Reply::get_listing(std::string const &path,
 				mod_time = tmp;
 			}
 			if (S_ISREG(sb.st_mode)) {
-				file_size = num_tostr(sb.st_size);
+				file_size = utils::num_tostr(sb.st_size);
 			} else if (S_ISDIR(sb.st_mode)) {
 				name.append("/");
 				file_size = "-";

@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/18 19:51:33 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/08 04:56:58 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/08 21:35:36 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,8 +19,9 @@
 namespace marvinX {
 	extern "C" void stop_servers(int sig)
 	{
-		if (sig == SIGSTOP || sig == SIGTERM || sig == SIGKILL)
-			g_stopme = 1;
+		// if (sig == SIGSTOP || sig == SIGTERM || sig == SIGKILL)
+		(void)sig;
+		g_stopme = 1;
 	}
 }
 
@@ -198,8 +199,10 @@ void Cluster::start()
 				if (!this->manage_cgi(events[i]))
 					log << Log::WARN << "Untracked file descriptor in epoll: "
 						<< fd << std::endl;
-				if (epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, fd, NULL))
-					log << Log::ERROR << "Failed epoll_del" << std::endl;
+				if (epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, fd, NULL)) {
+					log << Log::ERROR << "Failed epoll_del fd: " << fd
+						<< " errno: " << errno << std::endl;
+				}
 				continue;
 			}
 			if (events[i].events & EPOLLERR || events[i].events & EPOLLHUP) {

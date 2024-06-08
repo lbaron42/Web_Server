@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/19 16:23:16 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/02 14:25:58 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/08 21:38:12 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,6 +20,8 @@
 # include <set>
 # include <string>
 # include <vector>
+
+# include "Utils.hpp"
 
 class Headers
 {

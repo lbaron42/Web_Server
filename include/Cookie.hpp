@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/06/05 04:19:27 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/06 15:43:14 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/08 21:38:37 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,6 +17,8 @@
 # include <map>
 # include <sstream>
 # include <string>
+
+# include "Utils.hpp"
 
 class Cookie
 {
