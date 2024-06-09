@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/23 17:57:12 by plandolf          #+#    #+#             */
-/*   Updated: 2024/06/08 21:28:05 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/09 13:52:04 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -49,28 +49,16 @@ CGIHandler::CGIHandler(const CGIHandler &src)
 		owner(src.owner)
 {}
 
-/* TODO
- * close pipes, terminate child process, delete request
- */
 CGIHandler::~CGIHandler()
 {
-	close(this->input);
-	close(this->output);
+	if (this->input > -1)
+		close(this->input);
+	if (this->output > -1)
+		close(this->output);
 	if (this->pid > 1)
 		kill(this->pid, SIGKILL);
 	if (this->request)
 		delete this->request;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//	Signal handling
-////////////////////////////////////////////////////////////////////////////////
-
-extern "C" void on_cgi_exit(int sig)
-{
-	if (sig != SIGCHLD)
-		return;
-	waitpid(-1, NULL, WNOHANG);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -91,11 +79,16 @@ bool CGIHandler::execute(int pipes[2], Request *request)
 	if (cmd.empty())
 		return false;
 	argv.push_back(cmd.c_str());
-	argv.push_back(NULL);
+	argv.push_back(static_cast<char const *>(0));
 
-	std::vector<char const *> env(request->get_headers().get_as_env());
+	Headers	hdrs(request->get_headers());
+	std::vector<char const *> env;
+	// TODO: extract path after script name
+	// i.e. if URL=/cgi-bin/script.cgi/additional/path?id=value&foo=bar
+	// PATH_INFO=/additional/path
+	// QUERY_STRING=id=value&foo=bar
 	std::string path("PATH_INFO=");
-	// path.append(); // TODO: which path to pass?
+	// path.append();
 	env.push_back(path.c_str());
 	std::string method("REQUEST_METHOD=");
 	method.append(request->get_method_as_str());
@@ -105,7 +98,7 @@ bool CGIHandler::execute(int pipes[2], Request *request)
 	env.push_back(query.c_str());
 	std::string gateway("GATEWAY_INTERFACE=CGI/1.1");
 	env.push_back(gateway.c_str());
-	env.push_back(NULL);
+	env.push_back(static_cast<char const *>(0));
 
 	int pin[2], pout[2];
 	if (pipe(pin) || pipe(pout))
@@ -135,7 +128,7 @@ bool CGIHandler::execute(int pipes[2], Request *request)
 	this->output = pout[1];
 	pipes[1] = pout[1];
 	close(pout[0]);
-	std::signal(SIGCHLD, on_cgi_exit);
+	std::signal(SIGCHLD, SIG_IGN);
 	waitpid(this->pid, &this->status, WNOHANG);
 	this->request = request;
 	if (!this->status)
@@ -155,9 +148,10 @@ bool CGIHandler::execute(int pipes[2], Request *request)
  */
 bool CGIHandler::send_output()
 {
-	if (request->get_method() == Request::GET) {
-		log << Log::DEBUG << "CGI GET method has no body" << std::endl;
-		// close(this->output);
+	if (request->get_method() == Request::GET
+	|| request->get_method() == Request::HEAD) {
+		log << Log::DEBUG << "CGI GET method has no body - closing"
+			<< std::endl;
 		this->output = -1;
 		return false;
 	}
@@ -185,7 +179,6 @@ bool CGIHandler::send_output()
 		return true;
 	}
 	this->wbuf.clear();
-	// close(this->output);
 	this->output = -1;
 	return false;
 }
@@ -207,15 +200,32 @@ bool CGIHandler::read_input()
 	log << Log::DEBUG << "CGIHandler Read " << r
 		<< " bytes of CGI reply" << std::endl;
 	if (r < 1) {
-		if (this->reply.empty())
-			this->reply_error(502);
-		else
+		if (this->rbuf.empty()) {
+			this->request->set_status(502);
+			this->reply_error();
+		} else
 			this->prepare_reply();
 		this->owner->switch_epoll_mode(this->client_fd, EPOLLOUT);
 		return false;
 	}
 	this->rbuf.insert(this->rbuf.end(), buff, buff + r);
+	buff[r] = 0;
+	log << Log::DEBUG << ">>\n" << buff << std::endl;
 	return true;
+}
+
+void CGIHandler::on_pipe_close(int fd)
+{
+	if (fd == this->input) {
+		this->owner->switch_epoll_mode(this->client_fd, EPOLLOUT);
+		if (this->reply.empty()) {
+			if (this->rbuf.empty()) {
+				this->request->set_status(502);
+				this->reply_error();
+			} else
+				this->prepare_reply();
+		}
+	}
 }
 
 /* TODO:
@@ -227,6 +237,7 @@ bool CGIHandler::send_reply()
 	log << Log::DEBUG << "CGI sending reply" << std::endl;
 	if (reply.empty()) {
 		// this->read_input();
+		log << Log::DEBUG << "CGI reply empty" << std::endl;
 		return true;
 	}
 	ssize_t s = send(client_fd, this->reply.data(), this->reply.size(), MSG_DONTWAIT);
@@ -255,11 +266,9 @@ bool CGIHandler::receive()
 	log << Log::DEBUG << "CGI received " << r << " bytes of body" << std::endl;
 	switch (r) {
 		case -1:
-			close(this->client_fd);
 			return false;
 		case 0:
 			log << Log::INFO << "Client closed connection" << std::endl;
-			close(this->client_fd);
 			return false;
 		default:
 			this->wbuf.insert(this->wbuf.end(), buff, buff + r);
@@ -273,11 +282,31 @@ bool CGIHandler::receive()
 
 void CGIHandler::prepare_reply()
 {
+	this->read_headers();
+	if (this->request->get_status() >= 400) {
+		this->reply_error();
+		return;
+	}
+	Reply::generate_response(
+		this->request,
+		this->headers,
+		this->rbuf,
+		this->reply);
+	log << Log::DEBUG << "CGI prepared response " << this->reply.size()
+		<< " bytes" << std::endl;
+}
+
+void CGIHandler::read_headers()
+{
 	std::vector<char>::iterator	c(this->rbuf.begin());
 	while (c != this->rbuf.end()) {
 		std::vector<char>::iterator	begin = c;
 		while (c != this->rbuf.end() && *c++ != '\n')
 			;
+		if (c == this->rbuf.end()) {
+			this->rbuf.erase(this->rbuf.begin(), begin);
+			return;
+		}
 		std::string	tmp(begin, c);
 		tmp = utils::trim(tmp, " \t\v\r\n");
 		if (tmp.empty())
@@ -296,7 +325,8 @@ void CGIHandler::prepare_reply()
 				log << Log::DEBUG << "Bad status code received from CGI"
 					<< std::endl;
 				this->rbuf.clear();
-				this->reply_error(502);
+				this->request->set_status(502);
+				this->reply_error();
 				return;
 			}
 			this->request->set_status(status);
@@ -305,6 +335,10 @@ void CGIHandler::prepare_reply()
 			this->headers.set_header(key, val);
 		}
 	}
+	// TODO: ensure presence of headers required by protocol
+	// TODO: handle error responses
+	if (this->request->get_status() >= 400)
+		;
 	std::string	len(this->headers.get_header("Content-Length"));
 	size_t		body_size(0);
 	if (!len.empty())
@@ -315,30 +349,17 @@ void CGIHandler::prepare_reply()
 			this->rbuf.erase(this->rbuf.begin() + body_size, this->rbuf.end());
 	} else
 		this->rbuf.clear();
-	Reply::generate_response(
-		this->request,
-		this->headers,
-		this->rbuf,
-		this->reply);
-	log << Log::DEBUG << "CGI prepared response " << this->reply.size()
-		<< " bytes" << std::endl;
 }
 
-void CGIHandler::reply_error(int status)
+void CGIHandler::reply_error()
 {
-	this->request->set_status(status);
-	std::string	tmp(Reply::generate_error_page(status));
 	std::vector<char>	body;
-	body.reserve(tmp.size());
-	body.insert(body.end(), tmp.begin(), tmp.end());
-	this->headers.set_header("Content-Length", utils::num_tostr(body.size()));
-	this->headers.set_header("Content-Type", "text/html");
-	this->headers.set_header("Connection", "close");
+	this->owner->prepare_error_page(this->request, this->headers, body);
 	Reply::generate_response(
 		this->request,
 		this->headers,
 		body,
 		this->reply);
-	log << Log::DEBUG << "CGI prepared response " << this->reply.size()
+	log << Log::DEBUG << "CGI prepared error response " << this->reply.size()
 		<< " bytes" << std::endl;
 }

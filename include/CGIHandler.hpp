@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/23 11:58:31 by plandolf          #+#    #+#             */
-/*   Updated: 2024/06/08 02:51:29 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/09 01:50:26 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -46,6 +46,7 @@ class CGIHandler{
 
 		bool read_input();
 		bool send_output();
+		void on_pipe_close(int fd);
 		bool send_reply();
 		bool receive();
 
@@ -73,7 +74,8 @@ class CGIHandler{
 		Server				*owner;
 
 		void prepare_reply();
-		void reply_error(int status);
+		void reply_error();
+		void read_headers();
 
 		CGIHandler &operator=(const CGIHandler &src);
 };

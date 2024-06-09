@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/06 12:51:04 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/09 02:24:33 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -123,13 +123,15 @@ class Server
 		int add_client(int listen_fd);
 		void close_connection(int fd);
 		bool recv_request(int fd,
-				std::queue<std::pair<Request*, int> > &que);
+				std::queue<std::pair<Request*, int> > &que, CGIHandler **cgi);
 		void register_request(int client_fd, Request *request);
 		bool handle_request(int fd);
 		Server &check_queue(int fd);
 		bool matches_hostname(Request *request);
 		bool switch_epoll_mode(int fd, uint32_t events);
-		bool send_reply(int fd);
+		bool send_reply(int fd, CGIHandler **cgi);
+		void prepare_error_page(Request *request, Headers &hdrs,
+				std::vector<char> &payload);
 		void shutdown_cgi(CGIHandler *cgi);
 		~Server();
 
@@ -161,10 +163,6 @@ class Server
 		void handle_delete_request(Request *request);
 		bool is_cgi_request(Request *request, Headers &headers);
 		bool handle_cgi(int fd, Request *request);
-		// Server &generate_response(Request *request, Headers &headers,
-		// 		std::vector<char> const &body, std::vector<char> &repl);
-		void prepare_error_page(Request *request, Headers &hdrs,
-				std::vector<char> &payload);
 		void internal_error(int fd, int code);
 
 		/* no assign to object with reference member (here: Log) */

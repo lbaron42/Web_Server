@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/18 19:51:30 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/06 12:54:57 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/09 11:11:15 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,6 +25,7 @@
 # define CGI_IDLE_TIMEOUT	20
 
 # include <algorithm>
+# include <cerrno>
 # include <csignal>
 # include <ctime>
 # include <map>

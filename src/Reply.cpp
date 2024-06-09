@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 07:54:45 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/08 21:29:32 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/09 13:43:58 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -99,7 +99,6 @@ std::string const Reply::get_status_line(bool v11, int status)
 	return oss.str();
 }
 
-// TODO:
 std::string const Reply::generate_error_page(int status)
 {
 	std::stringstream	html;
@@ -112,6 +111,18 @@ std::string const Reply::generate_error_page(int status)
 		<< "<h1>" << "Error " << status
 		<< "</h1><hr><pre>" << "<h2>" << Reply::get_status_message(status)
 		<< "</h2>" << std::endl
+		<< "</body>" << std::endl << "</html>" << std::endl;
+	return html.str();
+}
+
+std::string const Reply::generate_redirect(std::string const &location)
+{
+	std::stringstream	html;
+
+	html << "<html>" << std::endl
+		<< "<head><title>Redirection</title></head>" << std::endl
+		<< "<p><a href=" << location
+		<< ">Redirect</a></p>" << std::endl
 		<< "</body>" << std::endl << "</html>" << std::endl;
 	return html.str();
 }
@@ -143,11 +154,7 @@ void Reply::generate_response(Request *request, Headers &headers,
 		repl.push_back(c);
 	if (!body.empty()) {
 		repl.insert(repl.end(), body.begin(), body.end());
-		repl.push_back('\r');
-		repl.push_back('\n');
 	}
-	repl.push_back('\r');
-	repl.push_back('\n');
 }
 
 std::string const Reply::get_status_message(int status)

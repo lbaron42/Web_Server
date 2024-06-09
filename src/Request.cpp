@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/08 21:36:21 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/09 02:07:57 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -84,7 +84,7 @@ std::string Request::get_method_as_str() const
 	unsigned int m = static_cast<unsigned int>(this->method);
 	unsigned int c = 0;
 	if (m)
-		while (!(m & 1) && ++c < n_methods)
+		while (++c < n_methods && !(m & 1))
 			m >>= 1;
 	return std::string(methodnames[c]);
 }

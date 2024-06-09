@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/08 21:33:34 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/09 13:51:36 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -248,7 +248,8 @@ int Server::add_client(int listen_fd)
 void Server::close_connection(int fd)
 {
 	if (epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, fd, NULL) == -1) {
-		log << Log::ERROR << "Failed to remove fd from epoll" << std::endl;
+		log << Log::ERROR << "Failed to remove fd "
+			<< fd << " from epoll" << std::endl;
 	}
 	(void)close(fd);
 	std::map<int, Request*>::iterator it = this->requests.find(fd);
@@ -274,16 +275,16 @@ void Server::close_connection(int fd)
 }
 
 bool Server::recv_request(int fd,
-		std::queue<std::pair<Request*, int> > &que)
+		std::queue<std::pair<Request*, int> > &que, CGIHandler **cgi)
 {
 	char				buff[4096];
 	std::string			msg;
 
 	std::map<int, CGIHandler*>::iterator cg = this->cgis.find(fd);
 	if (cg != this->cgis.end()) {
+		*cgi = cg->second;
 		return cg->second->receive();
 	}
-
 	ssize_t r = recv(fd, buff, sizeof(buff), MSG_DONTWAIT);
 	switch (r) {
 		case -1:
@@ -393,14 +394,14 @@ bool Server::handle_request(int fd)
 				this->chunksters.erase(fd);
 				request->set_status(500);
 				this->internal_error(fd, 500);
-				return false;
+				return true;
 			}
 		}
 		if (!this->chunksters[fd]->nunchunkMe(request)) {
 			if (request->get_status() != 400) {
 				request->set_status(500);
 				this->internal_error(fd, 500);
-				return false;
+				return true;
 			}
 			this->prepare_error_page(request, hdrs, payload);
 		} else if (!this->chunksters[fd]->is_done()) {
@@ -501,12 +502,13 @@ bool Server::switch_epoll_mode(int fd, uint32_t events)
 	return true;
 }
 
-bool Server::send_reply(int fd)
+bool Server::send_reply(int fd, CGIHandler **cgi)
 {
 	ssize_t	s;
 
 	std::map<int, CGIHandler*>::iterator cg = this->cgis.find(fd);
 	if (cg != this->cgis.end()) {
+		*cgi = cg->second;
 		return cg->second->send_reply();
 	}
 	std::map<int, std::vector<char> >::iterator it = this->replies.find(fd);
@@ -533,17 +535,46 @@ bool Server::send_reply(int fd)
 	return this->switch_epoll_mode(fd, EPOLLIN);
 }
 
+void Server::prepare_error_page(Request *request, Headers &hdrs,
+		std::vector<char> &payload)
+{
+	std::map<int, std::string>::const_iterator it = this
+			->info.error_pages.find(request->get_status());
+	if (it != this->info.error_pages.end()) {
+		std::string path(this->info.root + "/" + it->second);
+		payload = Reply::get_payload(path);
+		hdrs.set_header("Content-Length", utils::num_tostr(payload.size()));
+	}
+	if (payload.empty()) {
+		std::string tmp = Reply::generate_error_page(request->get_status());
+		payload.insert(payload.end(), tmp.begin(), tmp.end());
+		hdrs.set_header("Content-Length", utils::num_tostr(tmp.length()));
+	}
+	if (request->get_method() == Request::HEAD) {
+		payload.clear();
+	}
+	hdrs.set_header("Content-Type", "text/html");
+	hdrs.set_header("Connection", "close");
+}
+
 void Server::shutdown_cgi(CGIHandler *cgi)
 {
+	int	fd(-1);
 	for (std::map<int, CGIHandler*>::iterator it = this->cgis.begin();
 	it != this->cgis.end(); ++it) {
 		if (it->second == cgi) {
+			fd = it->first;
 			delete cgi;
 			this->cgis.erase(it);
 			break;
 		}
 	}
-	this->internal_error(-1, 504);
+	if (fd != -1) {
+		log << Log::DEBUG << "CGI timed out - replying to " << fd << std::endl;
+		this->internal_error(fd, 504);
+		if (!this->switch_epoll_mode(fd, EPOLLOUT))
+			this->close_connection(fd);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -752,8 +783,9 @@ void Server::get_payload(Request *request, Headers &headers,
 		if (!stat(request->get_target().c_str(), &statbuf)
 		&& S_ISDIR(statbuf.st_mode)) {
 			if (request->is_dirlist()) {
-				std::string tmp = Reply::get_listing(request->get_target(),
-						request->get_url());
+				std::string tmp = Reply::get_listing(
+					request->get_target(),
+					request->get_url());
 				if (!tmp.empty())
 					body->insert(body->end(), tmp.begin(), tmp.end());
 				else {
@@ -765,6 +797,10 @@ void Server::get_payload(Request *request, Headers &headers,
 				log << Log::DEBUG << "Requested file is a directory"
 					<< request->get_target() << std::endl;
 			}
+		} else if (request->get_status() == 308) {
+			std::string tmp = Reply::generate_redirect(
+				headers.get_header("Location"));
+			body->insert(body->end(), tmp.begin(), tmp.end());
 		} else {
 			*body = Reply::get_payload(request->get_target());
 		}
@@ -854,8 +890,8 @@ void Server::handle_post_request(Request *request, Headers &headers,
 		request->set_status(400);
 		return ;
 	}
-	// request->set_status(201);
-	request->set_status(303);
+	request->set_status(201);
+	// request->set_status(303);
 	(void)body;
 }
 
@@ -951,9 +987,18 @@ bool Server::is_cgi_request(Request *request, Headers &headers)
 		return false;
 	}
 	std::vector<std::string>::const_iterator it(this->info.cgi_ext.begin());
+	std::string	script(request->get_target().substr(
+		this->info.root.length() + this->info.cgi_path.length(),
+		request->get_target().find_first_of(
+			'/',
+			this->info.root.length() + this->info.cgi_path.length())
+		- this->info.root.length() - this->info.cgi_path.length())
+		);
+	log << Log::DEBUG << "Checking for script: " << script << std::endl;
 	for ( ; it != this->info.cgi_ext.end(); ++it) {
-		if (utils::ends_with(request->get_target(), *it))
+		if (utils::ends_with(script, *it)) {
 			return true;
+		}
 	}
 	return false;
 }
@@ -996,42 +1041,21 @@ bool Server::handle_cgi(int fd, Request *request)
 	return true;
 }
 
-void Server::prepare_error_page(Request *request, Headers &hdrs,
-		std::vector<char> &payload)
-{
-	std::map<int, std::string>::const_iterator it = this
-			->info.error_pages.find(request->get_status());
-	if (it != this->info.error_pages.end()) {
-		std::string path(this->info.root + "/" + it->second);
-		payload = Reply::get_payload(path);
-		hdrs.set_header("Content-Length", utils::num_tostr(payload.size()));
-	}
-	if (payload.empty()) {
-		std::string tmp = Reply::generate_error_page(request->get_status());
-		payload.insert(payload.end(), tmp.begin(), tmp.end());
-		hdrs.set_header("Content-Length", utils::num_tostr(tmp.length()));
-	}
-	if (request->get_method() == Request::HEAD) {
-		payload.clear();
-	}
-	hdrs.set_header("Content-Type", "text/html");
-	hdrs.set_header("Connection", "close");
-}
-
 void Server::internal_error(int fd, int code)
 {
 	std::vector<char>	reply;
-	std::string const	body = Reply::generate_error_page(code);
+	std::string const	status_line(Reply::get_status_line(true, code));
+	std::string const	body(Reply::generate_error_page(code));
 
+	reply.insert(reply.end(), status_line.begin(), status_line.end());
 	std::stringstream	ss;
-	ss << "HTTP/1.1 500 Internal Server Error\r\n"
-		<< "Connection: close\r\n"
+	ss << std::noskipws << "Connection: close\r\n"
 		<< "Content-Type: text/html\r\n"
 		<< "\r\n";
 	char c;
 	while (ss >> c)
 		reply.push_back(c);
-	std::copy(body.begin(), body.end(), std::back_inserter(reply));
+	reply.insert(reply.end(), body.begin(), body.end());
 	this->keep_alive.erase(fd);
 	(void)this->enqueue_reply(fd, reply);
 }

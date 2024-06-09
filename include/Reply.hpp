@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 07:56:07 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/02 09:39:27 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/09 13:44:21 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -42,6 +42,7 @@ class Reply
 		static std::string const get_listing(std::string const &filename,
 				std::string const &url);
 		static std::string const generate_error_page(int status = 500);
+		static std::string const generate_redirect(std::string const &location);
 		static size_t get_html_size(int status);
 		static size_t get_html_size(std::string const &listed_directory,
 				std::string const &url);

@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/19 16:21:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/08 21:36:35 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/08 21:53:53 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -71,7 +71,11 @@ std::vector<char const *> Headers::get_as_env(void) const
 	std::map<std::string, std::string>::const_iterator it;
 	for (it = this->headers.begin(); it != this->headers.end(); ++it) {
 		std::string tmp(it->first);
-		std::transform(tmp.begin(), tmp.end(), tmp.begin(), ::toupper);
+		std::transform(
+			tmp.begin(),
+			tmp.end(),
+			tmp.begin(),
+			::toupper);
 		tmp.append("=" + it->second);
 		result.push_back(tmp.c_str());
 	}
