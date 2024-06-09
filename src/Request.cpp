@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/09 02:07:57 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/09 18:53:22 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -380,12 +380,15 @@ bool Request::load_payload(size_t size)
 		<< "Inpos: " << inpos << " | Outpos: " << outpos << std::endl
 		<< "Size: " << size << std::endl
 		<< "EOF: " << this->raw_.eof() << std::endl;
-	if (partial) {
-		this->payload.insert(this->payload.end(), this->raw_.str().begin(),
-				this->raw_.str().end());
+	std::string	tmp;
+	this->raw_ >> tmp;
+	if (!partial) {
+		tmp.erase(size);
+		this->payload.insert(this->payload.end(), tmp.begin(),
+				tmp.end());
 	} else {
-		this->payload.insert(this->payload.end(), this->raw_.str().begin(),
-				this->raw_.str().begin() + (outpos - inpos));
+		this->payload.insert(this->payload.end(), tmp.begin(),
+				tmp.end());
 	}
 	this->loaded_body_size += partial	? static_cast<size_t>(outpos - inpos)
 										: size;
