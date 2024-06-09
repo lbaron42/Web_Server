@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:22:31 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/04 21:23:26 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/09 20:47:07 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -36,6 +36,10 @@ int	main(int ac, char **av)
 		return EXIT_FAILURE;
 
 	std::vector<Server>	servers = conf.getServers();
+	if (servers.empty()) {
+		log << Log::ERROR << "No valid servers defined. Exiting" << std::endl;
+		return EXIT_FAILURE;
+	}
 	for (std::vector<Server>::iterator it = servers.begin();
 	it != servers.end(); ++it) {
 		Heart_of_Gold.add_server(*it);
