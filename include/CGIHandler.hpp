@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   CGIHandler.hpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
+/*   By: plandolf <plandolf@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/23 11:58:31 by plandolf          #+#    #+#             */
-/*   Updated: 2024/06/09 01:50:26 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/09 17:07:41 by plandolf         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -49,6 +49,7 @@ class CGIHandler{
 		void on_pipe_close(int fd);
 		bool send_reply();
 		bool receive();
+		std::string path_info();
 
 		~CGIHandler();
 

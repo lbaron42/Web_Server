@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   CGIHandler.cpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
+/*   By: plandolf <plandolf@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/23 17:57:12 by plandolf          #+#    #+#             */
-/*   Updated: 2024/06/09 13:52:04 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/09 17:16:13 by plandolf         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -72,6 +72,30 @@ CGIHandler::~CGIHandler()
  * and should delete it when done with it
  * @return: true if exec successful
  */
+std::string CGIHandler::path_info()
+{
+	std::string url = request->get_url();
+	std::vector<std::string> extensions;
+	extensions.push_back(".cgi");
+	extensions.push_back(".py");
+	size_t start = std::string::npos;
+	size_t extensionPos = std::string::npos;
+	
+	for (size_t i = 0; i < extensions.size(); ++i) {
+		extensionPos = url.find(extensions[i]);
+		if (extensionPos != std::string::npos) {
+			start = extensionPos + extensions[i].length();
+			break;
+		}
+	}
+	size_t end = url.find('?', start);
+	if (!end) {
+		return "";
+	}
+	std::string path = url.substr(start, end - start);
+	return path;
+}
+
 bool CGIHandler::execute(int pipes[2], Request *request)
 {
 	std::vector<char const *>	argv;
@@ -88,7 +112,7 @@ bool CGIHandler::execute(int pipes[2], Request *request)
 	// PATH_INFO=/additional/path
 	// QUERY_STRING=id=value&foo=bar
 	std::string path("PATH_INFO=");
-	// path.append();
+	//path.append(path_info());
 	env.push_back(path.c_str());
 	std::string method("REQUEST_METHOD=");
 	method.append(request->get_method_as_str());
