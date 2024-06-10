@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/18 19:51:33 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/09 13:55:00 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/09 21:41:21 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -84,8 +84,8 @@ bool Cluster::init_all()
 			log << Log::ERROR << "Misconfigured root for server: "
 				<< (it->get_hostnames().empty()	? "unnamed"
 												: it->get_hostnames()[0])
-				<< "	SKIPPING" << std::endl;
-			continue;
+				<< std::endl;
+			return false;
 		}
 		it->sort_locations();
 		it->set_log();

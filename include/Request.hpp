@@ -6,7 +6,7 @@
 /*   By: plandolf <plandolf@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:23:14 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/09 16:47:01 by plandolf         ###   ########.fr       */
+/*   Updated: 2024/06/10 12:07:43 by plandolf         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -79,7 +79,7 @@ class Request
 		int validate_request_line();
 		bool is_valid_method(std::string const &method);
 		bool parse_headers();
-		bool load_chunk();
+		std::string load_body();
 		bool load_payload(size_t size);
 		void drop_payload();
 		bool load_multipart(std::string const &boundary, size_t max_body_size);

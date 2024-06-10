@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/09 13:51:36 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/09 20:45:55 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -986,17 +986,23 @@ bool Server::is_cgi_request(Request *request, Headers &headers)
 			this->info.root.size()) == std::string::npos)) {
 		return false;
 	}
-	std::vector<std::string>::const_iterator it(this->info.cgi_ext.begin());
+	std::string::size_type	info(request->get_target().find_first_of(
+		'/',
+		this->info.root.length() + this->info.cgi_path.length()
+	));
 	std::string	script(request->get_target().substr(
 		this->info.root.length() + this->info.cgi_path.length(),
-		request->get_target().find_first_of(
-			'/',
-			this->info.root.length() + this->info.cgi_path.length())
-		- this->info.root.length() - this->info.cgi_path.length())
+		info - this->info.root.length() - this->info.cgi_path.length())
 		);
+	std::string	script_path(this->info.root + this->info.cgi_path + script);
 	log << Log::DEBUG << "Checking for script: " << script << std::endl;
+	std::vector<std::string>::const_iterator it(this->info.cgi_ext.begin());
 	for ( ; it != this->info.cgi_ext.end(); ++it) {
 		if (utils::ends_with(script, *it)) {
+			if (!utils::try_file(script_path)) {
+				request->set_status(404);
+				return false;
+			}
 			return true;
 		}
 	}
