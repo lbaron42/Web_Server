@@ -72,7 +72,7 @@ CGIHandler::~CGIHandler()
  * and should delete it when done with it
  * @return: true if exec successful
  */
-std::string CGIHandler::path_info()
+std::string CGIHandler::path_info() 
 {
 	std::string url = request->get_url();
 	std::vector<std::string> extensions;
@@ -80,7 +80,7 @@ std::string CGIHandler::path_info()
 	extensions.push_back(".py");
 	size_t start = std::string::npos;
 	size_t extensionPos = std::string::npos;
-	
+		
 	for (size_t i = 0; i < extensions.size(); ++i) {
 		extensionPos = url.find(extensions[i]);
 		if (extensionPos != std::string::npos) {
@@ -88,10 +88,17 @@ std::string CGIHandler::path_info()
 			break;
 		}
 	}
-	size_t end = url.find('?', start);
-	if (!end) {
+	if (start == std::string::npos) {
+		// No known extension found
 		return "";
 	}
+	size_t end = url.find('?', start);
+	if (end == std::string::npos) {
+		// No query parameter found
+		return "";
+	}
+	if (start == end)
+		return "";
 	std::string path = url.substr(start, end - start);
 	return path;
 }
@@ -112,7 +119,7 @@ bool CGIHandler::execute(int pipes[2], Request *request)
 	// PATH_INFO=/additional/path
 	// QUERY_STRING=id=value&foo=bar
 	std::string path("PATH_INFO=");
-	//path.append(path_info());
+	path.append(path_info());
 	env.push_back(path.c_str());
 	std::string method("REQUEST_METHOD=");
 	method.append(request->get_method_as_str());
@@ -361,8 +368,8 @@ void CGIHandler::read_headers()
 	}
 	// TODO: ensure presence of headers required by protocol
 	// TODO: handle error responses
-	if (this->request->get_status() >= 400)
-		;
+	if (this->request->get_status() >= 400){
+		;}
 	std::string	len(this->headers.get_header("Content-Length"));
 	size_t		body_size(0);
 	if (!len.empty())

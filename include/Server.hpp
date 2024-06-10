@@ -66,7 +66,7 @@ struct ServerData
 			return (
 				(this->ip == rhs.ip && this->port == rhs.port)
 				|| (this->port == rhs.port
-					&& (this-ip.compare("0.0.0.0")
+					&& (this->ip.compare("0.0.0.0")
 					|| rhs.ip.compare("0.0.0.0")))
 				);
 		}
