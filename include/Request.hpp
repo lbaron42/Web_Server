@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:23:14 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/10 03:45:48 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/10 18:46:30 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -58,6 +58,7 @@ class Request
 		std::string get_req_line() const;
 		int get_status() const;
 		std::string get_target() const;
+		std::string get_script() const;
 		std::string get_path() const;
 		std::vector<char> get_payload() const;
 		bool is_dirlist() const;
@@ -70,6 +71,7 @@ class Request
 
 		void set_status(int status);
 		void set_target(std::string const &path);
+		void set_script(std::string const &script);
 		void set_path(std::string const &path);
 		void set_dirlist(bool value);
 		void set_parsed(bool value);
@@ -97,6 +99,7 @@ class Request
 		int					status;
 		Headers				headers;
 		std::string			target;
+		std::string			script;
 		std::string			path;
 		size_t				loaded_body_size;
 		bool				is_body_loaded_;

@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/10 03:45:39 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/10 18:53:18 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,6 +37,7 @@ Request::Request(std::string const &raw, Log &logger)
 		status(0),
 		headers(),
 		target(),
+		script(),
 		path(),
 		loaded_body_size(0),
 		is_body_loaded_(false),
@@ -59,6 +60,7 @@ Request::Request(Request const &rhs)
 		status(rhs.status),
 		headers(rhs.headers),
 		target(rhs.target),
+		script(rhs.script),
 		path(rhs.path),
 		loaded_body_size(rhs.loaded_body_size),
 		is_body_loaded_(rhs.is_body_loaded_),
@@ -129,6 +131,11 @@ std::string Request::get_target() const
 	return this->target;
 }
 
+std::string Request::get_script() const
+{
+	return this->script;
+}
+
 std::string Request::get_path() const
 {
 	return this->path;
@@ -183,6 +190,11 @@ void Request::set_status(int status)
 void Request::set_target(std::string const &path)
 {
 	this->target = path;
+}
+
+void Request::set_script(std::string const &script)
+{
+	this->script = script;
 }
 
 void Request::set_path(std::string const &path)
@@ -262,7 +274,7 @@ int Request::validate_request_line()
 		this->url = this->req_line.substr(first + 1, second - first - 1);
 		std::string::size_type q(this->url.find('?'));
 		if (q != std::string::npos && q) {
-			this->query = this->url.substr(q);
+			this->query = this->url.substr(q + 1);
 			this->url.erase(q);
 		}
 		log << Log::DEBUG << "URL:		[" << this->url << "]" << std::endl;

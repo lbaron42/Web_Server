@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/23 17:57:12 by plandolf          #+#    #+#             */
-/*   Updated: 2024/06/10 04:19:30 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/10 18:48:27 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -79,7 +79,7 @@ CGIHandler::~CGIHandler()
 bool CGIHandler::execute(int pipes[2], Request *request)
 {
 	std::vector<char const *>	argv;
-	std::string					cmd(request->get_target());
+	std::string					cmd(request->get_script());
 	if (cmd.empty())
 		return false;
 	argv.push_back(cmd.c_str());
@@ -92,7 +92,7 @@ bool CGIHandler::execute(int pipes[2], Request *request)
 	// PATH_INFO=/additional/path
 	// QUERY_STRING=id=value&foo=bar
 	std::string path("PATH_INFO=");
-	// path.append();
+	path.append(request->get_path());
 	env.push_back(path.c_str());
 	std::string method("REQUEST_METHOD=");
 	method.append(request->get_method_as_str());
