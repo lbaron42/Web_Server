@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/23 17:57:12 by plandolf          #+#    #+#             */
-/*   Updated: 2024/06/09 13:52:04 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/10 04:19:30 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,7 +30,8 @@ CGIHandler::CGIHandler(Log &log, int client, size_t max_body_size, Server *owner
 		headers(),
 		reply(),
 		max_body_size(max_body_size),
-		owner(owner)
+		owner(owner),
+		chunkster(NULL)
 {}
 
 CGIHandler::CGIHandler(const CGIHandler &src)
@@ -46,7 +47,8 @@ CGIHandler::CGIHandler(const CGIHandler &src)
 		headers(src.headers),
 		reply(src.reply),
 		max_body_size(src.max_body_size),
-		owner(src.owner)
+		owner(src.owner),
+		chunkster(src.chunkster)
 {}
 
 CGIHandler::~CGIHandler()
@@ -59,6 +61,8 @@ CGIHandler::~CGIHandler()
 		kill(this->pid, SIGKILL);
 	if (this->request)
 		delete this->request;
+	if (this->chunkster)
+		delete this->chunkster;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -98,6 +102,8 @@ bool CGIHandler::execute(int pipes[2], Request *request)
 	env.push_back(query.c_str());
 	std::string gateway("GATEWAY_INTERFACE=CGI/1.1");
 	env.push_back(gateway.c_str());
+	std::string protocol("SERVER_PROTOCOL=HTTP");
+	env.push_back(protocol.c_str());
 	env.push_back(static_cast<char const *>(0));
 
 	int pin[2], pout[2];
@@ -133,11 +139,6 @@ bool CGIHandler::execute(int pipes[2], Request *request)
 	this->request = request;
 	if (!this->status)
 		log << Log::DEBUG << "Executing CGI - PID: " << this->pid << std::endl;
-
-	// log << Log::DEBUG << "Testing pipes" << std::endl;
-	// while (read(this->input, this->rbuf.data(), 4096) > 0) {
-	// 	log << this->rbuf.data() << std::endl;
-	// }
 	return !this->status;
 }
 
@@ -148,23 +149,43 @@ bool CGIHandler::execute(int pipes[2], Request *request)
  */
 bool CGIHandler::send_output()
 {
-	if (request->get_method() == Request::GET
-	|| request->get_method() == Request::HEAD) {
+	if (this->request->get_method() == Request::GET
+	|| this->request->get_method() == Request::HEAD) {
 		log << Log::DEBUG << "CGI GET method has no body - closing"
 			<< std::endl;
 		this->output = -1;
 		return false;
 	}
-	size_t	body_size(utils::str_tonum<size_t>(
-			this->request->get_header("content-length")));
-	if (!this->request->is_body_loaded()) {
-		log << Log::DEBUG << "Loading request body" << std::endl;
-		if (this->request->load_payload(body_size))
+	if (this->request->is_chunked()) {
+		if (!this->chunkster) {
+			this->chunkster = new (std::nothrow) ChunkNorris;
+			if (!this->chunkster) {
+				this->request->set_status(500);
+				return false;
+			}
+		}
+		if (!this->chunkster->is_done()
+		&& !this->request->is_body_loaded()
+		&& !this->chunkster->nunchunkMe(this->request))
+			return false;
+		if (!this->chunkster->is_done())
 			return true;
-	}
-	if (this->wbuf.empty()) {
-		this->wbuf.reserve(this->request->get_loaded_body_size());
-		this->wbuf = this->request->get_payload();
+		this->wbuf.insert(
+			this->wbuf.end(),
+			this->chunkster->get_unchunked()->begin(),
+			this->chunkster->get_unchunked()->end()
+		);
+	} else {
+		size_t	body_size(utils::str_tonum<size_t>(
+				this->request->get_header("content-length")));
+		
+		log << Log::DEBUG << "Loading request body" << std::endl;
+		(void)this->request->load_payload(body_size);
+
+		if (this->wbuf.empty()) {
+			this->wbuf.reserve(this->request->get_loaded_body_size());
+			this->wbuf = this->request->get_payload();
+		}
 	}
 	log << Log::DEBUG << "CGI output to pipe" << std::endl;
 	ssize_t s = write(this->output, this->wbuf.data(), this->wbuf.size());
@@ -216,6 +237,11 @@ bool CGIHandler::read_input()
 
 void CGIHandler::on_pipe_close(int fd)
 {
+	if (this->request->get_status() >= 400) {
+		this->owner->switch_epoll_mode(this->client_fd, EPOLLOUT);
+		this->reply_error();
+		return;
+	}
 	if (fd == this->input) {
 		this->owner->switch_epoll_mode(this->client_fd, EPOLLOUT);
 		if (this->reply.empty()) {
@@ -272,6 +298,13 @@ bool CGIHandler::receive()
 			return false;
 		default:
 			this->wbuf.insert(this->wbuf.end(), buff, buff + r);
+	}
+	if (this->request->is_chunked() && this->chunkster) {
+		if (!this->chunkster->nunchunkMe(this->wbuf)) {
+			this->owner->switch_epoll_mode(this->client_fd, EPOLLOUT);
+			this->request->set_status(400);
+			this->reply_error();
+		}
 	}
 	return true;
 }

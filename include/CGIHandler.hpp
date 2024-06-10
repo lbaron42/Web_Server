@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/23 11:58:31 by plandolf          #+#    #+#             */
-/*   Updated: 2024/06/09 01:50:26 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/10 01:06:38 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,10 +27,11 @@
 # include <sys/wait.h>
 # include <unistd.h>
 
-# include "Log.hpp"
+# include "ChunkNorris.hpp"
 # include "Headers.hpp"
-# include "Request.hpp"
+# include "Log.hpp"
 # include "Reply.hpp"
+# include "Request.hpp"
 # include "Utils.hpp"
 
 class Server;
@@ -72,6 +73,7 @@ class CGIHandler{
 		std::vector<char>	reply;
 		size_t				max_body_size;
 		Server				*owner;
+		ChunkNorris			*chunkster;
 
 		void prepare_reply();
 		void reply_error();

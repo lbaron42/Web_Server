@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:23:14 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/05 14:13:07 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/10 03:45:48 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -79,7 +79,7 @@ class Request
 		int validate_request_line();
 		bool is_valid_method(std::string const &method);
 		bool parse_headers();
-		bool load_chunk();
+		std::string load_body();
 		bool load_payload(size_t size);
 		void drop_payload();
 		bool load_multipart(std::string const &boundary, size_t max_body_size);

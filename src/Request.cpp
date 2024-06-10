@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/09 18:53:22 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/10 03:45:39 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -149,6 +149,7 @@ bool Request::is_parsed() const
 	return this->is_parsed_;
 }
 
+// TODO: rewrite
 bool Request::is_done() const
 {
 	return (this->raw_.eof());
@@ -197,8 +198,6 @@ void Request::set_dirlist(bool value)
 void Request::set_parsed(bool value)
 {
 	this->is_parsed_ = value;
-	// log << Log::DEBUG << "Remaining raw buffer:" << std::endl
-	// 	<< this->raw_.str() << std::endl;
 }
 
 void Request::set_bounced(bool value)
@@ -348,25 +347,17 @@ bool Request::parse_headers()
 	return false;
 }
 
-bool Request::load_chunk()
+std::string Request::load_body()
 {
-	std::string	line;
-	size_t		size(0);
-
-	if (std::getline(this->raw_, line)) {
-		line = utils::trim(line, "\r");
-		if (!utils::str_tohex(line, &size)) {
-			this->status = 400;
-			return false;
-		}
-	}
-	if (size)
-		this->load_payload(size);
-	std::string throwaway;
-	std::getline(this->raw_, throwaway);
-	return true;
+	std::stringstream	ss;
+	ss << this->raw_.rdbuf();
+	this->is_body_loaded_ = true;
+	this->raw_.clear();
+	this->raw_.str(std::string());
+	return ss.str();
 }
 
+// TODO: total recall
 bool Request::load_payload(size_t size)
 {
 	if (!this->loaded_body_size)
@@ -381,7 +372,7 @@ bool Request::load_payload(size_t size)
 		<< "Size: " << size << std::endl
 		<< "EOF: " << this->raw_.eof() << std::endl;
 	std::string	tmp;
-	this->raw_ >> tmp;
+	this->raw_ >> std::noskipws >> tmp;
 	if (!partial) {
 		tmp.erase(size);
 		this->payload.insert(this->payload.end(), tmp.begin(),

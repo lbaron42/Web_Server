@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/09 02:24:33 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/09 23:44:58 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -66,7 +66,7 @@ struct ServerData
 			return (
 				(this->ip == rhs.ip && this->port == rhs.port)
 				|| (this->port == rhs.port
-					&& (this-ip.compare("0.0.0.0")
+					&& (this->ip.compare("0.0.0.0")
 					|| rhs.ip.compare("0.0.0.0")))
 				);
 		}
