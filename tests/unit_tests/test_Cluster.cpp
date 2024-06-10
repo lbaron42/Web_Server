@@ -47,7 +47,7 @@ std::vector<Server> create_mock_servers(Log &log, int n_of_servers)
 
 		port << (i + 8080);
 		ServerData	sd;
-		sd.root = "extra/webspace/mc-putchar.github.io";
+		sd.root = "extra/blog";
 		sd.serv_index.push_back("index.html");
 		sd.allow_methods = static_cast<Request::e_method>(
 				Request::HEAD | Request::GET | Request::POST);

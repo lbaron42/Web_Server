@@ -12,7 +12,7 @@ namespace {
 template<typename T>
 static bool test_num_tostr(T input, std::string const &expect)
 {
-	std::string	result = num_tostr(input);
+	std::string	result = utils::num_tostr(input);
 	if (result != expect) {
 		log << Log::ERROR << "Failed num_tostr" << std::endl
 			<< "Input:		" << input << std::endl
@@ -25,7 +25,7 @@ static bool test_num_tostr(T input, std::string const &expect)
 template<typename T>
 static bool test_str_tonum(std::string const &input, T expect)
 {
-	T result = str_tonum<T>(input);
+	T result = utils::str_tonum<T>(input);
 	if (result != expect){
 		log << Log::ERROR << "Failed str_tonum" << std::endl
 			<< "Input:		" << input << std::endl
@@ -104,7 +104,7 @@ int main()
 bool test_trim(std::string const &input, std::string const &trimchars,
 		std::string const &expect)
 {
-	std::string const result = trim(input, trimchars);
+	std::string const result = utils::trim(input, trimchars);
 	if (result == expect)
 		return true;
 	std::cerr << "Failed test_trim: " << std::endl
