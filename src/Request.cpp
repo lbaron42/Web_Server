@@ -6,7 +6,7 @@
 /*   By: plandolf <plandolf@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/09 17:17:32 by plandolf         ###   ########.fr       */
+/*   Updated: 2024/06/10 10:37:43 by plandolf         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -263,7 +263,7 @@ int Request::validate_request_line()
 		this->url = this->req_line.substr(first + 1, second - first - 1);
 		std::string::size_type q(this->url.find('?'));
 		if (q != std::string::npos && q) {
-			this->query = this->url.substr(q);
+			this->query = this->url.substr(q + 1);
 			this->url.erase(q);
 		}
 		log << Log::DEBUG << "URL:		[" << this->url << "]" << std::endl;

@@ -6,7 +6,7 @@
 /*   By: plandolf <plandolf@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/23 11:58:31 by plandolf          #+#    #+#             */
-/*   Updated: 2024/06/09 17:07:41 by plandolf         ###   ########.fr       */
+/*   Updated: 2024/06/10 10:36:14 by plandolf         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -49,7 +49,7 @@ class CGIHandler{
 		void on_pipe_close(int fd);
 		bool send_reply();
 		bool receive();
-		std::string path_info();
+		std::string path_info(Request *request);
 
 		~CGIHandler();
 

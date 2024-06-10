@@ -6,7 +6,7 @@
 /*   By: plandolf <plandolf@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/23 17:57:12 by plandolf          #+#    #+#             */
-/*   Updated: 2024/06/09 17:16:13 by plandolf         ###   ########.fr       */
+/*   Updated: 2024/06/10 10:42:30 by plandolf         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -72,7 +72,7 @@ CGIHandler::~CGIHandler()
  * and should delete it when done with it
  * @return: true if exec successful
  */
-std::string CGIHandler::path_info() 
+std::string CGIHandler::path_info(Request *request) 
 {
 	std::string url = request->get_url();
 	std::vector<std::string> extensions;
@@ -88,15 +88,11 @@ std::string CGIHandler::path_info()
 			break;
 		}
 	}
-	if (start == std::string::npos) {
-		// No known extension found
+	if (start == std::string::npos)
 		return "";
-	}
 	size_t end = url.find('?', start);
-	if (end == std::string::npos) {
-		// No query parameter found
+	if (end == std::string::npos)
 		return "";
-	}
 	if (start == end)
 		return "";
 	std::string path = url.substr(start, end - start);
@@ -119,7 +115,8 @@ bool CGIHandler::execute(int pipes[2], Request *request)
 	// PATH_INFO=/additional/path
 	// QUERY_STRING=id=value&foo=bar
 	std::string path("PATH_INFO=");
-	path.append(path_info());
+	path.append(path_info(request));
+	std::cout << path << std::endl;
 	env.push_back(path.c_str());
 	std::string method("REQUEST_METHOD=");
 	method.append(request->get_method_as_str());
