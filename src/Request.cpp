@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/11 19:28:48 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/12 00:56:17 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -42,6 +42,7 @@ Request::Request(std::string const &raw, Log &logger)
 		loaded_body_size(0),
 		is_body_loaded_(false),
 		payload(),
+		filenames(),
 		bounced(false),
 		is_chunked_(false)
 {}
@@ -65,12 +66,16 @@ Request::Request(Request const &rhs)
 		loaded_body_size(rhs.loaded_body_size),
 		is_body_loaded_(rhs.is_body_loaded_),
 		payload(rhs.payload),
+		filenames(rhs.filenames),
 		bounced(rhs.bounced),
 		is_chunked_(rhs.is_chunked_)
 {}
 
 Request::~Request()
-{}
+{
+	this->payload.clear();
+	this->filenames.clear();
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //	Getters/Setters
@@ -144,6 +149,11 @@ std::string Request::get_path() const
 std::vector<char> Request::get_payload() const
 {
 	return this->payload;
+}
+
+std::vector<std::string> Request::get_filenames() const
+{
+	return this->filenames;
 }
 
 bool Request::is_dirlist() const
@@ -499,15 +509,16 @@ bool Request::load_multipart(std::string const &boundary, size_t max_body_size)
 			this->status = 400;
 			return true;
 		}
-		this->path = this->target + utils::trim(
-				disp.substr(div + 10, end - div - 10), "\"");
-		log << Log::DEBUG << "Filename: [" << this->path << "]" << std::endl;
-		if (this->path == this->target) {
+		std::string const filename(utils::trim(
+			disp.substr(div + 10, end - div - 10), "\""));
+		if (filename.empty()) {
 			log << Log::DEBUG << "Empty file upload / no filename"
 				<< std::endl;
 			this->status = 400;
 			return true;
 		}
+		this->path = this->target + filename;
+		log << Log::DEBUG << "Filepath: [" << this->path << "]" << std::endl;
 	}
 	std::string	part = utils::get_delimited(this->raw_, boundary);
 	if (part.empty()) {
@@ -538,6 +549,7 @@ bool Request::load_multipart(std::string const &boundary, size_t max_body_size)
 		this->status = 500;
 		return true;
 	}
+	this->filenames.push_back(this->path.substr(this->target.size()));
 	this->payload.clear();
 	std::string	tmp(this->raw_.str().substr(this->raw_.tellg()));
 	this->raw_.str(std::string());

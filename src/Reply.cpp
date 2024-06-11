@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 07:54:45 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/09 13:43:58 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/12 01:47:32 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -123,6 +123,36 @@ std::string const Reply::generate_redirect(std::string const &location)
 		<< "<head><title>Redirection</title></head>" << std::endl
 		<< "<p><a href=" << location
 		<< ">Redirect</a></p>" << std::endl
+		<< "</body>" << std::endl << "</html>" << std::endl;
+	return html.str();
+}
+
+std::string const Reply::generate_upload_success(
+	std::vector<std::string> const &locations)
+{
+	std::stringstream	html;
+
+	html << "<html>" << std::endl
+		<< "<head><title>Resource";
+	if (locations.size() > 1)
+		html << "s";
+	html << " uploaded</title></head>" << std::endl
+		<< "<body><ul>" << std::endl;
+	for (std::vector<std::string>::const_iterator it = locations.begin();
+	it != locations.end(); ++it) {
+		html << "<li>" << *it << "</li>" << std::endl;
+	}
+	html << "</ul></body>" << std::endl << "</html>" << std::endl;
+	return html.str();
+}
+
+std::string const Reply::generate_file_deleted(std::string const &filename)
+{
+	std::stringstream	html;
+
+	html << "<html>" << std::endl
+		<< "<head><title>Deleted resource:</title></head>" << std::endl
+		<< "<p>" << filename << "</p>" << std::endl
 		<< "</body>" << std::endl << "</html>" << std::endl;
 	return html.str();
 }

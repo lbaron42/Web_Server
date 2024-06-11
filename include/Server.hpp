@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/09 23:44:58 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/11 23:59:22 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -160,7 +160,7 @@ class Server
 				std::vector<char> *body);
 		void handle_put_request(Request *request, Headers &headers,
 				std::vector<char> *body);
-		void handle_delete_request(Request *request);
+		void handle_delete_request(Request *request, std::vector<char> *body);
 		bool is_cgi_request(Request *request, Headers &headers);
 		bool handle_cgi(int fd, Request *request);
 		void internal_error(int fd, int code);

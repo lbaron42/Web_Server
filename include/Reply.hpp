@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 07:56:07 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/09 13:44:21 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/12 01:36:29 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -43,6 +43,9 @@ class Reply
 				std::string const &url);
 		static std::string const generate_error_page(int status = 500);
 		static std::string const generate_redirect(std::string const &location);
+		static std::string const generate_upload_success(
+			std::vector<std::string> const &locations);
+		static std::string const generate_file_deleted(std::string const &filename);
 		static size_t get_html_size(int status);
 		static size_t get_html_size(std::string const &listed_directory,
 				std::string const &url);

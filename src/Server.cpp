@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/11 18:35:55 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/12 01:47:06 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -434,7 +434,7 @@ bool Server::handle_request(int fd)
 					this->handle_put_request(request, hdrs, &payload);
 					break;
 				case Request::DELETE: 
-					this->handle_delete_request(request);
+					this->handle_delete_request(request, &payload);
 					break;
 				default:
 					request->set_status(501); break;
@@ -869,12 +869,14 @@ void Server::handle_post_request(Request *request, Headers &headers,
 			this->load_request_body(request);
 		if (!request->is_body_loaded())
 			return ;
+		// TODO: Store loaded payload
 	} else if (type == "application/json") {
 		log << Log::DEBUG << "JSON encoded form body" << std::endl;
 		if (!request->is_body_loaded())
 			this->load_request_body(request);
 		if (!request->is_body_loaded())
 			return ;
+		// TODO: Store loaded payload
 	} else if (type == "multipart/form-data" && div != std::string::npos
 	&& ((pos = content_type.find("boundary=", div + 1)) != std::string::npos)) {
 		std::string	boundary(utils::trim(content_type.substr(pos + 9)));
@@ -902,8 +904,9 @@ void Server::handle_post_request(Request *request, Headers &headers,
 		return ;
 	}
 	request->set_status(201);
-	// request->set_status(303);
-	(void)body;
+	std::string const tmp(
+		Reply::generate_upload_success(request->get_filenames()));
+	body->insert(body->end(), tmp.begin(), tmp.end());
 }
 
 void Server::handle_put_request(Request *request, Headers &headers,
@@ -962,7 +965,7 @@ void Server::handle_put_request(Request *request, Headers &headers,
 	}
 }
 
-void Server::handle_delete_request(Request *request)
+void Server::handle_delete_request(Request *request, std::vector<char> *body)
 {
 	std::string	path(request->get_target());
 	struct stat	sb;
@@ -982,6 +985,8 @@ void Server::handle_delete_request(Request *request)
 	}
 	log << Log::DEBUG << "File to remove: [" << path << "]" << std::endl;
 	request->set_status(204);
+	std::string const tmp(Reply::generate_file_deleted(path));
+	body->insert(body->end(), tmp.begin(), tmp.end());
 }
 
 bool Server::is_cgi_request(Request *request, Headers &headers)

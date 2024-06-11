@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:23:14 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/11 18:30:57 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/12 00:19:00 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -61,6 +61,7 @@ class Request
 		std::string get_script() const;
 		std::string get_path() const;
 		std::vector<char> get_payload() const;
+		std::vector<std::string> get_filenames() const;
 		bool is_dirlist() const;
 		bool is_parsed() const;
 		bool is_done() const;
@@ -88,25 +89,26 @@ class Request
 		bool load_multipart(std::string const &boundary, size_t max_body_size);
 
 	private:
-		Log					&log;
-		std::stringstream	raw_;
-		std::string			req_line;
-		e_method			method;
-		std::string			url;
-		std::string			query;
-		bool				v_11;
-		bool				is_parsed_;
-		bool				is_dirlist_;
-		int					status;
-		Headers				headers;
-		std::string			target;
-		std::string			script;
-		std::string			path;
-		size_t				loaded_body_size;
-		bool				is_body_loaded_;
-		std::vector<char>	payload;
-		bool				bounced;
-		bool				is_chunked_;
+		Log							&log;
+		std::stringstream			raw_;
+		std::string					req_line;
+		e_method					method;
+		std::string					url;
+		std::string					query;
+		bool						v_11;
+		bool						is_parsed_;
+		bool						is_dirlist_;
+		int							status;
+		Headers						headers;
+		std::string					target;
+		std::string					script;
+		std::string					path;
+		size_t						loaded_body_size;
+		bool						is_body_loaded_;
+		std::vector<char>			payload;
+		std::vector<std::string>	filenames;
+		bool						bounced;
+		bool						is_chunked_;
 
 		Request &operator=(Request const &rhs);
 };
