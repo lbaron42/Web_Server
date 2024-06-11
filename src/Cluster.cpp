@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/18 19:51:33 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/09 21:41:21 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/11 18:10:07 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -328,7 +328,8 @@ void Cluster::manage_bounce_que(void)
 		std::vector<Server>::iterator sr = this->servers.begin();
 		for ( ; sr != this->servers.end(); ++sr) {
 			if (sr->matches_hostname(request)) {
-				log << Log::DEBUG << "Found matching host" << std::endl;
+				log << Log::DEBUG << "Found matching host: "
+					<< request->get_header("host") << std::endl;
 				this->client_fds[cfd] = &(*sr);
 				sr->register_request(cfd, request);
 				if (sr->handle_request(cfd)

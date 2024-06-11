@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/10 18:53:18 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/11 19:28:48 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -248,6 +248,18 @@ void Request::append(std::string const &str)
 	this->raw_ << str;
 }
 
+bool Request::validate_url()
+{
+	if (this->url.rfind("http://", 0) == std::string::npos)
+		return true;
+	std::string::size_type	pos(this->url.find_first_of('/', 7));
+	if (pos == std::string::npos)
+		this->url = "/";
+	else
+		this->url = this->url.substr(pos);
+	return true;
+}
+
 int Request::validate_request_line()
 {
 	if (utils::size_of_stream(this->raw_) < 15)
@@ -273,10 +285,14 @@ int Request::validate_request_line()
 			return 400;
 		this->url = this->req_line.substr(first + 1, second - first - 1);
 		std::string::size_type q(this->url.find('?'));
+		if (!q)
+			return 400;
 		if (q != std::string::npos && q) {
 			this->query = this->url.substr(q + 1);
 			this->url.erase(q);
 		}
+		if (!validate_url())
+			return 400;
 		log << Log::DEBUG << "URL:		[" << this->url << "]" << std::endl;
 		if (!this->query.empty()) {
 			log << Log::DEBUG << "Query		[" << this->query << "]"
@@ -289,7 +305,7 @@ int Request::validate_request_line()
 
 		std::string::size_type end(this->req_line.find('\r', second + 1));
 		if (end == std::string::npos) {
-			log << Log::WARN
+			log << Log::DEBUG
 				<< "Request line terminated by '\\n' instead of '\\r\\n'"
 				<< std::endl;
 		} else if (end != second + 9 || end != this->req_line.length() - 1)
@@ -307,7 +323,6 @@ int Request::validate_request_line()
 			return 200;
 		} else
 			return 505;
-		break;
 	}
 	return 400;
 }
@@ -351,6 +366,8 @@ bool Request::parse_headers()
 		std::string key = utils::trim(header.substr(0, div));
 		std::transform(key.begin(), key.end(), key.begin(), ::tolower);
 		std::string val = utils::trim(header.substr(div + 1), " \t\r");
+		// TODO: manage cookies
+		if (utils::icompare(key, "Cookie")) {;}
 		this->headers.set_header(key, val);
 		if (utils::icompare(key, "Transfer-Encoding")
 		&& utils::icompare(val, "chunked"))

@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/10 18:55:01 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/11 18:35:55 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -238,7 +238,7 @@ int Server::add_client(int listen_fd)
 		return -1;
 	}
 	if (!this->clients.insert(client_fd).second) {
-		log << Log::WARN << "Already tracking connection with client fd: "
+		log << Log::DEBUG << "Already tracking connection with client fd: "
 			<< client_fd << std::endl;
 	}
 	log << Log::INFO << "Client connected: " << client_fd << std::endl;
@@ -365,8 +365,10 @@ bool Server::matches_hostname(Request *request)
 
 void Server::register_request(int client_fd, Request *request)
 {
-	if (!this->requests.count(client_fd))
+	if (!this->requests.count(client_fd)) {
 		this->requests.insert(std::make_pair(client_fd, request));
+		this->clients.insert(client_fd);
+	}
 	else
 		log << Log::DEBUG << "Already assigned this request to this connection"
 			<< std::endl;
@@ -454,7 +456,7 @@ bool Server::handle_request(int fd)
 					<< std::endl;
 				return false;
 			}
-			if (request->get_status() >= 400)
+			if (request->get_status() >= 400 && payload.empty())
 				this->prepare_error_page(request, hdrs, payload);
 		}
 	}
@@ -514,6 +516,7 @@ bool Server::send_reply(int fd, CGIHandler **cgi)
 	std::map<int, std::vector<char> >::iterator it = this->replies.find(fd);
 	if (it == this->replies.end()) {
 		log << Log::WARN << "Un numero sbagliato" << std::endl;
+		this->close_connection(fd);
 		return false;
 	}
 	s = send(fd, it->second.data(), it->second.size(), MSG_DONTWAIT);
@@ -555,6 +558,7 @@ void Server::prepare_error_page(Request *request, Headers &hdrs,
 	}
 	hdrs.set_header("Content-Type", "text/html");
 	hdrs.set_header("Connection", "close");
+	hdrs.unset_header("Keep-Alive");
 }
 
 void Server::shutdown_cgi(CGIHandler *cgi)
@@ -669,9 +673,16 @@ std::string Server::resolve_address(Request *request, Headers &headers)
 					<< "Allowed methods:	" << lo->allow_methods
 					<< std::endl;
 				request->set_status(405);
-				return std::string();
+				return url;
 			}
 			if (!lo->redirection.empty()) {
+				if (lo->redirection.size() == 3) {
+					int	status(utils::str_tonum<int>(lo->redirection));
+					if (status >= 100 && status < 599) {
+						request->set_status(status);
+						return url;
+					}
+				}
 				headers.set_header("Location", lo->redirection);
 				request->set_status(308);
 				return url;
@@ -905,24 +916,23 @@ void Server::handle_put_request(Request *request, Headers &headers,
 	log << Log::DEBUG << "Loaded body size: " << request->get_loaded_body_size()
 		<< std::endl;
 	std::string	type(request->get_header("content-type"));
-	bool		is_text(!type.rfind("text", 0));
-	if (is_text)
-		log << Log::DEBUG << "PUT Text file" << std::endl;
-	else
-		log << Log::DEBUG << "PUT Binary file" << std::endl;
 	std::string	relative_location(request->get_url());
-	if (relative_location.empty()) {
+	if (type.empty() || relative_location.empty()) {
 		request->set_status(400);
 		return ;
 	}
 	std::string const	target(request->get_target());
+	bool				is_text(!type.rfind("text", 0));
 	bool				file_exists(access(target.c_str(), F_OK) == 0);
 	if (!file_exists || !access(target.c_str(), W_OK)) {
 		std::ofstream	file;
-		if (is_text)
+		if (is_text) {
 			file.open(target.c_str(), std::ios::trunc);
-		else
+			log << Log::DEBUG << "PUT Text file" << std::endl;
+		} else {
 			file.open(target.c_str(), std::ios::trunc | std::ios::binary);
+			log << Log::DEBUG << "PUT Binary file" << std::endl;
+		}
 		if (!file.is_open()) {
 			log << Log::DEBUG << "Failed to open file: " << target << std::endl;
 			request->set_status(409);
