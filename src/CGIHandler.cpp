@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/23 17:57:12 by plandolf          #+#    #+#             */
-/*   Updated: 2024/06/10 18:48:27 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/11 19:32:06 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -370,8 +370,7 @@ void CGIHandler::read_headers()
 	}
 	// TODO: ensure presence of headers required by protocol
 	// TODO: handle error responses
-	if (this->request->get_status() >= 400)
-		;
+	if (this->request->get_status() >= 400) {;}
 	std::string	len(this->headers.get_header("Content-Length"));
 	size_t		body_size(0);
 	if (!len.empty())
