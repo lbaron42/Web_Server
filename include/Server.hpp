@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/11 23:59:22 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/13 06:29:51 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -132,6 +132,7 @@ class Server
 		bool send_reply(int fd, CGIHandler **cgi);
 		void prepare_error_page(Request *request, Headers &hdrs,
 				std::vector<char> &payload);
+		bool request_timeout(int fd);
 		void shutdown_cgi(CGIHandler *cgi);
 		~Server();
 

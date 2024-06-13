@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/12 01:47:06 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/13 08:15:11 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -559,6 +559,26 @@ void Server::prepare_error_page(Request *request, Headers &hdrs,
 	hdrs.set_header("Content-Type", "text/html");
 	hdrs.set_header("Connection", "close");
 	hdrs.unset_header("Keep-Alive");
+}
+
+bool Server::request_timeout(int fd)
+{
+	if (!this->requests.count(fd)) {
+		this->close_connection(fd);
+		return false;
+	}
+
+	Request				*request = this->requests[fd];
+	Headers				headers;
+	std::vector<char>	body;
+	std::vector<char>	reply;
+
+	request->set_status(408);
+	this->switch_epoll_mode(fd, EPOLLOUT);
+	this->prepare_error_page(request, headers, body);
+	Reply::generate_response(request, headers, body, reply);
+	this->enqueue_reply(fd, reply).drop_request(fd);
+	return true;
 }
 
 void Server::shutdown_cgi(CGIHandler *cgi)

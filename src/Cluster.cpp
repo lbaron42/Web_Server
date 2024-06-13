@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/18 19:51:33 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/11 18:10:07 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/13 06:31:02 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -290,9 +290,10 @@ void Cluster::check_timeouts()
 		if (std::difftime(now, it->second) > CONNECTION_TIMEOUT) {
 			log << Log::DEBUG << "Client " << it->first
 				<< " connection timed out" << std::endl;
-			const_cast<Server*>(client_fds[it->first])
-			->close_connection(it->first);
-			this->client_fds.erase(it->first);
+			if (!const_cast<Server*>(client_fds[it->first])
+				->request_timeout(it->first)) {
+				this->client_fds.erase(it->first);
+			}
 			std::map<int, time_t>::iterator dead(it++);
 			this->client_timeouts.erase(dead);
 		} else
