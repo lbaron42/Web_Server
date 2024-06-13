@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/06/05 04:37:44 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/08 21:36:42 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/13 05:59:18 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,6 +37,62 @@ Cookie::Cookie(
 		secure(secure),
 		http_only(http_only)
 {}
+
+Cookie::Cookie(std::string const &str)
+	:	name(),
+		value(),
+		expires(),
+		max_age(),
+		domain(),
+		path(),
+		same_site(LAX),
+		secure(false),
+		http_only(false)
+{
+	if (str.empty()) {
+		return;
+	}
+	std::vector<std::string>	crumbs(utils::split(str, ';'));
+	std::string::size_type		pos(crumbs[0].find_first_of('='));
+	this->name = crumbs[0].substr(0, pos);
+	if (pos != std::string::npos)
+		this->value = crumbs[0].substr(pos + 1);
+	if (!Cookie::is_valid(this->name, this->value)) {
+		return;
+	}
+	for (std::vector<std::string>::const_iterator it = crumbs.begin() + 1;
+	it != crumbs.end(); ++it) {
+		std::string	key;
+		std::string	val;
+		pos = it->find_first_of('=');
+		key = it->substr(0, pos);
+		if (pos != std::string::npos)
+			val = it->substr(pos + 1);
+		else
+			val = std::string();
+		if (utils::icompare(key, "httponly"))
+			this->http_only = true;
+		else if (utils::icompare(key, "secure"))
+			this->secure = true;
+		else if (utils::icompare(key, "samesite")) {
+			if (utils::icompare(val, "strict"))
+				this->same_site = STRICT;
+			else if (utils::icompare(val, "none"))
+				this->same_site = NONE;
+			else
+				this->same_site = LAX;
+		} else if (utils::icompare(key, "domain"))
+			this->domain = val;
+		else if (utils::icompare(key, "path"))
+			this->path = val;
+		else if (utils::icompare(key, "expires"))
+			this->expires = val;
+		else if (utils::icompare(key, "max-age"))
+			this->max_age = val;
+		// else -> IGNORED
+	}
+}
+
 
 Cookie::Cookie(Cookie const &yum)
 	:	name(yum.name),
@@ -110,6 +166,10 @@ void Cookie::set_value(std::string const &new_value)
 	this->value = new_value;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//	Public methods
+////////////////////////////////////////////////////////////////////////////////
+
 std::string Cookie::to_header(void) const
 {
 	std::ostringstream	oss;
@@ -133,27 +193,3 @@ std::string Cookie::to_header(void) const
 		oss << "; " << "HttpOnly";
 	return oss.str();
 }
-
-// TODO
-// Cookie CookieJar::get_cookie(
-// 			std::string const &name,
-// 			std::string const &domain,
-// 			std::string const &path,
-// 			bool secure) const
-// {
-// }
-
-bool CookieJar::set_cookie(Cookie const &biscuit)
-{
-	if (!Cookie::is_valid(biscuit.get_name(), biscuit.get_value()))
-		return false;
-	return false;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//	Public methods
-////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////
-//	Private innards
-////////////////////////////////////////////////////////////////////////////////

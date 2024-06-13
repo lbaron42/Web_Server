@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/23 17:57:12 by plandolf          #+#    #+#             */
-/*   Updated: 2024/06/11 19:32:06 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/13 08:16:40 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -83,26 +83,40 @@ bool CGIHandler::execute(int pipes[2], Request *request)
 	if (cmd.empty())
 		return false;
 	argv.push_back(cmd.c_str());
-	argv.push_back(static_cast<char const *>(0));
+	argv.push_back(static_cast<char const *>(0L));
 
-	Headers	hdrs(request->get_headers());
-	std::vector<char const *> env;
-	// TODO: extract path after script name
+	std::vector<char const *>	env;
+	std::map<std::string, std::string>	headers(request->get_headers().get_headers());
+	std::vector<std::string> params;
+	std::map<std::string, std::string>::const_iterator	hd;
+	for (hd = headers.begin(); hd != headers.end(); ++hd) {
+		// TODO: limit which headers are passed to CGI
+		std::string param = hd->first;
+		std::transform(
+			param.begin(),
+			param.end(),
+			param.begin(),
+			::toupper
+		);
+		param.append("=" + hd->second);
+		params.push_back(param);
+	}
+	for (std::vector<std::string>::const_iterator it = params.begin();
+	it != params.end(); ++it)
+		env.push_back(it->c_str());
 	// i.e. if URL=/cgi-bin/script.cgi/additional/path?id=value&foo=bar
 	// PATH_INFO=/additional/path
 	// QUERY_STRING=id=value&foo=bar
-	std::string path("PATH_INFO=");
-	path.append(request->get_path());
+	std::string path("PATH_INFO=" + request->get_path());
 	env.push_back(path.c_str());
-	std::string method("REQUEST_METHOD=");
-	method.append(request->get_method_as_str());
+	std::string method("REQUEST_METHOD=" + request->get_method_as_str());
 	env.push_back(method.c_str());
-	std::string query("QUERY_STRING=");
-	query.append(request->get_query());
+	std::string query("QUERY_STRING=" + request->get_query());
 	env.push_back(query.c_str());
 	std::string gateway("GATEWAY_INTERFACE=CGI/1.1");
 	env.push_back(gateway.c_str());
-	std::string protocol("SERVER_PROTOCOL=HTTP");
+	std::string protocol("SERVER_PROTOCOL=HTTP/1.");
+	protocol.append(request->is_version_11() ? "1" : "0");
 	env.push_back(protocol.c_str());
 	env.push_back(static_cast<char const *>(0));
 
@@ -125,6 +139,7 @@ bool CGIHandler::execute(int pipes[2], Request *request)
 		execve(argv[0],
 			const_cast<char* const*>(argv.data()),
 			const_cast<char* const*>(env.data()));
+		log << Log::DEBUG << "Execve failed. Commit sudoku" << std::endl;
 		std::exit(127);
 	}
 
@@ -237,11 +252,11 @@ bool CGIHandler::read_input()
 
 void CGIHandler::on_pipe_close(int fd)
 {
-	if (this->request->get_status() >= 400) {
-		this->owner->switch_epoll_mode(this->client_fd, EPOLLOUT);
-		this->reply_error();
-		return;
-	}
+	// if (this->request->get_status() >= 400) {
+	// 	this->owner->switch_epoll_mode(this->client_fd, EPOLLOUT);
+	// 	this->reply_error();
+	// 	return;
+	// }
 	if (fd == this->input) {
 		this->owner->switch_epoll_mode(this->client_fd, EPOLLOUT);
 		if (this->reply.empty()) {
@@ -299,8 +314,12 @@ bool CGIHandler::receive()
 		default:
 			this->wbuf.insert(this->wbuf.end(), buff, buff + r);
 	}
-	if (this->request->is_chunked() && this->chunkster) {
-		if (!this->chunkster->nunchunkMe(this->wbuf)) {
+	if (this->request->is_chunked()) {
+		if (!this->chunkster) {
+			this->owner->switch_epoll_mode(this->client_fd, EPOLLOUT);
+			this->request->set_status(500);
+			this->reply_error();
+		} else if (!this->chunkster->nunchunkMe(this->wbuf)) {
 			this->owner->switch_epoll_mode(this->client_fd, EPOLLOUT);
 			this->request->set_status(400);
 			this->reply_error();
@@ -337,7 +356,7 @@ void CGIHandler::read_headers()
 		while (c != this->rbuf.end() && *c++ != '\n')
 			;
 		if (c == this->rbuf.end()) {
-			this->rbuf.erase(this->rbuf.begin(), begin);
+			// this->rbuf.erase(this->rbuf.begin(), begin);
 			return;
 		}
 		std::string	tmp(begin, c);
@@ -368,9 +387,11 @@ void CGIHandler::read_headers()
 			this->headers.set_header(key, val);
 		}
 	}
-	// TODO: ensure presence of headers required by protocol
-	// TODO: handle error responses
-	if (this->request->get_status() >= 400) {;}
+	if (this->request->get_status() >= 400)
+		return;
+	// TODO:
+	// ensure presence of headers required by protocol
+	// check redirection
 	std::string	len(this->headers.get_header("Content-Length"));
 	size_t		body_size(0);
 	if (!len.empty())

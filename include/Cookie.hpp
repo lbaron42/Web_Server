@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/06/05 04:19:27 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/08 21:38:37 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/13 05:55:19 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,9 +14,9 @@
 # define COOKIE_HPP
 
 # include <ctime>
-# include <map>
 # include <sstream>
 # include <string>
+# include <vector>
 
 # include "Utils.hpp"
 
@@ -24,7 +24,7 @@ class Cookie
 {
 	public:
 		enum e_samesite {
-			NONE,
+			NONE = 1,
 			STRICT,
 			LAX
 		};
@@ -40,6 +40,7 @@ class Cookie
 			bool secure = false,
 			bool http_only = false
 			);
+		Cookie(std::string const &str);
 		Cookie(Cookie const &yum);
 
 		inline bool operator==(Cookie const &yum) const;
@@ -55,7 +56,7 @@ class Cookie
 		~Cookie();
 
 	private:
-		std::string const	name;
+		std::string			name;
 		std::string			value;
 		std::string			expires;
 		std::string			max_age;
@@ -66,26 +67,6 @@ class Cookie
 		bool				http_only;
 
 		Cookie &operator=(Cookie const &yum);
-};
-
-class CookieJar
-{
-	public:
-		CookieJar();
-		CookieJar(CookieJar const &rhs);
-		CookieJar &operator=(CookieJar const &rhs);
-
-		Cookie get_cookie(
-			std::string const &name,
-			std::string const &domain = std::string(),
-			std::string const &path = std::string(),
-			bool secure = false) const;
-		bool set_cookie(Cookie const &biscuit);
-
-		~CookieJar();
-
-	private:
-		std::map<std::string, Cookie>	jar;
 };
 
 #endif // COOKIE_HPP

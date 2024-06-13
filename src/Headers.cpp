@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/19 16:21:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/08 21:53:53 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/13 08:15:42 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -84,6 +84,12 @@ std::vector<char const *> Headers::get_as_env(void) const
 
 void Headers::set_header(std::string const &key, std::string const &value)
 {
+	if (utils::icompare(key, "set-cookie")) {
+		Cookie cookie(value);
+		if (!cookie.get_name().empty())
+			this->jar.push_back(cookie);
+		return;
+	}
 	std::map<std::string, std::string>::iterator it;
 	it = this->headers.find(key);
 	if (it != this->headers.end())
@@ -106,12 +112,32 @@ void Headers::set_date(void)
 		this->headers["Date"] = timestamp;
 }
 
+bool Headers::has_cookies(void) const
+{
+	return !this->jar.empty();
+}
+
+std::vector<std::string> Headers::get_cookies(void) const
+{
+	std::vector<std::string>	ret;
+	for (std::vector<Cookie>::const_iterator coo = this->jar.begin();
+	coo != this->jar.end(); ++coo)
+		ret.push_back(coo->to_header());
+	return ret;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //	Operator overloads
 ////////////////////////////////////////////////////////////////////////////////
 
 std::ostream &operator<<(std::ostream &os, Headers const &hdrs)
 {
+	if (hdrs.has_cookies()) {
+		std::vector<std::string>	cookies(hdrs.get_cookies());
+		for (std::vector<std::string>::const_iterator it = cookies.begin();
+		it != cookies.end(); ++it)
+			os << *it << "\r\n";
+	}
 	std::set<std::string> keys = hdrs.get_keys();
 	for (std::set<std::string>::const_iterator it = keys.begin();
 	it != keys.end(); ++it) {
