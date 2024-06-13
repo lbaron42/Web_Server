@@ -18,7 +18,8 @@
     </nav>
     <div class="container">
         <h2 class="text-center">Login</h2>
-        <form action="/login" method="POST">
+        <form action="/cgi/handle_db.py" method="POST">
+            <input type="hidden" name="action" value="login">
             <div class="form-group">
                 <label for="username">Username</label>
                 <input type="text" class="form-control" id="username" name="username" required>
