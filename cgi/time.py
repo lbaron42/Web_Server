@@ -1,10 +1,10 @@
 #!/usr/bin/python3
+from datetime import datetime
 
-import datetime
-import cgi
-
-print("HTTP/1.1 200 OK")
-print("Content-type: text/html\r\n\r\n")
-print("<html>")
-print("<head>")
-print(datetime.datetime.strftime(datetime.datetime.now(), "<h1>  %H:%M:%S </h1>"))
+html = "<html><body><h1>"
+html += str(datetime.now().strftime('%a, %d %b %Y  %H:%M:%S'))
+html += "</h1></body></html>"
+print("Status: 200 OK")
+print("Content-Length: " + str(len(html)))
+print("Content-Type: text/html\n")
+print(html)

@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-# test_parallel.py
+#! /usr/bin/env python3
 import time
 import sys
 
