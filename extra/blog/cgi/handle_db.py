@@ -81,8 +81,8 @@ def make_session(username):
 
 def get_session():
 	sessionid = ''
-	if "COOKIE" in os.environ:
-		cookies = os.environ["COOKIE"].split("; ")
+	if "HTTP_COOKIE" in os.environ:
+		cookies = os.environ["HTTP_COOKIE"].split("; ")
 		for cookie in cookies:
 			key, value = cookie.split('=', 1)
 			if key == "session":
@@ -90,9 +90,10 @@ def get_session():
 				break
 	if not sessionid:
 		return ('', '')
-	entry = get_entry(sessions_file, sessionid)
-	sid, user = entry.split('|', 1)
-	return (sid, user.strip())
+	entries = get_entry(sessions_file, sessionid).split('|', 1)
+	if len(entries) == 2:
+		return (entries[0], entries[1].strip())
+	return ('','')
 
 def get_user_email(username):
 	entry = get_entry(users_file, username)
@@ -196,7 +197,7 @@ def personal_page():
 	html += f"<ul><li>Username: {user}</li><li>Email: {email}</li></ul>"
 	return html
 
-database_path = os.getcwd() + "/extra/blog/database"
+database_path = os.getcwd() + "/database"
 data_file = os.path.join(database_path, "data.txt")
 users_file = os.path.join(database_path, "users.txt")
 sessions_file = os.path.join(database_path, "sessions.txt")
