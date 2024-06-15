@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/12 00:56:17 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/15 09:01:55 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -274,10 +274,16 @@ int Request::validate_request_line()
 {
 	if (utils::size_of_stream(this->raw_) < 15)
 		return 0;
+	if (utils::size_of_stream(this->raw_) > 4096 * 2)
+		return 414;
 	while (std::getline(this->raw_, this->req_line)) {
 		if (this->req_line.empty()
 		|| (this->req_line.length() == 1 && this->req_line == "\r"))
 			continue;
+		if (this->raw_.eof()) {
+			this->raw_.seekg(0);
+			return 0;
+		}
 		log << Log::DEBUG << "Request line: " << this->req_line << std::endl;
 
 		std::string::size_type first(this->req_line.find(' '));
@@ -294,13 +300,16 @@ int Request::validate_request_line()
 		if (second == std::string::npos || second == first + 1)
 			return 400;
 		this->url = this->req_line.substr(first + 1, second - first - 1);
+		if (!utils::is_valid_url(this->url))
+			return 400;
 		std::string::size_type q(this->url.find('?'));
 		if (!q)
 			return 400;
-		if (q != std::string::npos && q) {
+		if (q != std::string::npos) {
 			this->query = this->url.substr(q + 1);
 			this->url.erase(q);
 		}
+		this->url = utils::url_decode(this->url);
 		if (!validate_url())
 			return 400;
 		log << Log::DEBUG << "URL:		[" << this->url << "]" << std::endl;
@@ -396,12 +405,11 @@ std::string Request::load_body()
 	return ss.str();
 }
 
-// TODO: total recall
+// TODO: test and validate
 bool Request::load_payload(size_t size)
 {
 	if (!this->loaded_body_size)
 		this->payload.reserve(size);
-	// this->raw_.clear();
 	std::streampos	inpos = this->raw_.tellg();
 	std::streampos	outpos = this->raw_.tellp();
 
@@ -410,29 +418,12 @@ bool Request::load_payload(size_t size)
 		<< "Inpos: " << inpos << " | Outpos: " << outpos << std::endl
 		<< "Size: " << size << std::endl
 		<< "EOF: " << this->raw_.eof() << std::endl;
-	std::string	tmp;
-	this->raw_ >> std::noskipws >> tmp;
-	if (!partial) {
-		tmp.erase(size);
-		this->payload.insert(this->payload.end(), tmp.begin(),
-				tmp.end());
-	} else {
-		this->payload.insert(this->payload.end(), tmp.begin(),
-				tmp.end());
-	}
+	std::string	tmp(this->load_body());
+	log << Log::DEBUG << "Body:\n" << tmp << std::endl;
+	this->payload.insert(this->payload.end(), tmp.begin(), tmp.end());
 	this->loaded_body_size += partial	? static_cast<size_t>(outpos - inpos)
 										: size;
 	this->is_body_loaded_ = !partial;
-	if (!partial) {
-		this->raw_.seekg(this->payload.size() - 1, std::ios_base::cur);
-		if (this->raw_.peek() == std::char_traits<char>::eof())
-			this->raw_.ignore(1);
-		log << Log::DEBUG << "AFTER " << std::endl
-			<< "Inpos: " << this->raw_.tellg()
-			<< " | Outpos: " << this->raw_.tellp() << std::endl
-			<< "Body loaded:" << std::endl << &this->payload[0] << std::endl
-			<< "EOF: " << this->raw_.eof() << std::endl;
-	}
 	return partial;
 }
 

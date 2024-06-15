@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:59:51 by lbaron            #+#    #+#             */
-/*   Updated: 2024/06/08 21:26:39 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/15 08:29:14 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -201,8 +201,79 @@ namespace utils {
 		if (str.empty())
 			return false;
 		ss << std::hex << str;
-		if (ss.eof() && !ss.fail())
+		if (!ss.fail())
 			ss >> *out_hex;
 		return ss.eof() && !ss.fail();
+	}
+
+	int str_fromhex(std::string const &str)
+	{
+		std::istringstream	iss(str);
+		int					i;
+
+		iss >> std::hex >> i;
+		return i;
+	}
+
+	bool is_valid_url(std::string const &url)
+	{
+		static const char charset[] = "$-_.+!*'(),;/?:@=&%";
+
+		for (std::string::const_iterator it = url.begin();
+		it != url.end(); ++it) {
+			std::string::value_type	c(*it);
+			if (static_cast<unsigned char>(c) > 127)
+				return false;
+			if (!std::isalnum(static_cast<unsigned char>(c))) {
+				size_t	i(0);
+				while (i < sizeof(charset) && charset[i] != c)
+					++i;
+				if (i == sizeof(charset))
+					return false;
+			}
+		}
+		return true;
+	}
+
+	std::string url_encode(std::string const &url)
+	{
+		std::ostringstream	oss;
+		oss.fill('0');
+		oss << std::hex;
+		for (std::string::const_iterator i = url.begin();
+		i != url.end(); ++i) {
+			std::string::value_type	c(*i);
+			if (c == '.' || c == '-' || c == '_' || c == '~'
+			|| std::isalnum(static_cast<unsigned char>(c))) {
+				oss << c;
+				continue;
+			}
+			oss << std::uppercase;
+			oss << '%' << std::setw(2) << int(static_cast<unsigned char>(c));
+			oss << std::nouppercase;
+		}
+		return oss.str();
+	}
+
+	std::string url_decode(std::string const &url)
+	{
+		std::ostringstream	oss;
+		oss << std::noskipws;
+		for (size_t i = 0; i < url.length(); ++i) {
+			std::string::value_type	c(url[i]);
+			if (c == '%') {
+				if (i + 2 >= url.length())
+					break;
+				int val(str_fromhex(std::string(url, i + 1, 2)));
+				i += 2;
+				if (val < 20)
+					continue;
+				oss.put(static_cast<char>(val));
+			} else if (c == '+') {
+				oss.put(' ');
+			} else
+				oss.put(c);
+		}
+		return oss.str();
 	}
 }

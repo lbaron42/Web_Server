@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/13 06:29:51 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/15 05:25:05 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -113,6 +113,7 @@ class Server
 
 		const std::vector<ServerData::Address> get_addresses() const;
 		const std::vector<std::string> get_hostnames() const;
+		std::string get_root() const;
 		std::vector<std::pair<int, CGIHandler*> > get_cgi_pipes();
 		void set_epoll(int epoll_fd);
 		void set_log();

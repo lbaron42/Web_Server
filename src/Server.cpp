@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/13 08:15:11 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/15 09:35:47 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -45,6 +45,9 @@ ServerData::ServerData()
 		locations()
 {}
 
+ServerData::~ServerData()
+{}
+
 ServerData::Address::Address()
 	:	ip(),
 		port()
@@ -63,9 +66,6 @@ ServerData::Location::Location()
 {}
 
 ServerData::Location::~Location()
-{}
-
-ServerData::~ServerData()
 {}
 
 Server::Server(ServerData const &server_data, Log &log)
@@ -122,6 +122,11 @@ const std::vector<ServerData::Address> Server::get_addresses() const
 const std::vector<std::string> Server::get_hostnames() const
 {
 	return this->info.hostnames;
+}
+
+std::string Server::get_root() const
+{
+	return this->info.root;
 }
 
 std::vector<std::pair<int, CGIHandler*> > Server::get_cgi_pipes()
@@ -380,34 +385,38 @@ bool Server::handle_request(int fd)
 	Headers				hdrs;
 	std::vector<char>	payload;
 
-	if (request->is_bounced()) {
-		std::string const host = request->get_header("host");
-		if (host.empty() && request->is_version_11()) {
-			request->set_status(400);
-			this->prepare_error_page(request, hdrs, payload);
-		}
-	}
-	if (request->is_chunked()) {
-		log << Log::DEBUG << "Receiving chunked request" << std::endl;
-		std::map<int, ChunkNorris*>::iterator cn = this->chunksters.find(fd);
-		if (cn == this->chunksters.end()) {
-			this->chunksters[fd] = new (std::nothrow) ChunkNorris();
-			if (!this->chunksters[fd]) {
-				this->chunksters.erase(fd);
-				request->set_status(500);
-				this->internal_error(fd, 500);
-				return true;
+	if (request->get_status() >= 400) {
+		this->prepare_error_page(request, hdrs, payload);
+	} else {
+		if (request->is_bounced()) {
+			std::string const host = request->get_header("host");
+			if (host.empty() && request->is_version_11()) {
+				request->set_status(400);
+				this->prepare_error_page(request, hdrs, payload);
 			}
 		}
-		if (!this->chunksters[fd]->nunchunkMe(request)) {
-			if (request->get_status() != 400) {
-				request->set_status(500);
-				this->internal_error(fd, 500);
-				return true;
+		if (request->is_chunked()) {
+			log << Log::DEBUG << "Receiving chunked request" << std::endl;
+			std::map<int, ChunkNorris*>::iterator cn = this->chunksters.find(fd);
+			if (cn == this->chunksters.end()) {
+				this->chunksters[fd] = new (std::nothrow) ChunkNorris();
+				if (!this->chunksters[fd]) {
+					this->chunksters.erase(fd);
+					request->set_status(500);
+					this->internal_error(fd, 500);
+					return true;
+				}
 			}
-			this->prepare_error_page(request, hdrs, payload);
-		} else if (!this->chunksters[fd]->is_done()) {
-			return false;
+			if (!this->chunksters[fd]->nunchunkMe(request)) {
+				if (request->get_status() != 400) {
+					request->set_status(500);
+					this->internal_error(fd, 500);
+					return true;
+				}
+				this->prepare_error_page(request, hdrs, payload);
+			} else if (!this->chunksters[fd]->is_done()) {
+				return false;
+			}
 		}
 	}
 	if (request->get_status() < 400) {
@@ -632,9 +641,6 @@ void Server::parse_request(int fd)
 	if (!request->parse_headers())
 		return ;
 	request->set_parsed(true);
-	// log << Log::DEBUG << "Parsed headers: " << std::endl
-	// 	<< request->get_headers()
-	// 	<< std::endl;
 	return ;
 }
 
@@ -1033,8 +1039,8 @@ bool Server::is_cgi_request(Request *request, Headers &headers)
 		info - this->info.root.length() - this->info.cgi_path.length())
 		);
 	std::string	script_path(this->info.root + this->info.cgi_path + script);
+	request->set_script(this->info.cgi_path + script);
 	log << Log::DEBUG << "Checking for script: " << script << std::endl;
-	request->set_script(script_path);
 	std::vector<std::string>::const_iterator it(this->info.cgi_ext.begin());
 	for ( ; it != this->info.cgi_ext.end(); ++it) {
 		if (utils::ends_with(script, *it)) {
@@ -1048,7 +1054,6 @@ bool Server::is_cgi_request(Request *request, Headers &headers)
 	return false;
 }
 
-// TODO
 bool Server::handle_cgi(int fd, Request *request)
 {
 	if (request->get_status() >= 400)

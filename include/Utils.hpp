@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:52:42 by lbaron            #+#    #+#             */
-/*   Updated: 2024/06/08 21:23:28 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/15 08:28:48 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,6 +19,7 @@
 # include <cstdlib>
 # include <ctime>
 # include <fstream>
+# include <iomanip>
 # include <ios>
 # include <map>
 # include <string>
@@ -63,6 +64,10 @@ namespace utils {
 	bool save_file(std::string name, std::vector<char> content, bool bin = true);
 	std::string time_tostr(std::time_t &time);
 	bool str_tohex(std::string const &str, size_t *out_hex);
+	int str_fromhex(std::string const &str);
+	bool is_valid_url(std::string const &url);
+	std::string url_encode(std::string const &url);
+	std::string url_decode(std::string const &url);
 
 	struct MimeType
 	{
