@@ -5,6 +5,6 @@ function FindProxyForURL(url, host) {
     || dnsDomainIs(host, "ping.js")
     || dnsDomainIs(host, "pong.js")) {
         return "HTTP 127.0.0.1:8080";
-    }
-    return "DIRECT";
+    } else
+        return "DIRECT";
 }

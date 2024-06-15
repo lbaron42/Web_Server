@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/15 10:14:06 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/15 16:16:36 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -1073,7 +1073,7 @@ bool Server::handle_cgi(int fd, Request *request)
 {
 	if (request->get_status() >= 400)
 		return false;
-	log << Log::DEBUG << "Running CGI: " << request->get_target() << std::endl;
+	log << Log::DEBUG << "Running CGI: " << request->get_script() << std::endl;
 
 	int			pipes[2] = {-1, -1};
 	CGIHandler	*cgi = new (std::nothrow)

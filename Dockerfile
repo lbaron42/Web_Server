@@ -4,7 +4,9 @@ RUN apk update \
 	&& apk upgrade \
 	&& apk add coreutils gcc g++ make
 WORKDIR /build
-COPY . .
+COPY src src
+COPY include include
+COPY Makefile Makefile
 RUN make static
 
 FROM scratch
@@ -13,4 +15,4 @@ COPY --from=builder /build/webserv /usr/bin/webserv
 COPY config/container.conf /etc/webserv/container.conf
 ENTRYPOINT [ "/usr/bin/webserv" ]
 CMD [ "/etc/webserv/container.conf" ]
-EXPOSE 8080 8081
+EXPOSE 8181 8182

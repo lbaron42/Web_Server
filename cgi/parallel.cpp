@@ -14,7 +14,7 @@ int main()
 	sleep(5);
 	std::cout << "\r\n" << std::flush;
 	sleep(5);
-	std::cout << "012345678901234567890123456789012345678901" << std::flush;
+	std::cout << "01234567890123456789012345678901234567890\n" << std::flush;
 	sleep(5);
 	return (0);
 }

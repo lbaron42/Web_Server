@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/23 11:58:31 by plandolf          #+#    #+#             */
-/*   Updated: 2024/06/10 01:06:38 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/15 19:31:11 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -42,7 +42,6 @@ class CGIHandler{
 		CGIHandler(Log &log, int client, size_t max_body_size, Server *owner);
 		CGIHandler(const CGIHandler &src);
 
-		// how to pass status of exit?
 		bool execute(int pipes[2], Request *request);
 
 		bool read_input();
@@ -52,12 +51,6 @@ class CGIHandler{
 		bool receive();
 
 		~CGIHandler();
-
-	/*
-		When is child process done? how we get notified?
-		=> SIGCHLD signal
-		=> pipe closed
-	*/
 
 	private:
 		Log					&log;
