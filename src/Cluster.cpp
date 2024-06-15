@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/18 19:51:33 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/13 06:31:02 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/15 09:50:12 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -341,7 +341,8 @@ void Cluster::manage_bounce_que(void)
 			}
 		}
 		if (sr == this->servers.end()) {
-			log << Log::DEBUG << "No server matching hostname found"
+			log << Log::DEBUG << "No server found matching hostname: "
+				<< request->get_header("host")
 				<< std::endl;
 			const_cast<Server*>(this->client_fds[cfd])
 				->register_request(cfd, request);

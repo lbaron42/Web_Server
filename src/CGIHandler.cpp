@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/23 17:57:12 by plandolf          #+#    #+#             */
-/*   Updated: 2024/06/13 08:16:40 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/15 12:24:54 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -82,75 +82,100 @@ bool CGIHandler::execute(int pipes[2], Request *request)
 	std::string					cmd(request->get_script());
 	if (cmd.empty())
 		return false;
+	if (cmd[0] == '/')
+		cmd.erase(0, 1);
 	argv.push_back(cmd.c_str());
 	argv.push_back(static_cast<char const *>(0L));
 
 	std::vector<char const *>	env;
-	std::map<std::string, std::string>	headers(request->get_headers().get_headers());
-	std::vector<std::string> params;
-	std::map<std::string, std::string>::const_iterator	hd;
-	for (hd = headers.begin(); hd != headers.end(); ++hd) {
-		// TODO: limit which headers are passed to CGI
-		std::string param = hd->first;
-		std::transform(
-			param.begin(),
-			param.end(),
-			param.begin(),
-			::toupper
-		);
-		param.append("=" + hd->second);
-		params.push_back(param);
-	}
-	for (std::vector<std::string>::const_iterator it = params.begin();
-	it != params.end(); ++it)
-		env.push_back(it->c_str());
-	// i.e. if URL=/cgi-bin/script.cgi/additional/path?id=value&foo=bar
-	// PATH_INFO=/additional/path
-	// QUERY_STRING=id=value&foo=bar
-	std::string path("PATH_INFO=" + request->get_path());
-	env.push_back(path.c_str());
-	std::string method("REQUEST_METHOD=" + request->get_method_as_str());
-	env.push_back(method.c_str());
-	std::string query("QUERY_STRING=" + request->get_query());
-	env.push_back(query.c_str());
+	std::map<std::string, std::string>	headers(
+		request->get_headers().get_headers());
+	// for (std::vector<std::string>::const_iterator it = params.begin();
+	// it != params.end(); ++it)
+	// 	env.push_back(it->c_str());
 	std::string gateway("GATEWAY_INTERFACE=CGI/1.1");
 	env.push_back(gateway.c_str());
 	std::string protocol("SERVER_PROTOCOL=HTTP/1.");
 	protocol.append(request->is_version_11() ? "1" : "0");
 	env.push_back(protocol.c_str());
+	std::string method("REQUEST_METHOD=" + request->get_method_as_str());
+	env.push_back(method.c_str());
+	std::string cont_len("CONTENT_LENGTH=");
+	if (headers.count("content-length")) {
+		cont_len.append(headers["content-length"]);
+		env.push_back(cont_len.c_str());
+	}
+	std::string cont_type("CONTENT_TYPE=");
+	if (headers.count("content-type")) {
+		cont_type.append(headers["content-type"]);
+		env.push_back(cont_type.c_str());
+	}
+	std::string query("QUERY_STRING=" + request->get_query());
+	env.push_back(query.c_str());
+	// i.e. if URL=/cgi-bin/script.cgi/additional/path;info?id=value&foo=bar
+	// PATH_INFO=/additional/path;info
+	// PATH_TRANSLATED=$SERVER_ROOT/$RESOLVED_LOCATION/additional/path;info
+	// QUERY_STRING=id=value&foo=bar
+	std::string path("PATH_INFO=");
+	std::string path_translated("PATH_TRANSLATED=");
+	if (!request->get_path().empty()) {
+		path.append(request->get_path());
+		path_translated.append(this->owner->translate_uri(request->get_path()));
+		env.push_back(path.c_str());
+		env.push_back(path_translated.c_str());
+	}
+	std::string script_name("SCRIPT_NAME=" + request->get_script());
+	env.push_back(script_name.c_str());
+	std::string serv_name("SERVER_NAME=");
+	if (headers.count("host"))
+		serv_name.append(headers["host"]);
+	else if (!this->owner->get_hostnames().empty())
+		serv_name.append(this->owner->get_hostnames()[0]);
+	env.push_back(serv_name.c_str());
+	std::string cookies("HTTP_COOKIE=");
+	if (headers.count("cookie")) {
+		cookies.append(headers["cookie"]);
+		env.push_back(cookies.c_str());
+	}
+	env.push_back("REMOTE_ADDR=0.0.0.0");
 	env.push_back(static_cast<char const *>(0));
 
 	int pin[2], pout[2];
-	if (pipe(pin) || pipe(pout))
+	if (::pipe(pin) || ::pipe(pout))
 		return false;
-	log << Log::DEBUG << "CGI Created pipe fds: "
+	log << Log::DEBUG << "CGI Created" << std::endl
+		<< "\t\tpipes: "
 		<< pin[0] << " " << pin[1] << " "
-		<< pout[0] << " " << pout[1] << std::endl;
-	this->pid = fork();
+		<< pout[0] << " " << pout[1] << std::endl
+		<< "\t\tchdir:	" << this->owner->get_root().c_str() << std::endl
+		<< "\t\tfile:	" << cmd << std::endl;
+	this->pid = ::fork();
 	if (this->pid < 0)
 		return false;
 	if (!this->pid) {
-		dup2(pout[0], STDIN_FILENO);
-		dup2(pin[1], STDOUT_FILENO);
-		close(pin[0]);
-		close(pin[1]);
-		close(pout[0]);
-		close(pout[1]);
-		execve(argv[0],
+		::dup2(pout[0], STDIN_FILENO);
+		::dup2(pin[1], STDOUT_FILENO);
+		::close(pin[0]);
+		::close(pin[1]);
+		::close(pout[0]);
+		::close(pout[1]);
+		if (::chdir(this->owner->get_root().c_str()))
+			std::exit(127);
+		::execve(argv[0],
 			const_cast<char* const*>(argv.data()),
 			const_cast<char* const*>(env.data()));
-		log << Log::DEBUG << "Execve failed. Commit sudoku" << std::endl;
+		// Execve failed. Commit sudoku
 		std::exit(127);
 	}
 
 	this->input = pin[0];
 	pipes[0] = pin[0];
-	close(pin[1]);
+	::close(pin[1]);
 	this->output = pout[1];
 	pipes[1] = pout[1];
-	close(pout[0]);
+	::close(pout[0]);
 	std::signal(SIGCHLD, SIG_IGN);
-	waitpid(this->pid, &this->status, WNOHANG);
+	::waitpid(this->pid, &this->status, WNOHANG);
 	this->request = request;
 	if (!this->status)
 		log << Log::DEBUG << "Executing CGI - PID: " << this->pid << std::endl;

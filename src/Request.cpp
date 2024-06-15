@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/15 09:01:55 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/15 09:48:12 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -300,8 +300,10 @@ int Request::validate_request_line()
 		if (second == std::string::npos || second == first + 1)
 			return 400;
 		this->url = this->req_line.substr(first + 1, second - first - 1);
-		if (!utils::is_valid_url(this->url))
+		if (!utils::is_valid_url(this->url)) {
+			log << Log::DEBUG << "URL not valid" << std::endl;
 			return 400;
+		}
 		std::string::size_type q(this->url.find('?'));
 		if (!q)
 			return 400;

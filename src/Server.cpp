@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/15 09:35:47 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/15 10:14:06 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -608,6 +608,21 @@ void Server::shutdown_cgi(CGIHandler *cgi)
 		if (!this->switch_epoll_mode(fd, EPOLLOUT))
 			this->close_connection(fd);
 	}
+}
+
+std::string Server::translate_uri(std::string const &path_info)
+{
+	std::string	res(path_info);
+	std::vector<ServerData::Location> const	locs = this->info.locations;
+	std::vector<ServerData::Location>::const_iterator	lo;
+	for (lo = locs.begin(); lo != locs.end(); ++lo) {
+		if (path_info.rfind(lo->location_path, 0) != std::string::npos) {
+			if (!lo->alias.empty())
+				res.replace(0, lo->location_path.length(), lo->alias);
+			break;
+		}
+	}
+	return res;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:59:51 by lbaron            #+#    #+#             */
-/*   Updated: 2024/06/15 08:29:14 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/15 09:54:39 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -217,7 +217,7 @@ namespace utils {
 
 	bool is_valid_url(std::string const &url)
 	{
-		static const char charset[] = "$-_.+!*'(),;/?:@=&%";
+		static const char charset[] = "%$-_~.+!*'(),;/?:@=&#[]";
 
 		for (std::string::const_iterator it = url.begin();
 		it != url.end(); ++it) {

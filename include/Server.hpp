@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:30:06 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/15 05:25:05 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/15 10:05:57 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -135,6 +135,7 @@ class Server
 				std::vector<char> &payload);
 		bool request_timeout(int fd);
 		void shutdown_cgi(CGIHandler *cgi);
+		std::string translate_uri(std::string const &path_info);
 		~Server();
 
 	private:
