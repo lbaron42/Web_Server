@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:52:42 by lbaron            #+#    #+#             */
-/*   Updated: 2024/06/15 08:28:48 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/15 14:07:47 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -68,6 +68,7 @@ namespace utils {
 	bool is_valid_url(std::string const &url);
 	std::string url_encode(std::string const &url);
 	std::string url_decode(std::string const &url);
+	bool is_valid_ip4(std::string const &ip);
 
 	struct MimeType
 	{

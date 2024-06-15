@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:59:51 by lbaron            #+#    #+#             */
-/*   Updated: 2024/06/15 09:54:39 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/15 14:51:51 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -275,5 +275,37 @@ namespace utils {
 				oss.put(c);
 		}
 		return oss.str();
+	}
+
+	/* validate IPv4 dotted decimal */
+	bool is_valid_ip4(std::string const &ip)
+	{
+		if (std::count(ip.begin(), ip.end(), '.') != 3)
+			return false;
+		std::string::size_type symbols(ip.find_first_not_of("0123456789."));
+		if (symbols != std::string::npos)
+			return false;
+		size_t	i(0);
+		int		segment(0);
+		int		count(0);
+		int		octet(0);
+
+		while (i < ip.length()) {
+			if (ip[i] == '.') {
+				if (!count || octet > 255 || ++segment > 3)
+					return false;
+				count = 0;
+				octet = 0;
+				++i;
+				continue;
+			}
+			octet = (octet * 10) + ip[i] - '0';
+			if (count && !octet)
+				return false;
+			if (++count > 3)
+				return false;
+			++i;
+		}
+		return (segment == 3 && octet < 256);
 	}
 }

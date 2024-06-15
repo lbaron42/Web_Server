@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/06/15 13:04:06 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/15 14:52:16 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,17 +20,23 @@ Config::~Config()
 
 bool Config::verifyIp(std::string ip, int lineNum)
 {
-	size_t temp;
-	std::vector<std::string> split_ip;
-	split_ip = utils::split(ip, '.');
-	for(std::vector<std::string>::const_iterator it = split_ip.begin(); it != split_ip.end(); ++it)
-	{
-		temp = atoi(it->c_str());
-		if(!utils::isDigitString(*it) || temp > 255)
-		{
-			log << log.ERROR << ".conf error: Invalid IP address on line: " << lineNum << std::endl;
-			return false;
-		}
+	// size_t temp;
+	// std::vector<std::string> split_ip;
+	// split_ip = utils::split(ip, '.');
+	// for(std::vector<std::string>::const_iterator it = split_ip.begin(); it != split_ip.end(); ++it)
+	// {
+	// 	temp = atoi(it->c_str());
+	// 	if(!utils::isDigitString(*it) || temp > 255)
+	// 	{
+	// 		log << log.ERROR << ".conf error: Invalid IP address on line: " << lineNum << std::endl;
+	// 		return false;
+	// 	}
+	// }
+	if (!utils::is_valid_ip4(utils::trim(ip))) {
+		log << log.ERROR << ".conf error: Invalid IP address on line: "
+			<< lineNum << std::endl
+			<< "IP: [" << utils::trim(ip) << "]" << std::endl;
+		return false;
 	}
 	return true;
 }
@@ -106,12 +112,7 @@ bool Config::getAddress(std::string line, ServerData &current, int lineNum)
 	if (!trimLine(line, "listen", lineNum, newLine)) {
 		return false;
 	}
-	if (isdigit(newLine[0]) != 1 /* && Address[0] != '['*/) {
-		log << log.ERROR << ".conf error: Invalid IP address on line: " << lineNum << std::endl;
-		return false;
-	}
-	size_t pos = 0;
-	size_t end_pos = newLine.find(':', pos);
+	size_t end_pos = newLine.find(':');
 	if (end_pos == std::string::npos) {
 		_address.ip = "0.0.0.0";
 		_address.port = newLine;
@@ -120,12 +121,10 @@ bool Config::getAddress(std::string line, ServerData &current, int lineNum)
 		current.addresses.push_back(_address);
 		return true;
 	}
-	_address.ip = newLine.substr(pos, end_pos - pos);
+	_address.ip = newLine.substr(0, end_pos);
 	if (!verifyIp(_address.ip, lineNum))
 		return false;
-	pos = end_pos + 1;
-	end_pos = std::string::npos;
-	_address.port = newLine.substr(pos, end_pos - pos);
+	_address.port = newLine.substr(end_pos + 1);
 	if (!verifyPort(_address.port, lineNum))
 		return false;
 	current.addresses.push_back(_address);
