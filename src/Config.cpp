@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/06/08 21:29:04 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/15 13:04:06 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -285,7 +285,11 @@ int Config::configInit(const std::string &argv1)
 				{
 					std::string trimmed;
 					if (!trimLine(line, "client_max_body_size", lineNum, trimmed)) return EXIT_FAILURE;
-					sd.client_max_body_size = atoi(trimmed.c_str());
+					if (!utils::is_uint(trimmed.c_str())) {
+						log << Log::ERROR << "Invalid client_max_body_size, unsigned int expected" << std::endl;
+						return EXIT_FAILURE;
+					}
+					sd.client_max_body_size = utils::str_tonum<size_t>(trimmed.c_str());
 				}
 				else if (line.find("allow_methods") != std::string::npos)
 				{
