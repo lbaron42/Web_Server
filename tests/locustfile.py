@@ -6,10 +6,13 @@ class WebsiteUser(HttpUser):
     
     def on_start(self):
         pass
-    
+
     @task(10)
     def index(self):
         self.client.get("/")
+
+    @task(10)
+    def index(self):
         self.client.get("/action.html")
 
     # @task(5)
