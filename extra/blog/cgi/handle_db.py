@@ -19,7 +19,7 @@ def get_html(title, content):
 		<div class="collapse navbar-collapse" id="navbarNav">
 			<ul class="navbar-nav ml-auto">
 				<li class="nav-item">
-					<a class="nav-link" href="/create-post">Create Post</a>
+					<a class="nav-link" href="/create-post">Create Post(404 example)</a>
 				</li>
 				<li class="nav-item">
 					<a class="nav-link" href="/logout">Logout</a>
@@ -70,6 +70,14 @@ def get_entry(file_path, key):
 				break
 	return entry
 
+def delete_entry(file_path, key):
+	with open(file_path, "r") as file:
+		lines = file.readlines()
+	with open(file_path, "w") as file:
+		for line in lines:
+			if not line.startswith(key):
+				file.write(line)
+
 def valid_credentials(username, password):
 	creds = get_entry(users_file, username).split('|')
 	return (len(creds) > 1 and creds[1] == password)
@@ -94,6 +102,18 @@ def get_session():
 	if len(entries) == 2:
 		return (entries[0], entries[1].strip())
 	return ('','')
+
+def delete_session():
+	sessionid = ''
+	if "HTTP_COOKIE" in os.environ:
+		cookies = os.environ["HTTP_COOKIE"].split("; ")
+		for cookie in cookies:
+			key, value = cookie.split('=', 1)
+			if key == "session":
+				sessionid = value
+				break
+	if sessionid:
+		delete_entry(sessions_file, sessionid)
 
 def get_user_email(username):
 	entry = get_entry(users_file, username)
@@ -208,9 +228,24 @@ if (method == "POST"):
 	form = read_input()
 	handle_request(form)
 elif (method == "GET"):
-	html = get_html("Dashboard", personal_page())
-	print("Content-Length: " + str(len(html)))
-	print("Content-Type: text/html\n")
-	print(html)
+	action = ''
+	if "QUERY_STRING" in os.environ:
+		queries = os.environ["QUERY_STRING"].split("&")
+		for query in queries:
+			if query.startswith('action'):
+				action = query.split('=')[1]
+		if action == "logout":
+			delete_session()
+			html = f"<html><body><h3>Logged out</h3>"
+			html += "<p><a href='/'>Return Home</a></p></body></html>"
+			print(f"Set-Cookie: session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT")
+			print("Content-Length: " + str(len(html)))
+			print("Content-Type: text/html\n")
+			print(html)
+	if not action:
+		html = get_html("Dashboard", personal_page())
+		print("Content-Length: " + str(len(html)))
+		print("Content-Type: text/html\n")
+		print(html)
 else:
 	print("Status: 405")
