@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 07:54:45 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/27 20:42:56 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/12 01:47:32 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,7 +33,7 @@ std::vector<char> const Reply::get_payload(std::string const &filename)
 	std::ifstream		file(filename.c_str(), std::ios::binary);
 	std::vector<char>	bytes;
 
-	ssize_t file_size = get_file_size(filename);
+	ssize_t file_size = utils::get_file_size(filename);
 	if (file_size < 0)
 		return bytes;
 	bytes.reserve(file_size);
@@ -74,7 +74,7 @@ std::string const Reply::get_listing(std::string const &path,
 				mod_time = tmp;
 			}
 			if (S_ISREG(sb.st_mode)) {
-				file_size = num_tostr(sb.st_size);
+				file_size = utils::num_tostr(sb.st_size);
 			} else if (S_ISDIR(sb.st_mode)) {
 				name.append("/");
 				file_size = "-";
@@ -99,7 +99,6 @@ std::string const Reply::get_status_line(bool v11, int status)
 	return oss.str();
 }
 
-// TODO:
 std::string const Reply::generate_error_page(int status)
 {
 	std::stringstream	html;
@@ -116,6 +115,48 @@ std::string const Reply::generate_error_page(int status)
 	return html.str();
 }
 
+std::string const Reply::generate_redirect(std::string const &location)
+{
+	std::stringstream	html;
+
+	html << "<html>" << std::endl
+		<< "<head><title>Redirection</title></head>" << std::endl
+		<< "<p><a href=" << location
+		<< ">Redirect</a></p>" << std::endl
+		<< "</body>" << std::endl << "</html>" << std::endl;
+	return html.str();
+}
+
+std::string const Reply::generate_upload_success(
+	std::vector<std::string> const &locations)
+{
+	std::stringstream	html;
+
+	html << "<html>" << std::endl
+		<< "<head><title>Resource";
+	if (locations.size() > 1)
+		html << "s";
+	html << " uploaded</title></head>" << std::endl
+		<< "<body><ul>" << std::endl;
+	for (std::vector<std::string>::const_iterator it = locations.begin();
+	it != locations.end(); ++it) {
+		html << "<li>" << *it << "</li>" << std::endl;
+	}
+	html << "</ul></body>" << std::endl << "</html>" << std::endl;
+	return html.str();
+}
+
+std::string const Reply::generate_file_deleted(std::string const &filename)
+{
+	std::stringstream	html;
+
+	html << "<html>" << std::endl
+		<< "<head><title>Deleted resource:</title></head>" << std::endl
+		<< "<p>" << filename << "</p>" << std::endl
+		<< "</body>" << std::endl << "</html>" << std::endl;
+	return html.str();
+}
+
 size_t Reply::get_html_size(int status)
 {
 	return (Reply::generate_error_page(status)).length();
@@ -125,6 +166,25 @@ size_t Reply::get_html_size(std::string const &listed_directory,
 		std::string const &url)
 {
 	return (Reply::get_listing(listed_directory, url)).length();
+}
+
+void Reply::generate_response(Request *request, Headers &headers,
+		std::vector<char> const &body, std::vector<char> &repl)
+{
+	std::string tmp = Reply::get_status_line(request->is_version_11(),
+			request->get_status());
+	repl.insert(repl.end(), tmp.begin(), tmp.end());
+
+	headers.set_date();
+	std::stringstream ss;
+	ss >> std::noskipws;
+	ss << headers << "\r\n";
+	char c;
+	while (ss >> c)
+		repl.push_back(c);
+	if (!body.empty()) {
+		repl.insert(repl.end(), body.begin(), body.end());
+	}
 }
 
 std::string const Reply::get_status_message(int status)

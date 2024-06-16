@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/17 08:22:55 by mcutura           #+#    #+#             */
-/*   Updated: 2024/05/30 00:15:56 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/15 09:48:12 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,10 +37,14 @@ Request::Request(std::string const &raw, Log &logger)
 		status(0),
 		headers(),
 		target(),
+		script(),
+		path(),
 		loaded_body_size(0),
 		is_body_loaded_(false),
 		payload(),
-		bounced(false)
+		filenames(),
+		bounced(false),
+		is_chunked_(false)
 {}
 
 Request::Request(Request const &rhs)
@@ -57,14 +61,21 @@ Request::Request(Request const &rhs)
 		status(rhs.status),
 		headers(rhs.headers),
 		target(rhs.target),
+		script(rhs.script),
+		path(rhs.path),
 		loaded_body_size(rhs.loaded_body_size),
 		is_body_loaded_(rhs.is_body_loaded_),
 		payload(rhs.payload),
-		bounced(rhs.bounced)
+		filenames(rhs.filenames),
+		bounced(rhs.bounced),
+		is_chunked_(rhs.is_chunked_)
 {}
 
 Request::~Request()
-{}
+{
+	this->payload.clear();
+	this->filenames.clear();
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //	Getters/Setters
@@ -73,6 +84,16 @@ Request::~Request()
 Request::e_method Request::get_method() const
 {
 	return this->method;
+}
+
+std::string Request::get_method_as_str() const
+{
+	unsigned int m = static_cast<unsigned int>(this->method);
+	unsigned int c = 0;
+	if (m)
+		while (++c < n_methods && !(m & 1))
+			m >>= 1;
+	return std::string(methodnames[c]);
 }
 
 std::string Request::get_url() const
@@ -115,9 +136,24 @@ std::string Request::get_target() const
 	return this->target;
 }
 
+std::string Request::get_script() const
+{
+	return this->script;
+}
+
+std::string Request::get_path() const
+{
+	return this->path;
+}
+
 std::vector<char> Request::get_payload() const
 {
 	return this->payload;
+}
+
+std::vector<std::string> Request::get_filenames() const
+{
+	return this->filenames;
 }
 
 bool Request::is_dirlist() const
@@ -130,6 +166,7 @@ bool Request::is_parsed() const
 	return this->is_parsed_;
 }
 
+// TODO: rewrite
 bool Request::is_done() const
 {
 	return (this->raw_.eof());
@@ -138,6 +175,11 @@ bool Request::is_done() const
 bool Request::is_bounced() const
 {
 	return this->bounced;
+}
+
+bool Request::is_chunked() const
+{
+	return this->is_chunked_;;
 }
 
 size_t Request::get_loaded_body_size() const
@@ -160,6 +202,16 @@ void Request::set_target(std::string const &path)
 	this->target = path;
 }
 
+void Request::set_script(std::string const &script)
+{
+	this->script = script;
+}
+
+void Request::set_path(std::string const &path)
+{
+	this->path = path;
+}
+
 void Request::set_dirlist(bool value)
 {
 	this->is_dirlist_ = value;
@@ -168,8 +220,6 @@ void Request::set_dirlist(bool value)
 void Request::set_parsed(bool value)
 {
 	this->is_parsed_ = value;
-	log << Log::DEBUG << "Remaining raw buffer:" << std::endl
-		<< this->raw_.str() << std::endl;
 }
 
 void Request::set_bounced(bool value)
@@ -183,9 +233,9 @@ void Request::set_bounced(bool value)
 
 Request::e_method Request::parse_methods(std::string const &str)
 {
-	int					allowed_methods = 0;
-	std::string			method;
 	std::stringstream	ss(str);
+	std::string			method;
+	unsigned int		allowed_methods(0);
 
 	while (ss >> method) {
 		for (size_t i = 1; i < n_methods; ++i) {
@@ -204,17 +254,36 @@ Request::e_method Request::parse_methods(std::string const &str)
 
 void Request::append(std::string const &str)
 {
+	this->raw_.clear();
 	this->raw_ << str;
+}
+
+bool Request::validate_url()
+{
+	if (this->url.rfind("http://", 0) == std::string::npos)
+		return true;
+	std::string::size_type	pos(this->url.find_first_of('/', 7));
+	if (pos == std::string::npos)
+		this->url = "/";
+	else
+		this->url = this->url.substr(pos);
+	return true;
 }
 
 int Request::validate_request_line()
 {
-	if (size_of_stream(this->raw_) < 15)
+	if (utils::size_of_stream(this->raw_) < 15)
 		return 0;
+	if (utils::size_of_stream(this->raw_) > 4096 * 2)
+		return 414;
 	while (std::getline(this->raw_, this->req_line)) {
 		if (this->req_line.empty()
 		|| (this->req_line.length() == 1 && this->req_line == "\r"))
 			continue;
+		if (this->raw_.eof()) {
+			this->raw_.seekg(0);
+			return 0;
+		}
 		log << Log::DEBUG << "Request line: " << this->req_line << std::endl;
 
 		std::string::size_type first(this->req_line.find(' '));
@@ -231,11 +300,20 @@ int Request::validate_request_line()
 		if (second == std::string::npos || second == first + 1)
 			return 400;
 		this->url = this->req_line.substr(first + 1, second - first - 1);
+		if (!utils::is_valid_url(this->url)) {
+			log << Log::DEBUG << "URL not valid" << std::endl;
+			return 400;
+		}
 		std::string::size_type q(this->url.find('?'));
-		if (q != std::string::npos && q) {
-			this->query = this->url.substr(q);
+		if (!q)
+			return 400;
+		if (q != std::string::npos) {
+			this->query = this->url.substr(q + 1);
 			this->url.erase(q);
 		}
+		this->url = utils::url_decode(this->url);
+		if (!validate_url())
+			return 400;
 		log << Log::DEBUG << "URL:		[" << this->url << "]" << std::endl;
 		if (!this->query.empty()) {
 			log << Log::DEBUG << "Query		[" << this->query << "]"
@@ -248,12 +326,12 @@ int Request::validate_request_line()
 
 		std::string::size_type end(this->req_line.find('\r', second + 1));
 		if (end == std::string::npos) {
-			log << Log::WARN
+			log << Log::DEBUG
 				<< "Request line terminated by '\\n' instead of '\\r\\n'"
 				<< std::endl;
 		} else if (end != second + 9 || end != this->req_line.length() - 1)
 			return 400;
-		this->req_line = trim(this->req_line, "\r");
+		this->req_line = utils::trim(this->req_line, "\r");
 		log << Log::DEBUG << "Version:	["
 			<< this->req_line.substr(second + 1, end - second - 1)
 			<< "]" << std::endl;
@@ -266,7 +344,6 @@ int Request::validate_request_line()
 			return 200;
 		} else
 			return 505;
-		break;
 	}
 	return 400;
 }
@@ -299,14 +376,6 @@ bool Request::parse_headers()
 			return false;
 		}
 		if (header.empty() || header == "\r") {
-			std::string tmp;
-			std::stringstream remainder(std::string(),
-				std::ios_base::in | std::ios_base::out | std::ios_base::ate);
-			while (std::getline(this->raw_, tmp))
-				remainder << tmp;
-			this->raw_.clear();
-			this->raw_.str(std::string());
-			this->raw_ << remainder.rdbuf();
 			return true;
 		}
 		std::string::size_type div = header.find(':');
@@ -315,19 +384,34 @@ bool Request::parse_headers()
 				<< header << std::endl;
 			continue;
 		}
-		std::string key = trim(header.substr(0, div));
+		std::string key = utils::trim(header.substr(0, div));
 		std::transform(key.begin(), key.end(), key.begin(), ::tolower);
-		std::string val = trim(header.substr(div + 1), " \t\r");
+		std::string val = utils::trim(header.substr(div + 1), " \t\r");
+		// TODO: manage cookies
+		if (utils::icompare(key, "Cookie")) {;}
 		this->headers.set_header(key, val);
+		if (utils::icompare(key, "Transfer-Encoding")
+		&& utils::icompare(val, "chunked"))
+			this->is_chunked_ = true;
 	}
 	return false;
 }
 
-void Request::load_payload(size_t size)
+std::string Request::load_body()
+{
+	std::stringstream	ss;
+	ss << this->raw_.rdbuf();
+	this->is_body_loaded_ = true;
+	this->raw_.clear();
+	this->raw_.str(std::string());
+	return ss.str();
+}
+
+// TODO: test and validate
+bool Request::load_payload(size_t size)
 {
 	if (!this->loaded_body_size)
 		this->payload.reserve(size);
-	// this->raw_.clear();
 	std::streampos	inpos = this->raw_.tellg();
 	std::streampos	outpos = this->raw_.tellp();
 
@@ -336,24 +420,133 @@ void Request::load_payload(size_t size)
 		<< "Inpos: " << inpos << " | Outpos: " << outpos << std::endl
 		<< "Size: " << size << std::endl
 		<< "EOF: " << this->raw_.eof() << std::endl;
-	if (partial) {
-		this->payload.insert(this->payload.end(), this->raw_.str().begin(),
-				this->raw_.str().end());
-	} else {
-		this->payload.insert(this->payload.end(), this->raw_.str().begin(),
-				this->raw_.str().begin() + (outpos - inpos));
-	}
+	std::string	tmp(this->load_body());
+	log << Log::DEBUG << "Body:\n" << tmp << std::endl;
+	this->payload.insert(this->payload.end(), tmp.begin(), tmp.end());
 	this->loaded_body_size += partial	? static_cast<size_t>(outpos - inpos)
 										: size;
 	this->is_body_loaded_ = !partial;
-	if (!partial) {
-		this->raw_.seekg(this->payload.size() - 1, std::ios_base::cur);
-		if (this->raw_.peek() == std::char_traits<char>::eof())
-			this->raw_.ignore(1);
-		log << Log::DEBUG << "AFTER " << std::endl
-			<< "Inpos: " << this->raw_.tellg()
-			<< " | Outpos: " << this->raw_.tellp() << std::endl
-			<< "Body loaded:" << std::endl << &this->payload[0] << std::endl
-			<< "EOF: " << this->raw_.eof() << std::endl;
+	return partial;
+}
+
+void Request::drop_payload()
+{
+	this->payload.clear();
+}
+
+bool Request::load_multipart(std::string const &boundary, size_t max_body_size)
+{
+	std::string				line;
+	std::string::size_type	div;
+
+	if (this->payload.empty()) {
+		this->headers.unset_header("content-disposition");
+		if (std::getline(this->raw_, line)) {
+			this->loaded_body_size += line.length() + 1;
+			if (line == boundary + "--\r"
+			|| line == boundary + "--") {
+				this->is_body_loaded_ = true;
+				log << Log::DEBUG << "END multipart body" << std::endl;
+				return true;
+			}
+			if (line != boundary + "\r" && line != boundary) {
+				log << Log::DEBUG << "Reject - body not starting with boundary"
+					<< std::endl << "[" << line << "]" << std::endl;
+				this->status = 400;
+				return true;
+			}
+			log << Log::DEBUG << "Found start boundary" << std::endl;
+		} else {
+			log << Log::WARN << "Raw stream EOF" << std::endl;
+			// this->status = 400;
+			return true;
+		}
+		while (std::getline(this->raw_, line)) {
+			this->loaded_body_size += line.length() + 1;
+			if (line.empty() || line == "\r")
+				break;
+			div = line.find(":");
+			if (div == std::string::npos) {
+				log << Log::WARN << "No header divider" << std::endl;
+				this->status = 400;
+				return true;
+			}
+			std::string	key(utils::trim(line.substr(0, div)));
+			std::string	val(utils::trim(line.substr(div + 1), " \t\r"));
+			if (key.empty() || val.empty()) {
+				log << Log::WARN << "Empty header key/value" << std::endl;
+				this->status = 400;
+				return true;
+			}
+			std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+			// TODO: Feature - Could check for forbidden mime types here
+			if (key == "content-disposition")
+				this->headers.set_header(key, val);
+		}
+		std::string	disp = this->headers.get_header("content-disposition");
+		if (disp.empty()) {
+			log << Log::WARN << "No content disposition" << std::endl;
+			this->status = 400;
+			return true;
+		}
+		log << Log::DEBUG << "Disposition:	[" << disp << "]" << std::endl;
+		div = disp.find("filename=");
+		if (div == std::string::npos) {
+			log << Log::WARN << "No disposition filename" << std::endl;
+			this->status = 400;
+			return true;
+		}
+		std::string::size_type end(disp.find("\"", div + 10));
+		if (end == std::string::npos) {
+			log << Log::WARN << "Unclosed quote around filename" << std::endl;
+			this->status = 400;
+			return true;
+		}
+		std::string const filename(utils::trim(
+			disp.substr(div + 10, end - div - 10), "\""));
+		if (filename.empty()) {
+			log << Log::DEBUG << "Empty file upload / no filename"
+				<< std::endl;
+			this->status = 400;
+			return true;
+		}
+		this->path = this->target + filename;
+		log << Log::DEBUG << "Filepath: [" << this->path << "]" << std::endl;
 	}
+	std::string	part = utils::get_delimited(this->raw_, boundary);
+	if (part.empty()) {
+		log << Log::DEBUG << "EMPTY delimited. Tellg: " << this->raw_.tellg()
+			<< std::endl;
+		this->raw_.clear();
+	}
+	this->loaded_body_size += part.length();
+	if (this->loaded_body_size > max_body_size) {
+		this->status = 413;
+		return true;
+	}
+	log << Log::DEBUG << "Delimited:" << std::endl << "["
+		<< part << "]" << std::endl << "[" << boundary << "]" << std::endl;
+	div = part.find(boundary);
+	if (div == std::string::npos) {
+		log << Log::DEBUG << "No end file boundary found" << std::endl;
+		this->payload.insert(this->payload.end(), part.begin(), part.end());
+		return false;
+	}
+	std::string	next(part.substr(div));
+	this->loaded_body_size -= next.length();
+	log << Log::DEBUG << "Next [" << next << "]" << std::endl;
+	part.erase(div - 1);
+	this->payload.insert(this->payload.end(), part.begin(), part.end());
+	if (!utils::save_file(this->path, this->payload)) {
+		log << Log::ERROR << "Error saving file" << std::endl;
+		this->status = 500;
+		return true;
+	}
+	this->filenames.push_back(this->path.substr(this->target.size()));
+	this->payload.clear();
+	std::string	tmp(this->raw_.str().substr(this->raw_.tellg()));
+	this->raw_.str(std::string());
+	this->raw_.clear();
+	this->raw_ << next << tmp;
+	return this->load_multipart(boundary, max_body_size);
 }

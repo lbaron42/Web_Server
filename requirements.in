@@ -1,0 +1,3 @@
+# Python environment requirements for testing suite
+locust
+pyslowloris

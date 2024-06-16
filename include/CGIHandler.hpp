@@ -3,53 +3,76 @@
 /*                                                        :::      ::::::::   */
 /*   CGIHandler.hpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: plandolf <plandolf@student.42.fr>          +#+  +:+       +#+        */
+/*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/23 11:58:31 by plandolf          #+#    #+#             */
-/*   Updated: 2024/05/29 18:25:13 by plandolf         ###   ########.fr       */
+/*   Updated: 2024/06/15 19:31:11 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef CGIHANDLER_HPP
 # define CGIHANDLER_HPP
 
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <fcntl.h>
-#include <cstring>
-#include <vector>
-#include <iostream>
-#include <sstream>
-#include <stdexcept>
-#include <sys/epoll.h>
-#include <map>
-#include <string>
-#include <fstream>
+# include <csignal>
+# include <cstddef>
+# include <cstring>
+# include <sstream>
+# include <string>
+# include <vector>
+
+# include <fcntl.h>
+# include <sys/epoll.h>
+# include <sys/socket.h>
+# include <sys/types.h>
+# include <sys/wait.h>
+# include <unistd.h>
+
+# include "ChunkNorris.hpp"
+# include "Headers.hpp"
+# include "Log.hpp"
+# include "Reply.hpp"
+# include "Request.hpp"
+# include "Utils.hpp"
+
+class Server;
 
 class CGIHandler{
 	
-	private:
-		std::string scriptPath;
-		std::map<std::string, std::string> environment;
-		std::string requestBody;
-
-		char** createEnvironmentArray();
-		void destroyEnvironmentArray(char** envp);
-		void setupEnvironmentVariables(char* envp[]);
-  		std::string determineScriptType() const;
-
 	public:
-		CGIHandler();
+		CGIHandler(Log &log, int client, size_t max_body_size, Server *owner);
 		CGIHandler(const CGIHandler &src);
-		CGIHandler &operator=(const CGIHandler &src);
+
+		bool execute(int pipes[2], Request *request);
+
+		bool read_input();
+		bool send_output();
+		void on_pipe_close(int fd);
+		bool send_reply();
+		bool receive();
+
 		~CGIHandler();
 
-		void setScriptPath(const std::string &path);
-		void setEnvironment(const std::map<std::string, std::string>& env);
-    	void setRequestBody(const std::string& body);
+	private:
+		Log					&log;
+		Request				*request;
+		int					client_fd;
+		int					input;
+		int					output;
+		pid_t				pid;
+		int					status;
+		std::vector<char>	wbuf;
+		std::vector<char>	rbuf;
+		Headers				headers;
+		std::vector<char>	reply;
+		size_t				max_body_size;
+		Server				*owner;
+		ChunkNorris			*chunkster;
 
-		bool execute(std::string &output);
+		void prepare_reply();
+		void reply_error();
+		void read_headers();
+
+		CGIHandler &operator=(const CGIHandler &src);
 };
 
 #endif

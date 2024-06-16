@@ -8,8 +8,8 @@
 
 namespace {
 	static char const	*tests_log = "tests/unit_tests/tests.log";
-	static const char *non_existing_file = "/pathThatDon'tExists/gostFile.conf";
-	Log			log;
+	static const char	*non_existing_file = "/pathDontExist/gostFile.conf";
+	Log					log;
 }
 
 bool testSuccessFiles(const std::string& directory)
@@ -22,7 +22,7 @@ bool testSuccessFiles(const std::string& directory)
 				std::string filePath = directory + "/" + ent->d_name;
 				Config conf(log);
 				if (conf.configInit(filePath.c_str())){
-					std::cout << filePath << std::endl;
+					log << Log::ERROR << filePath << std::endl;
 					closedir(dir);
 					return EXIT_FAILURE;
 			 	}
@@ -44,7 +44,7 @@ bool testErrorFiles(const std::string& directory)
 			std::string filePath = directory + "/" + ent->d_name;
 			Config conf(log);
 			if (!conf.configInit(filePath.c_str())){
-					std::cout << filePath << std::endl;
+					log << Log::ERROR << filePath << std::endl;
 					closedir(dir);
 					return EXIT_FAILURE;
 				}

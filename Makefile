@@ -3,16 +3,17 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: plandolf <plandolf@student.42.fr>          +#+  +:+       +#+         #
+#    By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/05/14 11:22:55 by mcutura           #+#    #+#              #
-#    Updated: 2024/05/27 13:43:10 by plandolf         ###   ########.fr        #
+#    Updated: 2024/06/15 20:14:29 by mcutura          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 NAME := webserv
 MAIN := main
 SRCS := Log Config Cluster Headers Reply Request Server Utils CGIHandler
+SRCS += Cookie ChunkNorris
 
 SRCDIR := src
 INCDIR := include
@@ -35,8 +36,8 @@ nitpicking: CPPFLAGS += -DSTRICT_EVALUATOR=1
 MKDIR := mkdir -p
 
 CONTAINER_NAME := marvinx
-PORT_MAPPING ?= -p "8080:8080" -p "8081:8081"
-MOUNT_VOLUME ?= -v $(shell pwd)/extra/webspace:/var/www/html:rw
+PORT_MAPPING ?= -p "8181:8181" -p "8182:8182"
+MOUNT_VOLUME ?= -v $(shell pwd)/extra/blog:/var/www/html:rw
 
 COLOUR_END := \033[0m
 COLOUR_GREEN := \033[0;32m

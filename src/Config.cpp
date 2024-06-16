@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Config.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lbaron <lbaron@student.42berlin.de>        +#+  +:+       +#+        */
+/*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/14 20:04:14 by lbaron            #+#    #+#             */
-/*   Updated: 2024/05/29 18:45:23 by lbaron           ###   ########.fr       */
+/*   Updated: 2024/06/15 14:52:16 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,17 +20,23 @@ Config::~Config()
 
 bool Config::verifyIp(std::string ip, int lineNum)
 {
-	size_t temp;
-	std::vector<std::string> split_ip;
-	split_ip = split(ip, '.');
-	for(std::vector<std::string>::const_iterator it = split_ip.begin(); it != split_ip.end(); ++it)
-	{
-		temp = atoi(it->c_str());
-		if(!isDigitString(*it) || temp > 255)
-		{
-			log << log.ERROR << ".conf error: Invalid IP address on line: " << lineNum << std::endl;
-			return false;
-		}
+	// size_t temp;
+	// std::vector<std::string> split_ip;
+	// split_ip = utils::split(ip, '.');
+	// for(std::vector<std::string>::const_iterator it = split_ip.begin(); it != split_ip.end(); ++it)
+	// {
+	// 	temp = atoi(it->c_str());
+	// 	if(!utils::isDigitString(*it) || temp > 255)
+	// 	{
+	// 		log << log.ERROR << ".conf error: Invalid IP address on line: " << lineNum << std::endl;
+	// 		return false;
+	// 	}
+	// }
+	if (!utils::is_valid_ip4(utils::trim(ip))) {
+		log << log.ERROR << ".conf error: Invalid IP address on line: "
+			<< lineNum << std::endl
+			<< "IP: [" << utils::trim(ip) << "]" << std::endl;
+		return false;
 	}
 	return true;
 }
@@ -38,7 +44,7 @@ bool Config::verifyIp(std::string ip, int lineNum)
 bool Config::verifyPort(std::string port, int lineNum)
 {
 	size_t p = atoi(port.c_str());
-	if(!isDigitString(port) || p > 65535)
+	if(!utils::isDigitString(port) || p > 65535)
 	{
 		log << log.ERROR << ".conf error: Port number is not a \"digit\" or it is out of Range, line: " << lineNum << std::endl;
 		return false;
@@ -106,12 +112,7 @@ bool Config::getAddress(std::string line, ServerData &current, int lineNum)
 	if (!trimLine(line, "listen", lineNum, newLine)) {
 		return false;
 	}
-	if (isdigit(newLine[0]) != 1 /* && Address[0] != '['*/) {
-		log << log.ERROR << ".conf error: Invalid IP address on line: " << lineNum << std::endl;
-		return false;
-	}
-	size_t pos = 0;
-	size_t end_pos = newLine.find(':', pos);
+	size_t end_pos = newLine.find(':');
 	if (end_pos == std::string::npos) {
 		_address.ip = "0.0.0.0";
 		_address.port = newLine;
@@ -120,12 +121,10 @@ bool Config::getAddress(std::string line, ServerData &current, int lineNum)
 		current.addresses.push_back(_address);
 		return true;
 	}
-	_address.ip = newLine.substr(pos, end_pos - pos);
+	_address.ip = newLine.substr(0, end_pos);
 	if (!verifyIp(_address.ip, lineNum))
 		return false;
-	pos = end_pos + 1;
-	end_pos = std::string::npos;
-	_address.port = newLine.substr(pos, end_pos - pos);
+	_address.port = newLine.substr(end_pos + 1);
 	if (!verifyPort(_address.port, lineNum))
 		return false;
 	current.addresses.push_back(_address);
@@ -138,8 +137,8 @@ bool Config::getErrors(std::string line, ServerData &current, int lineNum)
 	if (!trimLine(line, "error_page", lineNum, trimmedLine)) {
 		return false;
 	}
-	std::vector<std::string> splitError = split(trimmedLine, ' ');
-	if(splitError.size() != 2 || !isDigitString(splitError[0]))
+	std::vector<std::string> splitError = utils::split(trimmedLine, ' ');
+	if(splitError.size() != 2 || !utils::isDigitString(splitError[0]))
 	{
 		log << log.ERROR << "Wrong number of error_page elements on line: " << lineNum << " Example: 504 /50x.html" << std::endl;
 		return false;
@@ -150,20 +149,6 @@ bool Config::getErrors(std::string line, ServerData &current, int lineNum)
 		return false;
 	}
 	current.error_pages.insert(std::pair<int, std::string>(temp, splitError[1]));
-	return true;
-}
-
-bool Config::getCGI(std::string line, ServerData &current, int lineNum) {
-	std::string trimmedLine;
-	if (!trimLine(line, "cgi", lineNum, trimmedLine)) {
-		return false;
-	}
-	std::vector<std::string> splitCgi = split(trimmedLine, ' ');
-	if (splitCgi.size() != 2) {
-		log << log.ERROR << ".conf error: Wrong number of CGI elements on line: " << lineNum << std::endl;
-		return false;
-	}
-	current.cgi[splitCgi[0]] = splitCgi[1];
 	return true;
 }
 
@@ -178,8 +163,8 @@ int Config::configInit(const std::string &argv1)
 	std::string line;
 	while (std::getline(config_file, line)) {
 		lineNum++;
-		line = c_trim(line);
-		line = trim(line, "\t");
+		line = utils::c_trim(line);
+		line = utils::trim(line, "\t");
 		if (line.empty() || line[0] == '#') {
 			continue;
 		}
@@ -189,30 +174,30 @@ int Config::configInit(const std::string &argv1)
 			while (std::getline(config_file, line) && line.find('}') == std::string::npos)
 			{
 				lineNum++;
-				line = c_trim(line);
+				line = utils::c_trim(line);
 				if (line.empty() || line[0] == '#') {
 					continue;
 				}
 				if(validIndentation(line, SERVER_TAB, lineNum))
 					return EXIT_FAILURE;
-				line = trim(line, "\t");
+				line = utils::trim(line, "\t");
 				if (line.find("location") != std::string::npos)
 				{
 					ServerData::Location loc;
 					size_t pos = line.find("location") + 9;
 					while (pos < line.size() && (line[pos] == ' ' || line[pos] == '\t')) { pos++; }
 					size_t end_pos = line.find('{', pos);
-					loc.location_path = trim(line.substr(pos, end_pos - pos));
+					loc.location_path = utils::trim(line.substr(pos, end_pos - pos));
 					while (std::getline(config_file, line) && line.find('}') == std::string::npos)
 					{
 						lineNum++;
-						line = c_trim(line);
+						line = utils::c_trim(line);
 						if (line.empty() || line[0] == '#') {
 							continue;
 						}
 						if(validIndentation(line, LOCATION_TAB, lineNum))
 							return EXIT_FAILURE;
-						line = trim(line, "\t");
+						line = utils::trim(line, "\t");
 						std::string trimmed;
 						if (line.find("alias") != std::string::npos)
 						{
@@ -234,7 +219,7 @@ int Config::configInit(const std::string &argv1)
 						else if (line.find("index") != std::string::npos)
 						{
 							if (!trimLine(line, "index", lineNum, trimmed)) return EXIT_FAILURE;
-							loc.loc_index = split(trimmed, ' ');
+							loc.loc_index = utils::split(trimmed, ' ');
 						}
 						else if (line.find("allow_methods") != std::string::npos)
 						{
@@ -264,7 +249,7 @@ int Config::configInit(const std::string &argv1)
 				{
 					std::string trimmed;
 					if (!trimLine(line, "server_name", lineNum, trimmed)) return EXIT_FAILURE;
-					sd.hostnames = split(trimmed, ' ');
+					sd.hostnames = utils::split(trimmed, ' ');
 				}
 				else if (line.find("error_page") != std::string::npos)
 				{
@@ -287,7 +272,7 @@ int Config::configInit(const std::string &argv1)
 				{
 					std::string trimmed;
 					if (!trimLine(line, "index", lineNum, trimmed)) return EXIT_FAILURE;
-					sd.serv_index = split(trimmed, ' ');
+					sd.serv_index = utils::split(trimmed, ' ');
 				}
 				else if (line.find("root") != std::string::npos)
 				{
@@ -299,7 +284,11 @@ int Config::configInit(const std::string &argv1)
 				{
 					std::string trimmed;
 					if (!trimLine(line, "client_max_body_size", lineNum, trimmed)) return EXIT_FAILURE;
-					sd.client_max_body_size = atoi(trimmed.c_str());
+					if (!utils::is_uint(trimmed.c_str())) {
+						log << Log::ERROR << "Invalid client_max_body_size, unsigned int expected" << std::endl;
+						return EXIT_FAILURE;
+					}
+					sd.client_max_body_size = utils::str_tonum<size_t>(trimmed.c_str());
 				}
 				else if (line.find("allow_methods") != std::string::npos)
 				{
@@ -307,10 +296,17 @@ int Config::configInit(const std::string &argv1)
 					if (!trimLine(line, "allow_methods", lineNum, trimmed)) return EXIT_FAILURE;
 					sd.allow_methods = Request::parse_methods(trimmed);
 				}
-				else if  (line.find("cgi") != std::string::npos)
+				else if  (line.find("cgi_path") != std::string::npos)
 				{
-					if (!getCGI(line, sd, lineNum))
-						return EXIT_FAILURE;
+					std::string trimmed;
+					if (!trimLine(line, "cgi_path", lineNum, trimmed)) return EXIT_FAILURE;
+					sd.cgi_path = trimmed;
+				}
+				else if  (line.find("cgi_ext") != std::string::npos)
+				{
+					std::string trimmed;
+					if (!trimLine(line, "cgi_ext", lineNum, trimmed)) return EXIT_FAILURE;
+					sd.cgi_ext = utils::split(trimmed, ' ');
 				}
 				else
 				{
