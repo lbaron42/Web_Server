@@ -15,4 +15,4 @@ COPY --from=builder /build/webserv /usr/bin/webserv
 COPY config/container.conf /etc/webserv/container.conf
 ENTRYPOINT [ "/usr/bin/webserv" ]
 CMD [ "/etc/webserv/container.conf" ]
-EXPOSE 8181 8182
+EXPOSE 8080

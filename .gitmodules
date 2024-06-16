@@ -1,3 +1,3 @@
 [submodule "extra/mc-putchar.github.io"]
 	path = extra/mc-putchar.github.io
-	url = git@github.com:mc-putchar/mc-putchar.github.io.git
+	url = https://github.com/mc-putchar/mc-putchar.github.io.git
