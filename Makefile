@@ -6,7 +6,7 @@
 #    By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/05/14 11:22:55 by mcutura           #+#    #+#              #
-#    Updated: 2024/06/16 15:37:15 by mcutura          ###   ########.fr        #
+#    Updated: 2024/06/16 15:45:53 by mcutura          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -38,6 +38,8 @@ MKDIR := mkdir -p
 CONTAINER_NAME := marvinx
 PORT_MAPPING ?= -p "8080:8080"
 MOUNT_VOLUME ?= -v $(shell pwd)/extra/www:/var/www/html:rw
+
+SUBMODPAGE := extra/mc-putchar.github.io
 
 COLOUR_END := \033[0m
 COLOUR_GREEN := \033[0;32m
@@ -89,6 +91,10 @@ container:		# Build and run a Docker container running target executable
 	docker build . -t marvinx --progress=plain
 	docker run --rm --name $(CONTAINER_NAME) \
 		$(MOUNT_VOLUME) $(PORT_MAPPING) -it marvinx
+
+submodule:		# Pull git submodule webpage manually for testing
+	rm -rf $(SUBMODPAGE)
+	git clone git@github.com:mc-putchar/mc-putchar.github.io.git $(SUBMODPAGE)
 
 help:			# Print help on Makefile
 	@awk 'BEGIN { \
