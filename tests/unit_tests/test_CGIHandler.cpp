@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/23 17:56:05 by plandolf          #+#    #+#             */
-/*   Updated: 2024/06/02 19:50:41 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/17 00:13:41 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -85,6 +85,8 @@ int main() {
 
 	// pthread_join(thread1, NULL);
 	// pthread_join(thread2, NULL);
+
+	// TODO: Add new unit tests
 
 	return 0;
 }

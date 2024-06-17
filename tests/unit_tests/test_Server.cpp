@@ -15,6 +15,7 @@ int main()
 		std::ios_base::ate | std::ios_base::app), true);
 	log.set_verbosity(Log::DEBUG);
 
+	// TODO: Add unit tests here
 
 	return EXIT_SUCCESS;
 }

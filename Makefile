@@ -6,7 +6,7 @@
 #    By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/05/14 11:22:55 by mcutura           #+#    #+#              #
-#    Updated: 2024/06/16 15:45:53 by mcutura          ###   ########.fr        #
+#    Updated: 2024/06/17 00:23:08 by mcutura          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -75,7 +75,7 @@ check: debug $(TESTS:%=%.out) $(TESTS:%=%.test)	# Run tests
 	@echo "$(COLOUR_GREEN)All tests passed successfully$(COLOUR_END)"
 %.test: %.out
 	@echo "[TESTING]: $(*F)" >> $(UNITTESTSLOG)
-	@(timeout --preserve-status --signal=INT 4.2s ./$(*:%=%.out) \
+	@(timeout --preserve-status --signal=INT 4.2s ./$(*:%=%.out) $(*:%=%.in) \
 	2>$(UNITTESTSERRLOG) && echo "$(COLOUR_GREEN)[OK]$(COLOUR_END) $(*F)") \
 	|| (echo "$(COLOUR_RED)[KO]$(COLOUR_END) $(*F) failed" \
 	&& cat $(UNITTESTSLOG) && exit 1)

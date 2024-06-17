@@ -8,3 +8,7 @@ Subject-Testers/
 *.o
 *.out
 *.log
+extra
+data
+database
+www

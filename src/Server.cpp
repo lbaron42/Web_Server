@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/15 16:16:36 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/17 00:08:08 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -966,6 +966,10 @@ void Server::handle_put_request(Request *request, Headers &headers,
 		return ;
 	}
 	std::string const	target(request->get_target());
+	if (target.find("../") != std::string::npos) {
+		request->set_status(400);
+		return ;
+	}
 	bool				is_text(!type.rfind("text", 0));
 	bool				file_exists(access(target.c_str(), F_OK) == 0);
 	if (!file_exists || !access(target.c_str(), W_OK)) {
@@ -1012,6 +1016,10 @@ void Server::handle_delete_request(Request *request, std::vector<char> *body)
 	struct stat	sb;
 
 	if (request->get_status() >= 400)	return;
+	if (path.find("../") != std::string::npos) {
+		request->set_status(400);
+		return ;
+	}
 	if (stat(path.c_str(), &sb) || !S_ISREG(sb.st_mode)) {
 		request->set_status(404);
 		return ;
