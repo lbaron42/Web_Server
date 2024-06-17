@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:59:51 by lbaron            #+#    #+#             */
-/*   Updated: 2024/06/15 14:51:51 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/17 10:59:59 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -307,5 +307,19 @@ namespace utils {
 			++i;
 		}
 		return (segment == 3 && octet < 256);
+	}
+
+	bool sanitize_path(std::string const &path, std::string const &root)
+	{
+		char path_buf[PATH_MAX];
+		char root_buf[PATH_MAX];
+		char *root_real = ::realpath(root.c_str(), root_buf);
+		errno = 0;
+		char *path_real = ::realpath(path.c_str(), path_buf);
+		if (!path_real)
+			return (errno == ENOENT);
+		return (
+			std::string(path_real).rfind(root_real, 0) != std::string::npos
+		);
 	}
 }

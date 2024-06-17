@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/16 15:52:42 by lbaron            #+#    #+#             */
-/*   Updated: 2024/06/15 14:07:47 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/17 11:02:04 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,6 +15,8 @@
 
 # include <algorithm>
 # include <cctype>
+# include <cerrno>
+# include <climits>
 # include <cstddef>
 # include <cstdlib>
 # include <ctime>
@@ -25,7 +27,7 @@
 # include <string>
 # include <sstream>
 # include <vector>
-# include <errno.h>
+
 # include <sys/stat.h>
 # include <sys/types.h>
 
@@ -69,6 +71,7 @@ namespace utils {
 	std::string url_encode(std::string const &url);
 	std::string url_decode(std::string const &url);
 	bool is_valid_ip4(std::string const &ip);
+	bool sanitize_path(std::string const &path, std::string const &root);
 
 	struct MimeType
 	{

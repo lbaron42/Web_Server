@@ -6,7 +6,7 @@
 /*   By: mcutura <mcutura@student.42berlin.de>      +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/05/11 08:34:37 by mcutura           #+#    #+#             */
-/*   Updated: 2024/06/17 00:08:08 by mcutura          ###   ########.fr       */
+/*   Updated: 2024/06/17 11:01:31 by mcutura          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -966,10 +966,6 @@ void Server::handle_put_request(Request *request, Headers &headers,
 		return ;
 	}
 	std::string const	target(request->get_target());
-	if (target.find("../") != std::string::npos) {
-		request->set_status(400);
-		return ;
-	}
 	bool				is_text(!type.rfind("text", 0));
 	bool				file_exists(access(target.c_str(), F_OK) == 0);
 	if (!file_exists || !access(target.c_str(), W_OK)) {
@@ -1016,10 +1012,6 @@ void Server::handle_delete_request(Request *request, std::vector<char> *body)
 	struct stat	sb;
 
 	if (request->get_status() >= 400)	return;
-	if (path.find("../") != std::string::npos) {
-		request->set_status(400);
-		return ;
-	}
 	if (stat(path.c_str(), &sb) || !S_ISREG(sb.st_mode)) {
 		request->set_status(404);
 		return ;
@@ -1041,6 +1033,11 @@ void Server::handle_delete_request(Request *request, std::vector<char> *body)
 bool Server::is_cgi_request(Request *request, Headers &headers)
 {
 	request->set_target(this->resolve_address(request, headers));
+	if (!utils::sanitize_path(request->get_target(), this->info.root)) {
+		log << Log::DEBUG << "Deceptive routing: " << request->get_target()
+			<< std::endl;
+		request->set_status(400);
+	}
 
 	if (request->get_status() >= 400
 	|| this->info.cgi_path.empty() || this->info.cgi_ext.empty()
